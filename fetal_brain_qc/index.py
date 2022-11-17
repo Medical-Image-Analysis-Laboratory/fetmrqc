@@ -1,6 +1,6 @@
 from .data.config import IndexTemplate
 from pathlib import Path
-from .utils import get_html_index
+from .utils import get_html_index, add_message_to_reports
 
 
 def index_html(
@@ -21,9 +21,12 @@ def index_html(
     return out_file
 
 
-def generate_index(out_folder, index_list=None):
+def generate_index(out_folder, add_script_to_reports, index_list=None):
     if index_list is None:
         index_list = get_html_index(out_folder)
+    print(out_folder, add_script_to_reports)
+    if add_script_to_reports:
+        add_message_to_reports(out_folder, index_list)
 
     out = index_html(
         out_folder=out_folder,

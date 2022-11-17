@@ -9,13 +9,17 @@ def main():
     )
     p.add_argument(
         "--add-script-to-reports",
-        type=bool,
+        action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether some javascript should be added to the report for interaction with the index file.",
     )
 
     args = p.parse_args()
-    generate_index(args.report_path)
+    print(args.add_script_to_reports)
+    generate_index(
+        args.report_path,
+        args.add_script_to_reports,
+    )
 
 
 if __name__ == "__main__":
