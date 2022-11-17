@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="generator" content="Index" />
+    <title>Index</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <style type="text/css">
+        body {
+            font-family: helvetica;
+            padding: 50px 10px 10px;
+        }
+
+        iframe.current {
+            display: block;
+            /* iframes are inline by default */
+            background: #000;
+            border: none;
+            /* Reset default border */
+            height: 100vh;
+            /* Viewport-relative units */
+            width: 100vw;
+        }
+
+        td {
+            display: block;
+            float: left;
+            padding: 0px 5px;
+            margin-right: 10px;
+            background: white;
+        }
+
+        label {
+            display: inline-block;
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 1rem;
+            padding: 0.375rem 0.75rem;
+            font-family: helvetica;
+            border-width: 1px;
+            border-style: solid;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<script>
+
+
+    var locations = {{ index_list }}
+    var currentIndex = 0;
+
+    // Arrays tracking the reports used, and whether they have been rated + when.
+    var len = locations.length;
+    var is_rated = new Array(len).fill(0);
+    var time_rated = new Array(len).fill(0);
+
+    // This needs to be somehow global to keep track of the current index value and not reset it each time that the function is called.
+    function update_frame(idx) {
+        $('#report_div').css("display", 'block');
+        $('#report_frame').attr('src', locations[idx]);
+        $('#btn-prev').addClass('disabled');
+        $('#btn-next').addClass('disabled');
+    }
+
+    //function responseValue(val) { alert(val) }
+    if (window.addEventListener) {
+        window.addEventListener("message", onMessage, false);
+    }
+    else if (window.attachEvent) {
+        window.attachEvent("onmessage", onMessage, false);
+    }
+    function update_index() {
+        console.log(currentIndex)
+        console.log(locations[currentIndex])
+        is_rated[currentIndex] = 1
+        time_rated[currentIndex] = new Date();
+        console.log(is_rated[currentIndex], time_rated[currentIndex])
+        console.log("row of array", $('#row_' + currentIndex))
+        update_row(currentIndex)
+    }
+
+    function changeFrame(src) {
+        console.log(src)
+        $('#report_div').css("display", 'block');
+        $('#report_frame').attr('src', src);
+        $('#btn-prev').addClass('disabled');
+        $('#btn-next').addClass('disabled');
+        $("#index").css('display', 'none')
+        currentIndex = $.inArray(src, locations)
+    }
+
+    function onMessage(event) {
+        // Check sender origin to be trusted
+        console.log("message received")
+        //if (event.origin !== "https://example.com") return;
+        if (event.srcElement.location.protocol != "file:") return; // Is this a security abberation?
+        // I want to get any message that the rating is done on the iframe.
+        var data = event.data;
+        var keys = Object.keys(data)
+        if (!(keys.length == 1 && keys[0] == 'message') && (data != "rating done")) return;
+        update_index()
+
+        $('#btn-prev').removeClass('disabled');
+        $('#btn-next').removeClass('disabled');
+    }
+</script>
+
+<body>
+    <div class="document">
+        <div id="report_div" style="margin:auto;text-align: center; display:none">
+            <a class="btn btn-primary" role="button" id="btn-prev">Previous</a>
+            <a class="btn btn-secondary" role="button" id="btn-home">Home</a>
+            <a class="btn btn-primary" role="button" id="btn-next">Next</a>
+            <iframe id="report_frame" class="current" src=""></iframe>
+        </div>
+        <div id="index">
+            <input class='file-upload-button' type="file" id="file-btn" hidden />
+            <label for="file-btn">Choose File</label>
+            <a class="btn btn-primary" role="button" id="btn-save">Save progress config</a>
+            <h1 class="mt-5 mb-2">Index of reports</h1>
+            <table id="results">
+                <thead>
+                    <tr>
+                        <!-- HEADERS -->
+                    </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+<script>
+    const body = $('#results tbody');
+
+    // ---- Utilities ----
+    // Compute the number of rows in the array
+    function addZero(n) {
+        return (n < 10 ? '0' : '') + n;
+    }
+    function checkmark(is_rated) {
+        if (is_rated) {
+            return '\u2713';
+        } else {
+            return "\u2717";
+        }
+    }
+
+    function get_current_time_str() {
+        var date = new Date();
+        var current_date = date.getFullYear() + addZero(date.getMonth() + 1) + addZero(date.getDate());
+        var current_time = addZero(date.getHours()) + addZero(date.getMinutes()) + addZero(date.getSeconds());
+        return current_date + "_" + current_time
+    }
+
+    // Declare the table with the list of reports and time of rating.
+    $(document).ready(function () {
+        for (let i = 0; i < len; i++) {
+            // row contains all cells in a row
+            let row = $("<tr/>");
+
+            console.log(date)
+            text_time = '';
+            if (is_rated[i] == 1) {
+                var date = time_rated[i]
+                var current_date = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
+                var current_time = date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+                text_time = current_date + " " + current_time;
+            }
+            // Loop over the columns
+            row.append(`<td >${checkmark(is_rated[i])}</td>`);
+            row.append(`<td style="cursor:pointer" onclick="changeFrame(this.textContent)">${locations[i]}</td>`);
+            row.append(`<td>${text_time}</td>`);
+            row.attr("id", "row_" + i)
+            body.append(row);
+        }
+    });
+
+    function update_row(idx) {
+        date = time_rated[idx];
+        var current_date = date.getFullYear() + "-" + addZero(date.getMonth() + 1) + "-" + addZero(date.getDate());
+        var current_time = addZero(date.getHours()) + ":" + addZero(date.getMinutes()) + ":" + addZero(date.getSeconds());
+        var rated_at = "Rated: " + current_date + " at " + current_time
+        data = [checkmark(is_rated[idx]), locations[idx], rated_at];
+        $('#row_' + idx + ' td').each(function (i) {
+            $(this).text(data[i]);
+        });
+        $('#row_' + idx).children('td, th').css('color', '#007500');
+
+    }
+
+    //Action on button click: updating the dictionary
+    // or saving the current configuration
+    $('#btn-prev').click(function () {
+        currentIndex > 0 ? --currentIndex : 0;
+        update_frame(currentIndex)
+    });
+
+    $('#btn-next').click(function () {
+        currentIndex < len - 1 ? ++currentIndex : len - 1;
+        update_frame(currentIndex)
+    });
+
+    $('#btn-home').click(function () {
+        $('#report_div').css("display", 'none');
+        $("#index").css('display', 'block')
+    });
+
+    $('#btn-save').click(function () {
+        var out_dict = {}
+        $.each(locations, function (i, item) {
+            if (is_rated[i]) {
+                console.log(time_rated[i])
+                out_dict[item] = time_rated[i]
+            }
+        });
+        var file = new Blob([JSON.stringify(out_dict)], { type: 'text/json' });
+        $('#btn-save').attr('href', URL.createObjectURL(file));
+        var current_date = get_current_time_str();
+        $('#btn-save').attr('download', "progress_rating_" + current_date + ".json");
+    });
+
+    //Upload the config and actualize 
+    $(document).on('change', '.file-upload-button', function (event) {
+        let file = event.target.files[0];
+        let reader = new FileReader();
+        reader.readAsText(file);
+        reader.onload = function () {
+            let data = JSON.parse(reader.result);
+            $.each(data, function (key, value) {
+                console.log(key + ": " + value);
+                var idx = locations.indexOf(key);
+                var date = new Date(value)
+                is_rated[idx] = 1;
+                locations[idx] = key;
+                time_rated[idx] = date;
+                update_row(idx, date);
+            });
+        };
+
+    });
+</script>
+
+
+</html>
