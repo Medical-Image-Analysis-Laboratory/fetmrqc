@@ -62,6 +62,15 @@ class Template(object):
             output_file.write(output)
 
 
+class IndividualTemplate(Template):
+    """Specific template for the individual report. From MRIQC"""
+
+    def __init__(self):
+        super(IndividualTemplate, self).__init__(
+            pkgrf("fetal_brain_qc", "data/reports/report.html")
+        )
+
+
 class IndexTemplate(Template):
     """Specific template for the index file of the reports."""
 

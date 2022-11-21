@@ -15,7 +15,6 @@ def main():
     )
 
     args = p.parse_args()
-    print(args.add_script_to_reports)
     generate_index(
         args.report_path,
         args.add_script_to_reports,
