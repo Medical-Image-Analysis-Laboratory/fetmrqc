@@ -21,16 +21,38 @@ def index_html(
     return out_file
 
 
-def generate_index(out_folder, add_script_to_reports, index_list=None):
-    """TODO"""
-    if index_list is None:
-        index_list = get_html_index(out_folder)
-    if add_script_to_reports:
-        add_message_to_reports(out_folder, index_list)
+import os
 
-    out = index_html(
-        out_folder=out_folder,
-        index_list=index_list,
-    )
-    print(f"Index successfully generated in folder {out_folder}.")
-    return out
+
+def list_out_folders(out_folders):
+    """Construct the list of all folders that need
+    an index file. Two types of folders can be given as input:
+    1. Folders with reports
+    2. Folders containing various splits of reports (contructed
+        from the randomization step)
+    The function returns a list of folders potentially containing reports.
+    """
+    out_folder_list = []
+    for folder in out_folders:
+        out_folder_list += [Path(x[0]) for x in os.walk(folder)]
+    return out_folder_list
+
+
+def generate_index(out_folders, add_script_to_reports, use_ordering_file):
+    """TODO"""
+
+    out_folder_list = list_out_folders(out_folders)
+    out_dict = {}
+    for out_folder in out_folder_list:
+        index_list = get_html_index(out_folder, use_ordering_file)
+        if add_script_to_reports:
+            add_message_to_reports(index_list)
+        if len(index_list) > 0:
+            out = index_html(
+                out_folder=out_folder,
+                index_list=index_list,
+            )
+            out_dict[out_folder] = out
+            print(f"Index successfully generated in folder {out_folder}.")
+    print(out_dict)
+    return out_dict

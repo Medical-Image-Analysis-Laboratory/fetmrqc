@@ -5,6 +5,9 @@ import nibabel as ni
 import copy
 from pathlib import Path
 
+import csv
+import os
+
 
 def iter_bids(
     bids_layout,
@@ -34,22 +37,34 @@ def iter_bids(
                     yield (sub, ses, run, out[0])
 
 
-def get_html_index(folder):
-    """List all html files in the input `folder`."""
+def get_html_index(folder, use_ordering_file=False):
+    """List all html files in the input `folder` or,
+    if `use_ordering_file=True`, loads the ordering from
+    `folder`/ordering.csv
+    """
     index_list = [
         f
         for f in Path(folder).iterdir()
         if f.is_file() and f.suffix == ".html" and "index" not in f.name
     ]
+    if use_ordering_file and len(index_list) > 0:
+        ordering_file = Path(folder) / "ordering.csv"
+        if not os.path.isfile(ordering_file):
+            raise Exception(
+                f"File ordering.csv not found at {ordering_file}. "
+                "Did you mean to run with `--no-use-ordering-file`?"
+            )
+
+        reader = csv.DictReader(open(ordering_file))
+        index_list = [Path(folder) / f["name"] for f in reader]
     return index_list
 
 
-def add_message_to_reports(out_folder, index_list):
+def add_message_to_reports(index_list):
     """Given a folder (`out_folder`) and a list of files in it (`index_list`),
     injects a javascript function into the html file to make it able to interact
     with the index.html file.
     """
-    index_list = get_html_index(out_folder)
     for file in index_list:
         # Parse HTML file in Beautiful Soup
         soup = bs(open(file), "html.parser")
@@ -57,7 +72,11 @@ def add_message_to_reports(out_folder, index_list):
         in_str = out.string[1:]
         nspaces = len(in_str) - len(in_str.lstrip())
         newline = "\n" + " " * nspaces
-        script_func = f"{newline}$('#btn-download').click(function () {{{newline}    window.parent.postMessage({{'message': 'rating done'}}, '*');{newline}}});{newline}"
+        script_func = (
+            f"{newline}$('#btn-download').click(function () {{{newline}"
+            f"    window.parent.postMessage({{'message': 'rating done'}}, '*');"
+            f"{newline}}});{newline}"
+        )
         out.string = script_func + out.string
         with open(file, "w", encoding="utf-8") as f_output:
             f_output.write(str(soup))
