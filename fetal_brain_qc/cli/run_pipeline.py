@@ -21,8 +21,13 @@ def main():
     )
 
     p.add_argument(
-        "--bids-dir",
+        "bids-dir",
         help="BIDS directory containing the LR series.",
+    )
+
+    p.add_argument(
+        "out-path",
+        help="Path where the reports will be stored.",
     )
 
     p.add_argument(
@@ -92,12 +97,6 @@ def main():
             "Number of permutations of the data that must be computed "
             "(to be used with randomize=True)."
         ),
-    )
-
-    p.add_argument(
-        "-o",
-        "--out-path",
-        help="Path where the reports will be stored.",
     )
 
     args = p.parse_args()

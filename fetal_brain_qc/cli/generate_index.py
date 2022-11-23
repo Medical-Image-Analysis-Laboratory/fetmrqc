@@ -4,10 +4,9 @@ def main():
 
     p = argparse.ArgumentParser()
     p.add_argument(
-        "--reports-path",
+        "reports-path",
         nargs="+",
         help="Path where the reports are located",
-        required=True,
     )
     p.add_argument(
         "--add-script-to-reports",

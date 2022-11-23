@@ -10,19 +10,17 @@ def main():
             "subfolders of `out-path` labelled as split_1 to split_<n-raters>. "
             "Each folder will contain an `ordering.csv` file with the randomized "
             "ordering to be used."
-        )
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(
-        "--reports-path",
+        "reports-path",
         help="Path where the reports are located",
-        required=True,
     )
 
     p.add_argument(
-        "-o",
-        "--out-path",
+        "out-path",
         help="Path where the randomized reports will be stored.",
-        required=True,
     )
 
     p.add_argument(
