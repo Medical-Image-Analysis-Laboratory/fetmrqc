@@ -5,7 +5,10 @@ def main():
     from fetal_brain_qc.definitions import MASK_PATTERN_LIST
     from fetal_brain_qc.report import generate_report
     from fetal_brain_qc.index import generate_index
+    from fetal_brain_qc.randomize import randomize_reports
     import csv
+    from pathlib import Path
+    import os
 
     p = argparse.ArgumentParser(
         description=(
@@ -13,7 +16,8 @@ def main():
             " the directory and tries to find corresponding masks given by "
             "`mask_patterns`. Then, saves all the found pairs of (LR series, masks) in "
             " a CSV file at `bids_csv`"
-        )
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     p.add_argument(
@@ -52,6 +56,45 @@ def main():
     )
 
     p.add_argument(
+        "--randomize",
+        help=(
+            "Whether the order of the reports should be randomized. "
+            "The number of splits will be given by `n-raters` and the "
+            "number of reports in each split by `n-reports`. The results will be stored "
+            "in different subfolders of `out-path`"
+        ),
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
+    p.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed to control the randomization (to be used with randomize=True).",
+    )
+
+    p.add_argument(
+        "--n-reports",
+        type=int,
+        default=100,
+        help=(
+            "Number of reports that should be used in the randomized study "
+            "(to be used with randomize=True)."
+        ),
+    )
+
+    p.add_argument(
+        "--n-raters",
+        type=int,
+        default=3,
+        help=(
+            "Number of permutations of the data that must be computed "
+            "(to be used with randomize=True)."
+        ),
+    )
+
+    p.add_argument(
         "-o",
         "--out-path",
         help="Path where the reports will be stored.",
@@ -60,17 +103,19 @@ def main():
     args = p.parse_args()
 
     print("Running list_bids.")
+    bids_csv = Path(args.out_path) / "bids_csv.csv"
+    os.makedirs(args.out_path, exist_ok=True)
     list_bids(
         args.bids_dir,
         args.mask_patterns,
-        bids_csv=args.bids_csv,
+        bids_csv=bids_csv,
     )
     if args.anonymize_name:
-        print(f"Anonymize name in {args.bids_csv}.")
-        anonymize_bids_csv(args.bids_csv, out_bids_csv=args.bids_csv)
+        print(f"Anonymize name in {bids_csv}.")
+        anonymize_bids_csv(bids_csv, out_bids_csv=bids_csv)
 
     bids_list = []
-    reader = csv.DictReader(open(args.bids_csv))
+    reader = csv.DictReader(open(bids_csv))
     for i, line in enumerate(reader):
         bids_list.append(line)
 
@@ -88,10 +133,30 @@ def main():
         do_index=True,
     )
 
+    if args.randomize:
+        import shutil
+
+        print("Randomizing the reports.")
+
+        raw_reports = Path(args.out_path) / "raw_reports/"
+        os.makedirs(raw_reports)
+        for f in os.listdir(args.out_path):
+            f = Path(args.out_path) / f
+            if os.path.isfile(f):
+                new_path = raw_reports / Path(f).name
+                shutil.move(f, new_path)
+        randomize_reports(
+            raw_reports,
+            args.out_path,
+            args.n_reports,
+            args.n_raters,
+            args.seed,
+        )
     print("Generating index.")
     generate_index(
         args.out_path,
-        False,
+        add_script_to_reports=False,
+        use_ordering_file=args.randomize,
     )
 
 

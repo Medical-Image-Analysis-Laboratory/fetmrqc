@@ -57,6 +57,12 @@ def get_html_index(folder, use_ordering_file=False):
 
         reader = csv.DictReader(open(ordering_file))
         index_list = [Path(folder) / f["name"] for f in reader]
+    elif len(index_list) > 0:
+        if os.path.isfile(Path(folder) / "ordering.csv"):
+            print(
+                f"\tWARNING: ordering.csv was found but not used in {folder}.\n"
+                f"\tDid you mean to run with --use-ordering-file?"
+            )
     return index_list
 
 

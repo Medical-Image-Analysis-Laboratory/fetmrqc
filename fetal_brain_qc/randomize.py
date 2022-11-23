@@ -29,9 +29,14 @@ def randomize_reports(reports_path, out_path, n_reports, n_raters, seed):
     random.seed(seed)
     reports_list = get_html_index(reports_path)
     reports_list = randomize_and_sample_list(reports_list, nreports=n_reports)
-
+    print(f"\tCreating {n_reports} reports and {n_raters} splits.")
+    if len(reports_list) < n_reports:
+        print(
+            f"\tWARNING: There are less available reports ({len(reports_list)}) "
+            f"than the specified number ({n_reports})"
+        )
     out_path = Path(out_path)
-    os.makedirs(out_path)
+    os.makedirs(out_path, exist_ok=True)
 
     for i in range(n_raters):
         out_folder = out_path / f"split_{i+1}"

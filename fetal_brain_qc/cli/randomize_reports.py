@@ -7,18 +7,22 @@ def main():
             "Randomization of the reports located in `reports_path`. "
             "By default, the `n-reports` random reports will be sampled and "
             "`n-reports` different permutations of these reports will be saved as "
-            "subfolders of `out-path` labelled as split_1 to split_<n-raters>"
+            "subfolders of `out-path` labelled as split_1 to split_<n-raters>. "
+            "Each folder will contain an `ordering.csv` file with the randomized "
+            "ordering to be used."
         )
     )
     p.add_argument(
         "--reports-path",
         help="Path where the reports are located",
+        required=True,
     )
 
     p.add_argument(
         "-o",
         "--out-path",
         help="Path where the randomized reports will be stored.",
+        required=True,
     )
 
     p.add_argument(

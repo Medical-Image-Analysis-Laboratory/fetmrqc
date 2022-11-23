@@ -385,9 +385,11 @@
                         WebAPI</button>
                 </div>
                 <script type="text/javascript">
+
+                    var time_threshold = 1000
                     $('#qcslider').on('input', function () {
 
-                        if ((Date.now() - timestamp) / 100 > 10) {
+                        if ((Date.now() - timestamp) / time_threshold > 10) {
                             $('#btn-download').removeClass('disabled');
                             $('#btn-download').removeAttr('aria-disabled');
                             $('#btn-post').removeAttr('disabled');
@@ -415,7 +417,7 @@
 
                     $('#motionslider').on('input', function () {
 
-                        if ((Date.now() - timestamp) / 100 > 10) {
+                        if ((Date.now() - timestamp) / time_threshold > 10) {
                             $('#btn-download').removeClass('disabled');
                             $('#next-report').removeClass('disabled');
                             $('#btn-download').removeAttr('aria-disabled');
@@ -541,7 +543,7 @@
                     });
 
                     $('body').on('click', '#artifacts-group input', function (e) {
-                        if ((Date.now() - timestamp) / 1000 > 10) {
+                        if ((Date.now() - timestamp) / time_thresold > 10) {
                             $('#btn-download').removeClass('disabled');
                             $('#btn-download').removeAttr('aria-disabled');
                             $('#btn-post').removeAttr('disabled');

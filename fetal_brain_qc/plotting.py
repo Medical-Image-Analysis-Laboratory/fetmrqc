@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import os.path as op
 import matplotlib.pyplot as plt
-from mialsrtk_utils import get_cropped_stack_based_on_mask
+from .utils import get_cropped_stack_based_on_mask
 import math
 
 

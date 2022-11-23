@@ -1,6 +1,7 @@
 from .data.config import IndexTemplate
 from pathlib import Path
 from .utils import get_html_index, add_message_to_reports
+import os
 
 
 def index_html(
@@ -8,7 +9,6 @@ def index_html(
     index_list,
 ):
     """Given a folder containing reports, list all html files and generates an index."""
-    import os
 
     out_folder = Path(out_folder)
     index_list = [str(f.relative_to(out_folder)) for f in index_list]
@@ -21,9 +21,6 @@ def index_html(
     return out_file
 
 
-import os
-
-
 def list_out_folders(out_folders):
     """Construct the list of all folders that need
     an index file. Two types of folders can be given as input:
@@ -32,9 +29,18 @@ def list_out_folders(out_folders):
         from the randomization step)
     The function returns a list of folders potentially containing reports.
     """
+    if not isinstance(out_folders, list):
+        out_folders = [out_folders]
     out_folder_list = []
     for folder in out_folders:
-        out_folder_list += [Path(x[0]) for x in os.walk(folder)]
+        # Add all folders except
+        # `raw_reports` that contains
+        # raw reports
+        out_folder_list += [
+            Path(x[0])
+            for x in os.walk(folder)
+            if Path(x[0]).name != "raw_reports"
+        ]
     return out_folder_list
 
 
@@ -54,5 +60,4 @@ def generate_index(out_folders, add_script_to_reports, use_ordering_file):
             )
             out_dict[out_folder] = out
             print(f"Index successfully generated in folder {out_folder}.")
-    print(out_dict)
     return out_dict

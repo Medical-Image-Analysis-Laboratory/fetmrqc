@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name="fetal_brain_qc",
@@ -7,6 +7,7 @@ setup(
     description="Quality control for fetal brain MRI",
     author="Thomas Sanchez",
     author_email="thomas.sanchez@unil.ch",
+    install_requires=["beautifulsoup4", "pybids"],
     entry_points={
         "console_scripts": [
             "qc_generate_index = fetal_brain_qc.cli.generate_index:main",

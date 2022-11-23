@@ -9,11 +9,13 @@ def main():
         "-o",
         "--out-path",
         help="Path where the reports will be stored.",
+        required=True,
     )
 
     p.add_argument(
         "--bids-csv",
         help="Path where the bids config csv file is located.",
+        required=True,
     )
 
     p.add_argument(

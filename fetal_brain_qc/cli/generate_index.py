@@ -4,14 +4,15 @@ def main():
 
     p = argparse.ArgumentParser()
     p.add_argument(
-        "--report-path",
+        "--reports-path",
         nargs="+",
         help="Path where the reports are located",
+        required=True,
     )
     p.add_argument(
         "--add-script-to-reports",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help="Whether some javascript should be added to the report for interaction with the index file.",
     )
     p.add_argument(
@@ -26,7 +27,7 @@ def main():
 
     args = p.parse_args()
     generate_index(
-        args.report_path,
+        args.reports_path,
         args.add_script_to_reports,
         args.use_ordering_file,
     )
