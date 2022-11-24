@@ -31,6 +31,12 @@
                 artifacts.push($(this).attr('name'));
             });
 
+            // Parse the id of selected image in the form of axes_<n>
+            // Return <n> - 1 to have the slice number aligned with the
+            // displayed number
+            var selected_im = $(".selected_img").map(function () {
+                return parseInt(this.id.substr(5)) - 1
+            }).get().join(',');
 
             var rating = $('#qcslider').val();
             var orientation = $('#orientation').val();
@@ -56,7 +62,8 @@
                 'time_sec': (Date.now() - timestamp) / 1000,
                 'timestamp': formattedTime,
                 // 'confidence': $('#confidence').val(),
-                'comments': $('#widget-comments').val()
+                'comments': $('#widget-comments').val(),
+                'selected_slices': selected_im
             };
 
             var file = new Blob([JSON.stringify(payload)], { type: 'text/json' });
@@ -190,6 +197,11 @@
             cursor: pointer;
             z-index: 2000 !important;
         }
+
+        g.selected_img {
+            outline: solid 3px red;
+            outline-offset: -3px;
+        }
     </style>
 </head>
 
@@ -230,6 +242,7 @@
         </div>
 
         <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
+        <div>Select the slices that contain heavy artifacts in the in-plane view by clicking on them.</div>
         {% for title, svg_id, svg in svg_files %}
         <div class="card mt-2">
             <div class="card-header">{{ title }}</div>
@@ -366,7 +379,7 @@
                                         id="widget-comments"></textarea>
                                 </div>
 
-                                <p style="margin-top: 20px; font-weight: bold">Rater confidence:</p>
+                                <!-- <p style="margin-top: 20px; font-weight: bold">Rater confidence:</p>
                                 <input type="range" min="0.0" max="4.0" step="0.05" value="3.0" id="confidence"
                                     class="slider" style="margin-left: 22%;width: 56%;">
                                 <ul class="list-group list-group-horizontal slider-labels" style="width: 100%">
@@ -374,7 +387,7 @@
                                         style="width: 50%; text-align:center">Doubtful</button>
                                     <li class="list-group-item list-group-item-success bg-success text-white"
                                         style="width: 50%; text-align:center">Confident</button>
-                                </ul>
+                                </ul> -->
                             </div>
                         </div>
                     </div>
@@ -560,6 +573,18 @@
                         window.parent.postMessage({ 'message': 'rating done' }, '*');
                     });
                     {% endif %}
+
+
+                    $('#report-ip1 g[id^="axes_"]').on('click', function (e) {
+                        if ($(this).prop('clicked')) {
+                            $(this).prop('clicked', false);
+                            $(this).removeClass('selected_img');
+                        } else {
+                            $(this).prop('clicked', true);
+                            $(this).addClass('selected_img');
+                        }
+                        var payload = read_form();
+                    });
                 </script>
             </div>
         </div>

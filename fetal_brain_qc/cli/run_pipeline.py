@@ -21,12 +21,12 @@ def main():
     )
 
     p.add_argument(
-        "bids-dir",
+        dest="bids_dir",
         help="BIDS directory containing the LR series.",
     )
 
     p.add_argument(
-        "out-path",
+        dest="out_path",
         help="Path where the reports will be stored.",
     )
 
