@@ -4,7 +4,7 @@ def main():
 
     p = argparse.ArgumentParser()
     p.add_argument(
-        "reports-path",
+        "reports_path",
         nargs="+",
         help="Path where the reports are located",
     )
@@ -23,12 +23,21 @@ def main():
             "The file should be located in the report-path folder."
         ),
     )
-
+    p.add_argument(
+        "--navigation",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Whether the user should be able to freely navigate between reports. "
+            "This is disabled for rating, to force user to process reports sequentially."
+        ),
+    )
     args = p.parse_args()
     generate_index(
         args.reports_path,
         args.add_script_to_reports,
         args.use_ordering_file,
+        args.navigation,
     )
 
 

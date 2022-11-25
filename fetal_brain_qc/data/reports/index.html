@@ -58,7 +58,8 @@
 </head>
 <script>
 
-
+    // Whether we want the user to be able to switch unrestrictedly between files.
+    var free_navigation = {{ navigate| string | lower}}
     var locations = {{ index_list }}
     var currentIndex = 0;
 
@@ -71,8 +72,10 @@
     function update_frame(idx) {
         $('#report_div').css("display", 'block');
         $('#report_frame').attr('src', locations[idx]);
-        $('#btn-prev').addClass('disabled');
-        $('#btn-next').addClass('disabled');
+        if (!free_navigation) {
+            $('#btn-prev').addClass('disabled');
+            $('#btn-next').addClass('disabled');
+        }
     }
 
     //function responseValue(val) { alert(val) }
@@ -96,8 +99,11 @@
         console.log(src)
         $('#report_div').css("display", 'block');
         $('#report_frame').attr('src', src);
-        $('#btn-prev').addClass('disabled');
-        $('#btn-next').addClass('disabled');
+        if (!free_navigation) {
+            $('#btn-prev').addClass('disabled');
+            $('#btn-next').addClass('disabled');
+        }
+
         $("#index").css('display', 'none')
         currentIndex = $.inArray(src, locations)
     }

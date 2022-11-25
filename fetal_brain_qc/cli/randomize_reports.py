@@ -14,12 +14,12 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p.add_argument(
-        "reports-path",
+        "reports_path",
         help="Path where the reports are located",
     )
 
     p.add_argument(
-        "out-path",
+        "out_path",
         help="Path where the randomized reports will be stored.",
     )
 

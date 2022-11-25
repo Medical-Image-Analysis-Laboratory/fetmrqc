@@ -7,6 +7,7 @@ import os
 def index_html(
     out_folder,
     index_list,
+    navigate,
 ):
     """Given a folder containing reports, list all html files and generates an index."""
 
@@ -14,6 +15,7 @@ def index_html(
     index_list = [str(f.relative_to(out_folder)) for f in index_list]
     _config = {
         "index_list": index_list,
+        "navigate": navigate,
     }
     out_file = out_folder / "index.html"
     tpl = IndexTemplate()
@@ -44,7 +46,9 @@ def list_out_folders(out_folders):
     return out_folder_list
 
 
-def generate_index(out_folders, add_script_to_reports, use_ordering_file):
+def generate_index(
+    out_folders, add_script_to_reports, use_ordering_file, navigate
+):
     """TODO"""
 
     out_folder_list = list_out_folders(out_folders)
@@ -57,6 +61,7 @@ def generate_index(out_folders, add_script_to_reports, use_ordering_file):
             out = index_html(
                 out_folder=out_folder,
                 index_list=index_list,
+                navigate=navigate,
             )
             out_dict[out_folder] = out
             print(f"Index successfully generated in folder {out_folder}.")

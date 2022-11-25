@@ -99,6 +99,16 @@ def main():
         ),
     )
 
+    p.add_argument(
+        "--navigation",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Whether the user should be able to freely navigate between reports. "
+            "This is disabled for rating, to force user to process reports sequentially."
+        ),
+    )
+
     args = p.parse_args()
 
     print("Running list_bids.")
@@ -156,6 +166,7 @@ def main():
         args.out_path,
         add_script_to_reports=False,
         use_ordering_file=args.randomize,
+        navigate=args.navigation,
     )
 
 

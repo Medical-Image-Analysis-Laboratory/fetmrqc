@@ -14,7 +14,7 @@ def main():
     )
 
     p.add_argument(
-        "bids-dir",
+        "bids_dir",
         help="BIDS directory containing the LR series.",
     )
 

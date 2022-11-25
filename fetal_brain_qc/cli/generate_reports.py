@@ -6,12 +6,12 @@ def main():
     p = argparse.ArgumentParser()
 
     p.add_argument(
-        "out-path",
+        "out_path",
         help="Path where the reports will be stored.",
     )
 
     p.add_argument(
-        "bids-csv",
+        "bids_csv",
         help="Path where the bids config csv file is located.",
     )
 

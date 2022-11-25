@@ -31,13 +31,13 @@ The recommended workflow is to use `qc_run_pipeline`
 ```
 usage: qc_run_pipeline [-h] [--mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--bids-csv BIDS_CSV] [--anonymize-name | --no-anonymize-name] [--randomize | --no-randomize] [--seed SEED]
                        [--n-reports N_REPORTS] [--n-raters N_RATERS]
-                       bids-dir out-path
+                       bids_dir out_path
 
 Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `bids_csv`
 
 positional arguments:
-  bids-dir              BIDS directory containing the LR series.
-  out-path              Path where the reports will be stored.
+  bids_dir              BIDS directory containing the LR series.
+  out_path              Path where the reports will be stored.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -58,6 +58,11 @@ optional arguments:
   --n-reports N_REPORTS
                         Number of reports that should be used in the randomized study (to be used with randomize=True). (default: 100)
   --n-raters N_RATERS   Number of permutations of the data that must be computed (to be used with randomize=True). (default: 3)
+  --navigation, --no-navigation
+                        Whether the user should be able to freely navigate between reports. This is
+                        disabled for rating, to force user to process reports sequentially.
+                        (default: False)
+
 ```
 **Remark.** This script runs the whole pipeline of *fetal brain QC*, i.e. listing of BIDS directory and masks -> (anonymization of data) -> report generation (-> randomization of reports) -> index file generation
 
@@ -70,7 +75,7 @@ usage: qc_list_bids_csv [-h] [--mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]]
 Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `out_csv`
 
 positional arguments:
-  bids-dir              BIDS directory containing the LR series.
+  bids_dir              BIDS directory containing the LR series.
 
 options:
   -h, --help            show this help message and exit
@@ -89,8 +94,8 @@ options:
 usage: qc_generate_reports [-h] [--add-js | --no-add-js] out-path bids-csv
 
 positional arguments:
-  out-path              Path where the reports will be stored.
-  bids-csv              Path where the bids config csv file is located.
+  out_path              Path where the reports will be stored.
+  bids_csv              Path where the bids config csv file is located.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -106,8 +111,8 @@ Randomization of the reports located in `reports_path`. By default, the `n-repor
 `out-path` labelled as split_1 to split_<n-raters>. Each folder will contain an `ordering.csv` file with the randomized ordering to be used.
 
 positional arguments:
-  reports-path          Path where the reports are located
-  out-path              Path where the randomized reports will be stored.
+  reports_path          Path where the reports are located
+  out_path              Path where the randomized reports will be stored.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -122,7 +127,7 @@ optional arguments:
 usage: qc_generate_index [-h] [--add-script-to-reports | --no-add-script-to-reports] [--use-ordering-file | --no-use-ordering-file] reports-path [reports-path ...]
 
 positional arguments:
-  reports-path          Path where the reports are located
+  reports_path          Path where the reports are located
 
 options:
   -h, --help            show this help message and exit
@@ -130,6 +135,10 @@ options:
                         Whether some javascript should be added to the report for interaction with the index file. (default: False)
   --use-ordering-file, --no-use-ordering-file
                         Whether ordering.csv should be used to construct the ordering of index.html. The file should be located in the report-path folder. (default: False)
+  --navigation, --no-navigation
+                        Whether the user should be able to freely navigate between reports. This is
+                        disabled for rating, to force user to process reports sequentially.
+                        (default: False)
 
 ```
 
