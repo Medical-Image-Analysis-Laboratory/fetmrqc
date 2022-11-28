@@ -1,7 +1,7 @@
 def main():
-    import json
     import argparse
     from fetal_brain_qc.report import generate_report
+    from fetal_brain_qc.utils import csv_to_list
 
     p = argparse.ArgumentParser()
 
@@ -24,12 +24,8 @@ def main():
 
     args = p.parse_args()
 
-    import csv
+    bids_list = csv_to_list(args.bids_csv)
 
-    bids_list = []
-    reader = csv.DictReader(open(args.bids_csv))
-    for i, line in enumerate(reader):
-        bids_list.append(line)
     generate_report(
         bids_list,
         out_folder=args.out_path,
