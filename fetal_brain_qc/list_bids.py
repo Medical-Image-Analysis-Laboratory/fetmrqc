@@ -5,7 +5,7 @@ from bids import BIDSLayout
 import csv
 
 
-def list_bids(bids_dir, mask_pattern_list, bids_csv="bids_im_mask.csv"):
+def list_bids(bids_dir, mask_pattern_list, bids_csv):
     """Given a bids directory `bids_dir` containing LR stacks of fetal brain,
     along with a list of patterns to the corresponding brain masks, create a
     csv file `bids_csv` listing the name, subject, session, run, LR_path
@@ -30,19 +30,13 @@ def list_masks(bids_layout, mask_pattern_list):
     tries to find the masks that exist for each (subject, session, run)
     in the BIDS dataset, using the provided patterns.
     """
+    from fetal_brain_qc.utils import fill_pattern
+
     file_list = []
     for sub, ses, run, out in iter_bids(bids_layout):
 
-        ents = {
-            "subject": sub,
-            "session": ses,
-            "run": run,
-            "datatype": "anat",
-            "acquisition": "haste",
-            "suffix": "T2w_mask",
-        }
         paths = [
-            bids_layout.build_path(ents, p, validate=False)
+            fill_pattern(bids_layout, sub, ses, run, p)
             for p in mask_pattern_list
         ]
         for i, f in enumerate(paths):

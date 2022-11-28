@@ -6,6 +6,7 @@ def main():
     from fetal_brain_qc.report import generate_report
     from fetal_brain_qc.index import generate_index
     from fetal_brain_qc.randomize import randomize_reports
+    from fetal_brain_qc.utils import csv_to_list
     import csv
     from pathlib import Path
     import os
@@ -123,10 +124,7 @@ def main():
         print(f"Anonymize name in {bids_csv}.")
         anonymize_bids_csv(bids_csv, out_bids_csv=bids_csv)
 
-    bids_list = []
-    reader = csv.DictReader(open(bids_csv))
-    for i, line in enumerate(reader):
-        bids_list.append(line)
+    bids_list = csv_to_list(bids_csv)
 
     print("Generating reports.")
     generate_report(

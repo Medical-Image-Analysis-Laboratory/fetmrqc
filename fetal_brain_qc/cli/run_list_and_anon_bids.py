@@ -10,7 +10,8 @@ def main():
             " the directory and tries to find corresponding masks given by "
             "`mask_patterns`. Then, saves all the found pairs of (LR series, masks) in "
             " a CSV file at `out_csv`"
-        )
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     p.add_argument(

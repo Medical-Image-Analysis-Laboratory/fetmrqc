@@ -12,17 +12,17 @@ The code is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
 
 
 ## Installation
-fetal_brain_qc was developed in Ubuntu 22.04 and tested for python 3.9.12
+fetal_brain_qc was developed in Ubuntu 22.04 and tested for python 3.9.15
 
 To install this repository, first clone it via
 ```
-git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
+git clone git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
 ```
+and enter into the directory. Create a conda environment using `conda create -f environment.yml `
 
-Move then into the repository and install the remaining dependencies using pip
-```
-pip install -e .
-```
+Then, download and install [MONAIfbs](https://github.com/gift-surg/MONAIfbs/tree/main): clone the repository, go into the repository and install it using `python -m pip install -e .`
+
+Finally, move back to the `fetal_brain_qc` repository and install `fetal_brain_qc` using `python -m pip install -e .`
 
 ## Usage
 *Fetal brain QC* starts from a [BIDS](https://bids.neuroimaging.io/) dataset (containing `NIfTI` formatted images), as well as an additional folder containing *brain masks*. 

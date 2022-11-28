@@ -9,6 +9,26 @@ import csv
 import os
 
 
+def csv_to_list(csv_path):
+    file_list = []
+    reader = csv.DictReader(open(csv_path))
+    for i, line in enumerate(reader):
+        file_list.append(line)
+    return file_list
+
+
+def fill_pattern(bids_layout, sub, ses, run, pattern):
+    ents = {
+        "subject": sub,
+        "session": ses,
+        "run": run,
+        "datatype": "anat",
+        "acquisition": "haste",
+        "suffix": "T2w_mask",
+    }
+    return bids_layout.build_path(ents, pattern, validate=False)
+
+
 def iter_bids(
     bids_layout,
     extension="nii.gz",
