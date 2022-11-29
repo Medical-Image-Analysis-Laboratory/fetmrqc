@@ -20,10 +20,16 @@ git clone git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
 ```
 and enter into the directory. Create a conda environment using `conda create -f environment.yml `
 
+### MONAIfbs [2]
 Download and install [MONAIfbs](https://github.com/gift-surg/MONAIfbs/tree/main): clone the repository, go into the repository and install it using `python -m pip install -e .`
 
-Download the checkpoint `pytorch.ckpt` from [fetal_IQA](https://github.com/daviddmc/fetal-IQA) at [https://zenodo.org/record/7368570]. Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
+### fetal-IQA [3,4,5]
+Download the checkpoint `pytorch.ckpt` from [fetal-IQA](https://github.com/daviddmc/fetal-IQA) at [https://zenodo.org/record/7368570]. Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
 
+### pl-fetal-brain-assessment [6]
+Download a checkpoint from [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) at [https://fnndsc.childrens.harvard.edu/mri_pipeline/ivan/quality_assessment/]. Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`.
+
+### Final Step
 Finally, move back to the `fetal_brain_qc` repository and install `fetal_brain_qc` using `python -m pip install -e .`
 
 ## Usage
@@ -147,5 +153,15 @@ options:
 Part of this work is based on MRIQC, which is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
 ## References
 [1] Esteban, Oscar, et al. "MRIQC: Advancing the automatic prediction of image quality in MRI from unseen sites." PloS one 12.9 (2017): e0184661.
+[2] Ranzini, Marta, et al. "MONAIfbs: MONAI-based fetal brain MRI deep learning segmentation." arXiv preprint arXiv:2103.13314 (2021).
+
+[3] Semi-supervised learning for fetal brain MRI quality assessment with ROI consistency
+
+[4] Gagoski, Borjan, et al. "Automated detection and reacquisition of motion‐degraded images in fetal HASTE imaging at 3 T." Magnetic Resonance in Medicine 87.4 (2022): 1914-1922.
+
+[5] Lala, Sayeri, et al. "A deep learning approach for image quality assessment of fetal brain MRI." Proceedings of the 27th Annual Meeting of ISMRM, Montréal, Québec, Canada. 2019.
+
+[6] https://github.com/FNNDSC/pl-fetal-brain-assessment
