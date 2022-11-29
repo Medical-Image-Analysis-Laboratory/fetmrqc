@@ -9,10 +9,7 @@ def main():
         run_brain_extraction,
     )
     from fetal_brain_qc.utils import iter_bids
-
-    BRAIN_CKPT = os.path.join(
-        os.path.dirname(fbqc.__file__), "models/MONAIfbs_dynunet_ckpt.pt"
-    )
+    from fetal_brain_qc.definitions import BRAIN_CKPT
 
     p = argparse.ArgumentParser(
         description=(

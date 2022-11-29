@@ -34,7 +34,7 @@ def main():
     )
 
     parser.add_argument(
-        "--cropping",
+        "--cropped_path",
         action=argparse.BooleanOptionalAction,
         help="Whether cropping should be performed.",
         default=True,
@@ -97,7 +97,7 @@ def main():
         mask_path = run["mask"]
         if args.cropping:
             im_path, mask_path = crop_input(
-                im_path, mask_path, args.apply_mask, args.masked_path
+                im_path, mask_path, args.apply_mask, args.cropped_path
             )
 
         correct_bias_field(

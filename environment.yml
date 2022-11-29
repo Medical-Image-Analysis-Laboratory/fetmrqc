@@ -1,4 +1,4 @@
-name: fetal_brain_qc2
+name: fetal_brain_qc
 dependencies:
   - python=3.9.15
   - pip

@@ -16,6 +16,7 @@ setup(
             "qc_run_pipeline = fetal_brain_qc.cli.run_pipeline:main",
             "qc_brain_extraction = fetal_brain_qc.cli.run_brain_extraction:main",
             "qc_preprocessing = fetal_brain_qc.cli.run_preprocessing:main",
+            "qc_fetal_iqa = fetal_brain_qc.cli.run_iqa:main",
         ],
     },
 )

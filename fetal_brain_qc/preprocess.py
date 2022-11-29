@@ -4,13 +4,13 @@ import nibabel as ni
 from .utils import get_cropped_stack_based_on_mask
 
 
-def crop_input(file_path, mask_path, mask_image, dir_masked):
+def crop_input(file_path, mask_path, mask_image, dir_cropped):
     """Crops input image and mask, optionally masks it and
-    saves the files to dir_masked.
+    saves the files to dir_cropped.
     """
-    os.makedirs(dir_masked, exist_ok=True)
-    output = os.path.join(dir_masked, os.path.basename(file_path))
-    output_mask = os.path.join(dir_masked, os.path.basename(mask_path))
+    os.makedirs(dir_cropped, exist_ok=True)
+    output = os.path.join(dir_cropped, os.path.basename(file_path))
+    output_mask = os.path.join(dir_cropped, os.path.basename(mask_path))
 
     im, m = ni.load(file_path), ni.load(mask_path)
     boundary_mm = 15

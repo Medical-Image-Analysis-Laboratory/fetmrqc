@@ -209,11 +209,6 @@ def crop_image_to_region(
         range_z[0] : range_z[1],
     ]
     return image_cropped
-    # Return rectangular region surrounding masked region.
-    #  \param[in] mask_sitk sitk.Image representing the mask
-    #  \return range_x pair defining x interval of mask in voxel space
-    #  \return range_y pair defining y interval of mask in voxel space
-    #  \return range_z pair defining z interval of mask in voxel space
 
 
 def get_rectangular_masked_region(
