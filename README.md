@@ -27,7 +27,7 @@ Download and install [MONAIfbs](https://github.com/gift-surg/MONAIfbs/tree/main)
 Download the checkpoint `pytorch.ckpt` from [fetal-IQA](https://github.com/daviddmc/fetal-IQA) at [https://zenodo.org/record/7368570]. Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
 
 ### pl-fetal-brain-assessment [6]
-Download a checkpoint from [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) at [https://fnndsc.childrens.harvard.edu/mri_pipeline/ivan/quality_assessment/]. Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`.
+Download a checkpoint from [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) from [this link](https://fnndsc.childrens.harvard.edu/mri_pipeline/ivan/quality_assessment/). Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`.
 
 ### Final Step
 Finally, move back to the `fetal_brain_qc` repository and install `fetal_brain_qc` using `python -m pip install -e .`
