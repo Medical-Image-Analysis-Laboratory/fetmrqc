@@ -2,14 +2,12 @@ def main():
     import argparse
     import os
     from bids import BIDSLayout
-    import fetal_brain_qc as fbqc
-    from fetal_brain_qc.definitions import MASK_PATTERN
+    from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
     from fetal_brain_qc.brain_extraction import (
         bidsify_monaifbs,
         run_brain_extraction,
     )
-    from fetal_brain_qc.utils import iter_bids
-    from fetal_brain_qc.definitions import BRAIN_CKPT
+    from fetal_brain_qc.utils import iter_bids, print_title
 
     p = argparse.ArgumentParser(
         description=(
@@ -50,7 +48,7 @@ def main():
     )
 
     args = p.parse_args()
-
+    print_title("Running Brain extraction")
     bids_layout = BIDSLayout(args.bids_dir)
 
     # Create the output directory

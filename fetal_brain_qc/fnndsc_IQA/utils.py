@@ -12,6 +12,25 @@ https://github.com/FNNDSC/pl-fetal-brain-assessment/blob/main/fetal_brain_assess
 import numpy as np
 
 
+def center_crop_to_shape(data, target):
+    """Center cropping of data to a target shape.
+    This is required for the input of fnndsc's stack-wise DL IQA.
+    """
+    x, y, z = data.shape
+    tx, ty, tz = target
+    if x > tx:
+        startx = x // 2 - tx // 2
+        data = data[startx : startx + tx]
+    if y > ty:
+        starty = y // 2 - ty // 2
+        data = data[:, starty : starty + ty]
+    if z > tz:
+        startz = z // 2 - tz // 2
+        data = data[:, :, startz : startz + tz]
+    assert all(x <= t for x, t in zip(data.shape, target))
+    return data
+
+
 def fnndsc_preprocess(data, mask):
     """ """
     import logging
@@ -24,9 +43,9 @@ def fnndsc_preprocess(data, mask):
     y1, y2 = idx[1].min(), idx[1].max()
     z1, z2 = idx[2].min(), idx[2].max()
     data = data[x1:x2, y1:y2, z1:z2]
-    if data.shape > (217, 178, 60):
-        logger.warning("%s exceeds dimensions (217, 178, 60)")
-
+    if any(x > t for x, t in zip(data.shape, (217, 178, 60))):
+        print("\tWARNING: Data exceed dimensions (217, 178, 60). Cropping it.")
+        data = center_crop_to_shape(data, (217, 178, 60))
     data = np.nan_to_num(data)
     data[data < 0] = 0
     data[data >= 10000] = 10000

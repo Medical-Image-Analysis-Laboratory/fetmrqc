@@ -3,6 +3,7 @@ def main():
     from fetal_brain_qc.list_bids import list_bids
     from fetal_brain_qc.anon_bids import anonymize_bids_csv
     from fetal_brain_qc.definitions import MASK_PATTERN, MANU_BASE, AUTO_BASE
+    from fetal_brain_qc.utils import print_title
     import os
 
     p = argparse.ArgumentParser(
@@ -61,7 +62,7 @@ def main():
     )
 
     args = p.parse_args()
-    print("Running list_bids.")
+    print_title("Running list_bids")
     # Constructing patterns.
     if args.mask_patterns_base:
         assert len(args.mask_patterns_base) == len(

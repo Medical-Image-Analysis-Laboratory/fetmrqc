@@ -1,6 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.index import generate_index
+    from fetal_brain_qc.utils import print_title
 
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -33,6 +34,7 @@ def main():
         ),
     )
     args = p.parse_args()
+    print_title("Generating index")
     generate_index(
         args.reports_path,
         args.add_script_to_reports,

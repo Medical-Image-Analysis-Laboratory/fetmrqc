@@ -12,7 +12,7 @@ def main():
     import os
     import argparse
     from fetal_brain_qc.preprocess import crop_input, correct_bias_field
-    from fetal_brain_qc.utils import csv_to_list
+    from fetal_brain_qc.utils import csv_to_list, print_title
     import nibabel as ni
     from pathlib import Path
     from bids import BIDSLayout
@@ -100,7 +100,7 @@ def main():
         "sub-{subject}[/ses-{session}][/{datatype}]/",
     )
 
-    print("Running N4ITK Bias Field Correction ... ")
+    print_title("Running N4ITK Bias Field Correction")
 
     for run in bids_list:
         im_path = run["im"]

@@ -290,3 +290,11 @@ def validate_inputs(args):
                 f"{split} path exists. Please define a different "
                 "`out_path` for the experiment."
             )
+
+
+def print_title(text):
+    terminal_size = os.get_terminal_size().columns
+    dashes_length = min(len(text) + 10, terminal_size)
+    dashes = ("-" * dashes_length).center(terminal_size)
+    text = text.upper().center(terminal_size)
+    print("\n" + dashes + "\n" + text + "\n" + dashes + "\n")

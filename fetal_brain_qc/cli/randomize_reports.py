@@ -1,6 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.randomize import randomize_reports
+    from fetal_brain_qc.utils import print_title
 
     p = argparse.ArgumentParser(
         description=(
@@ -45,6 +46,7 @@ def main():
     )
 
     args = p.parse_args()
+    print_title("Randomizing reports")
     randomize_reports(
         args.reports_path,
         args.out_path,

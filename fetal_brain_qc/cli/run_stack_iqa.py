@@ -19,7 +19,7 @@ def main():
     from pathlib import Path
 
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
-    from fetal_brain_qc.utils import csv_to_list
+    from fetal_brain_qc.utils import csv_to_list, print_title
     from fetal_brain_qc.definitions import FETAL_STACK_IQA_CKPT
     from fetal_brain_qc.fnndsc_IQA import Predictor, fnndsc_preprocess
 
@@ -58,7 +58,7 @@ def main():
 
     args = parser.parse_args()
     bids_list = csv_to_list(args.bids_csv)
-    print("Running stack-wise image quality assessment ... ")
+    print_title("Running stack-wise image quality assessment")
     im_list, im_path_list, unrated_list = [], [], []
     for run in bids_list:
         # Loading data

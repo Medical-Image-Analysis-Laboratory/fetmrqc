@@ -1,7 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.report import generate_report
-    from fetal_brain_qc.utils import csv_to_list
+    from fetal_brain_qc.utils import csv_to_list, print_title
 
     p = argparse.ArgumentParser()
 
@@ -25,7 +25,7 @@ def main():
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
-
+    print_title("Generating reports")
     generate_report(
         bids_list,
         out_folder=args.out_path,

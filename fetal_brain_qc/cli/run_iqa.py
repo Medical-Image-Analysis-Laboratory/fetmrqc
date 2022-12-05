@@ -13,7 +13,7 @@ def main():
     import argparse
     import pandas as pd
     from pathlib import Path
-    from fetal_brain_qc.utils import csv_to_list
+    from fetal_brain_qc.utils import csv_to_list, print_title
     from fetal_brain_qc.fetal_IQA import eval_model, resnet34
     from fetal_brain_qc.definitions import FETAL_IQA_CKPT
 
@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
     bids_list = csv_to_list(args.bids_csv)
 
-    print("Running slice-wise image quality assessment ... ")
+    print_title("Running slice-wise image quality assessment")
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
 

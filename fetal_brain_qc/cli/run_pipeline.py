@@ -150,6 +150,16 @@ def main():
     )
 
     p.add_argument(
+        "--continue-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Whether QC run should re-use existing results if a metrics.csv file at "
+            "`out_path`/metrics.csv. Requires also a bids layout file at `out_path`/bids.csv"
+        ),
+    )
+
+    p.add_argument(
         "--ckpt_path_slice_iqa",
         help="Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT).",
         default=FETAL_IQA_CKPT,
@@ -186,8 +196,6 @@ def main():
 
     # BRAIN EXTRACTION
     if args.brain_extraction:
-        print("Running Brain extraction")
-
         cmd = (
             f"qc_brain_extraction "
             f"{args.bids_dir} {masks_dir} "
@@ -200,32 +208,39 @@ def main():
         if exit_code != 0:
             raise RuntimeError("Brain extraction failed.")
     # BIDS FOLDER AND MASKS LIST
-    print("Running list_bids.")
+    if args.continue_run:
+        if os.path.isfile(bids_csv):
+            print(
+                f"File found at {bids_csv}. Using it to continue the previous run."
+            )
+        else:
+            raise RuntimeError(
+                f"No file found at {bids_csv} while continue_run is true."
+            )
+    else:
+        cmd = (
+            f"qc_list_bids_csv "
+            f"{args.bids_dir} "
+            f"--mask-patterns {mask_patterns} "
+            f"--out-csv {bids_csv} "
+        )
+        cmd += (
+            f"--mask-patterns-base {mask_patterns_base} "
+            if mask_patterns_base
+            else ""
+        )
+        cmd += "--anonymize-name" if args.anonymize_name else ""
 
-    cmd = (
-        f"qc_list_bids_csv "
-        f"{args.bids_dir} "
-        f"--mask-patterns {mask_patterns} "
-        f"--out-csv {bids_csv} "
-    )
-    cmd += (
-        f"--mask-patterns-base {mask_patterns_base} "
-        if mask_patterns_base
-        else ""
-    )
-    cmd += "--anonymize-name" if args.anonymize_name else ""
-
-    print(cmd)
-    exit_code = os.system(cmd)
-    if exit_code != 0:
-        raise RuntimeError("BIDS listing of data and masks failed.")
+        print(cmd)
+        exit_code = os.system(cmd)
+        if exit_code != 0:
+            raise RuntimeError("BIDS listing of data and masks failed.")
 
     # QC METRICS: PREPROCESSING AND EVALUATION
     if args.run_qc:
         metrics_csv = Path(args.out_path) / "metrics.csv"
         # Preprocessing skipped for now
         metrics = " ".join(str(x) for x in args.metrics)
-        print(metrics_csv)
         cmd = (
             "qc_compute_metrics "
             f"--out-csv {metrics_csv} "
@@ -233,12 +248,13 @@ def main():
             f"--bids-csv {bids_csv} "
             f"--ckpt_path_slice_iqa {args.ckpt_path_slice_iqa} "
             f"--ckpt_path_stack_iqa {args.ckpt_path_stack_iqa} "
-            f"--device {args.device}"
+            f"--device {args.device} "
         )
-    print(cmd)
-    exit_code = os.system(cmd)
-    if exit_code != 0:
-        raise RuntimeError("Quality metrics computation failed.")
+        cmd += "--continue-run" if args.continue_run else ""
+        print(cmd)
+        exit_code = os.system(cmd)
+        if exit_code != 0:
+            raise RuntimeError("Quality metrics computation failed.")
 
     # GENERATING REPORTS
     cmd = f"qc_generate_reports {args.out_path} {bids_csv} --add-js"
@@ -252,7 +268,6 @@ def main():
     if args.randomize:
         import shutil
 
-        print("Randomizing the reports.")
         raw_reports = Path(args.out_path) / "raw_reports/"
         os.makedirs(raw_reports)
         for f in os.listdir(args.out_path):
@@ -271,7 +286,6 @@ def main():
         if exit_code != 0:
             raise RuntimeError("Report randomization failed.")
 
-    print("GENERATING INDEX")
     cmd = f"qc_generate_index {args.out_path} --no-add-script-to-reports "
     cmd += ("--" if args.randomize else "--no-") + "use-ordering-file "
     cmd += ("--" if args.navigation else "--no-") + "navigation"
