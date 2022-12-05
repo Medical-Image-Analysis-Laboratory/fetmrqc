@@ -164,8 +164,6 @@ def plot_mosaic(
     zooms = im.header.get_zooms()
 
     im_data = imc.get_fdata()
-    # Remove extra dimensions
-    im_data = np.squeeze(im_data)
 
     n_slices = im_data.shape[2]
     mid_img = im_data.shape[0] // 2

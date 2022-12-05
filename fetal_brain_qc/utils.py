@@ -138,8 +138,8 @@ def get_cropped_stack_based_on_mask(
     """
 
     image_ni = copy.deepcopy(image_ni)
-    image = image_ni.get_fdata().squeeze()
-    mask = mask_ni.get_fdata().squeeze()
+    image = image_ni.get_fdata()
+    mask = mask_ni.get_fdata().squeeze(-1)
     # Get rectangular region surrounding the masked voxels
     [x_range, y_range, z_range] = get_rectangular_masked_region(mask)
 

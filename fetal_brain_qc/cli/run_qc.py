@@ -76,6 +76,9 @@ def main():
         device=args.device,
     )
     metrics_dict = {}
+    df_base = pd.DataFrame.from_dict(bids_list)
+    df_base = df_base.set_index("name")
+    os.makedirs(Path(args.out_csv).parent, exist_ok=True)
     for run in bids_list:
         # Loading data
         name = Path(run["im"]).name
@@ -83,13 +86,9 @@ def main():
         metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
             run["im"], run["mask"]
         )
-    df_base = pd.DataFrame.from_dict(bids_list)
-    df_base = df_base.set_index("name")
-    df = pd.DataFrame.from_dict(metrics_dict, orient="index")
-    os.makedirs(Path(args.out_csv).parent, exist_ok=True)
-
-    df = pd.concat([df_base, df], axis=1, join="inner")
-    df.to_csv(args.out_csv)
+        df = pd.DataFrame.from_dict(metrics_dict, orient="index")
+        df = pd.concat([df_base, df], axis=1, join="inner")
+        df.to_csv(args.out_csv)
     return 0
 
 

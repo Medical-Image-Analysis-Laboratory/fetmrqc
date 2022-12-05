@@ -333,7 +333,7 @@ class LRStackMetrics:
         The computed score based on mask centroid
         """
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze()
+        mask = mask_ni.get_fdata().squeeze(-1)
         if central_third:
             num_z = mask.shape[2]
             center_z = int(num_z / 2.0)
@@ -380,7 +380,7 @@ class LRStackMetrics:
         """
 
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze()
+        mask = mask_ni.get_fdata().squeeze(-1)
         vx_volume = np.array(mask_ni.header.get_zooms()).prod()
         isnan = False
         return np.sum(mask) * vx_volume, isnan
@@ -421,7 +421,7 @@ class LRStackMetrics:
         image_ni = ni.load(lr_path)
         image = image_ni.get_fdata()
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze()
+        mask = mask_ni.get_fdata().squeeze(-1)
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
@@ -474,7 +474,7 @@ class LRStackMetrics:
         image_ni = ni.load(lr_path)
         image = image_ni.get_fdata().transpose(2, 1, 0)
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze().transpose(2, 1, 0)
+        mask = mask_ni.get_fdata().squeeze(-1).transpose(2, 1, 0)
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
@@ -483,7 +483,7 @@ class LRStackMetrics:
                 return None, None
 
             image = image.get_fdata().transpose(2, 1, 0)
-            mask = mask.get_fdata().transpose(2, 1, 0)
+            mask = mask.get_fdata().squeeze(-1).transpose(2, 1, 0)
         if central_third:
             num_z = image.shape[0]
             center_z = int(num_z / 2.0)
@@ -762,7 +762,7 @@ class LRStackMetrics:
         # Loading data
 
         img = ni.load(lr_path).get_fdata()
-        mask = ni.load(mask_path).get_fdata().squeeze()
+        mask = ni.load(mask_path).get_fdata().squeeze(-1)
 
         img = fnndsc_preprocess(img, mask)
         df = self.stack_predictor.predict([img], ["img"])

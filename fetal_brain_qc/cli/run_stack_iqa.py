@@ -63,7 +63,7 @@ def main():
     for run in bids_list:
         # Loading data
         img = ni.load(run["im"]).get_fdata()
-        mask = ni.load(run["mask"]).get_fdata().squeeze()
+        mask = ni.load(run["mask"]).get_fdata().squeeze(-1)
         name = Path(run["im"]).name
 
         print(f"Preprocessing {name}")
