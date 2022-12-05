@@ -180,7 +180,8 @@ def main():
     mask_patterns_base = (
         [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
     )
-    mask_patterns_base = " ".join(str(x) for x in mask_patterns_base)
+    if mask_patterns_base:
+        mask_patterns_base = " ".join(str(x) for x in mask_patterns_base)
     mask_patterns = " ".join(str(x) for x in args.mask_patterns)
 
     # BRAIN EXTRACTION
@@ -205,8 +206,12 @@ def main():
         f"qc_list_bids_csv "
         f"{args.bids_dir} "
         f"--mask-patterns {mask_patterns} "
-        f"--mask-patterns-base {mask_patterns_base} "
         f"--out-csv {bids_csv} "
+    )
+    cmd += (
+        f"--mask-patterns-base {mask_patterns_base} "
+        if mask_patterns_base
+        else ""
     )
     cmd += "--anonymize-name" if args.anonymize_name else ""
 

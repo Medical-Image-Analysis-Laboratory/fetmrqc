@@ -12,6 +12,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+import tensorflow
 from tensorflow.keras.losses import Huber
 from tensorflow.keras.optimizers import Adam
 from .resnet_architecture import (

@@ -11,6 +11,7 @@ from .utils import (
     normalized_mutual_information,
 )
 from fetal_brain_qc.utils import get_cropped_stack_based_on_mask
+from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 
 DEFAULT_METRICS = [
     "dl_slice_iqa",
@@ -24,39 +25,6 @@ DEFAULT_METRICS = [
 import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-# def eval_subject(im_path, mask_path, metrics_list):
-#     """Given a dictionary containing the paths to the
-#     low-resolution stacks and corresponding masks,
-#     evaluate various quality metrics.
-#     """
-
-#     metrics = LRStackMetrics()
-#     stacks_dict = {}
-#     for stack in sub_ses_dict["stacks"]:
-#         lr_path = sub_ses_dict["lr_path"][stack]
-#         mask_path = sub_ses_dict["lr_mask_path"][stack]
-#         if compute_all_stats:
-#             metrics_list = metrics.get_all_metrics()
-#         else:
-#             metrics_list = metrics.get_default_metrics()
-#         metrics_res, metrics_nan = metrics.evaluate_metrics(
-#             {"lr_path": lr_path, "mask_path": mask_path}, metrics_list
-#         )
-#         for k, v in metrics_res.items():
-#             if k not in stacks_dict:
-#                 stacks_dict[k] = {stack: v}
-#                 stacks_dict[k + "_nan"] = {stack: metrics_nan[k]}
-#             else:
-#                 stacks_dict[k][stack] = v
-#                 stacks_dict[k + "_nan"][stack] = metrics_nan[k]
-
-#     stacks_dict[
-#         "include_volumes_median"
-#     ] = SubjectMetrics.metric_include_volumes_median(
-#         stacks_dict["mask_volume"]
-#     )
-#     return stacks_dict
-from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 
 
 class LRStackMetrics:

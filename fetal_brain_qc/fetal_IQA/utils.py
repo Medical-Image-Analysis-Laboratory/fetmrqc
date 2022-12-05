@@ -20,7 +20,7 @@ def eval_model(im_path, mask_path, model, device):
     try:
         image_ni, mask_ni = crop_around_mask_to_256(image_ni, mask_ni)
         zmin = min(np.where(mask_ni.get_fdata() == 1)[2])
-    except ValueError as e:
+    except RuntimeError as e:
         print(f"{Path(im_path).name}: {e}")
         pred_dict = {
             0: {
@@ -105,10 +105,9 @@ def crop_around_mask_to_256(image_ni, mask_ni):
     image = image_ni.get_fdata().squeeze()
     mask = mask_ni.get_fdata().squeeze()
     coords = np.where(mask == 1)
-
     # Discard empty masks
     if len(coords[0]) == 0:
-        raise ValueError("Empty mask.")
+        raise RuntimeError("Empty mask.")
 
     xmean, ymean, = (
         int(coords[0].mean()),
@@ -117,8 +116,7 @@ def crop_around_mask_to_256(image_ni, mask_ni):
     xshape, yshape = mask.shape[:2]
     xrange = get_256_range(xshape, xmean)
     yrange = get_256_range(yshape, ymean)
-    zrange = (min(coords[2]), max(coords[2]))
-
+    zrange = (min(coords[2]), max(coords[2] + 1))
     new_origin = list(
         ni.affines.apply_affine(
             mask_ni.affine, [xrange[0], yrange[0], yrange[0]]
