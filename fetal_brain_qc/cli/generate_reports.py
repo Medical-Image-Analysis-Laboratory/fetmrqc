@@ -39,6 +39,8 @@ def main():
         do_index=args.add_js,
     )
 
+    return 0
+
 
 if __name__ == "__main__":
     main()

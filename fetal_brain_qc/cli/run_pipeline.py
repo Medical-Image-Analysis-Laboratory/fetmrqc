@@ -1,13 +1,13 @@
 def main():
     import argparse
-    from fetal_brain_qc.list_bids import list_bids
-    from fetal_brain_qc.anon_bids import anonymize_bids_csv
-    from fetal_brain_qc.definitions import MASK_PATTERN_LIST
-    from fetal_brain_qc.report import generate_report
-    from fetal_brain_qc.index import generate_index
-    from fetal_brain_qc.randomize import randomize_reports
-    from fetal_brain_qc.utils import csv_to_list
-    import csv
+    from fetal_brain_qc.definitions import (
+        MASK_PATTERN,
+        BRAIN_CKPT,
+        FETAL_STACK_IQA_CKPT,
+        FETAL_IQA_CKPT,
+    )
+    from fetal_brain_qc.metrics import DEFAULT_METRICS
+    from fetal_brain_qc.utils import validate_inputs
     from pathlib import Path
     import os
 
@@ -16,7 +16,7 @@ def main():
             "Given a `bids_dir`, lists the LR series in "
             " the directory and tries to find corresponding masks given by "
             "`mask_patterns`. Then, saves all the found pairs of (LR series, masks) in "
-            " a CSV file at `bids_csv`"
+            " a CSV file at `out_path/bids.csv`"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -32,17 +32,44 @@ def main():
     )
 
     p.add_argument(
+        "--brain-extraction",
+        help=(
+            "Whether brain extraction should be run.\n"
+            "If run, it will store masks at `out_path`/`mask_patterns[0]`."
+        ),
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
+    p.add_argument(
+        "--run-qc",
+        help=("Whether quality control should be run.\n"),
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
+    p.add_argument(
         "--mask-patterns",
         help=(
-            "List of patterns to find the LR masks corresponding to the LR series.\n "
+            "Pattern(s) to find the LR masks corresponding to the LR series.\n "
             'Patterns will be of the form "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
             '[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be '
-            "substituted based on the structure of bids_dir. The code will attempt to find the mask corresponding "
-            "to the first pattern, and if it fails, will attempt the next one, etc. If no masks are found, a warning "
-            "message will be displayed for the given subject, session and run. "
+            "substituted based on the structure of bids_dir. The base directory from which the search will be run "
+            "can be changed with `--mask-pattern-base`."
         ),
         nargs="+",
-        default=MASK_PATTERN_LIST,
+        default=[MASK_PATTERN],
+    )
+
+    p.add_argument(
+        "--mask-patterns-base",
+        help=(
+            "Base folder(s) from which the LR masks must be listed.\n "
+            "The method will look for masks at `mask-pattern-base`/`mask-patterns`. "
+            "In this case, both `mask-patterns` and `mask-pattern-base` should be of the same length."
+        ),
+        nargs="+",
+        default=None,
     )
 
     p.add_argument(
@@ -110,62 +137,146 @@ def main():
         ),
     )
 
+    p.add_argument(
+        "--metrics",
+        help="Metrics to be evaluated.",
+        default=DEFAULT_METRICS,
+    )
+
+    p.add_argument(
+        "--device",
+        help="Device to be used for the deep learning model.",
+        default="cuda:0",
+    )
+
+    p.add_argument(
+        "--ckpt_path_slice_iqa",
+        help="Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT).",
+        default=FETAL_IQA_CKPT,
+    )
+
+    p.add_argument(
+        "--ckpt_path_stack_iqa",
+        help="Path to the checkpoint of the fetal IQA tensorflow model (by Ivan Legorreta FNNDSC).",
+        default=FETAL_STACK_IQA_CKPT,
+    )
+
+    p.add_argument(
+        "--ckpt_path_brain_extraction",
+        help="Path to the checkpoint of the MONAIfbs model.",
+        default=BRAIN_CKPT,
+    )
+
     args = p.parse_args()
+    validate_inputs(args)
 
-    print("Running list_bids.")
-    bids_csv = Path(args.out_path) / "bids_csv.csv"
+    # Creating various variables and paths
     os.makedirs(args.out_path, exist_ok=True)
-    list_bids(
-        args.bids_dir,
-        args.mask_patterns,
-        bids_csv=bids_csv,
+    bids_csv = Path(args.out_path) / "bids.csv"
+
+    # To be used only when args.brain_extraction is true
+    masks_dir = Path(args.out_path) / "masks"
+
+    mask_patterns_base = (
+        [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
     )
-    if args.anonymize_name:
-        print(f"Anonymize name in {bids_csv}.")
-        anonymize_bids_csv(bids_csv, out_bids_csv=bids_csv)
+    mask_patterns_base = " ".join(str(x) for x in mask_patterns_base)
+    mask_patterns = " ".join(str(x) for x in args.mask_patterns)
 
-    bids_list = csv_to_list(bids_csv)
+    # BRAIN EXTRACTION
+    if args.brain_extraction:
+        print("Running Brain extraction")
 
-    print("Generating reports.")
-    generate_report(
-        bids_list,
-        out_folder=args.out_path,
-        boundary=20,
-        boundary_tp=20,
-        ncols_ip=6,
-        n_slices_tp=6,
-        every_n_tp=4,
-        annotate=False,
-        cmap="Greys_r",
-        do_index=True,
+        cmd = (
+            f"qc_brain_extraction "
+            f"{args.bids_dir} {masks_dir} "
+            f"--ckpt_path {args.ckpt_path_brain_extraction} "
+            f"--mask-pattern {mask_patterns}"
+        )
+
+        print(cmd)
+        exit_code = os.system(cmd)
+        if exit_code != 0:
+            raise RuntimeError("Brain extraction failed.")
+    # BIDS FOLDER AND MASKS LIST
+    print("Running list_bids.")
+
+    cmd = (
+        f"qc_list_bids_csv "
+        f"{args.bids_dir} "
+        f"--mask-patterns {mask_patterns} "
+        f"--mask-patterns-base {mask_patterns_base} "
+        f"--out-csv {bids_csv} "
     )
+    cmd += "--anonymize-name" if args.anonymize_name else ""
 
+    print(cmd)
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        raise RuntimeError("BIDS listing of data and masks failed.")
+
+    # QC METRICS: PREPROCESSING AND EVALUATION
+    if args.run_qc:
+        metrics_csv = Path(args.out_path) / "metrics.csv"
+        # Preprocessing skipped for now
+        metrics = " ".join(str(x) for x in args.metrics)
+        print(metrics_csv)
+        cmd = (
+            "qc_compute_metrics "
+            f"--out-csv {metrics_csv} "
+            f"--metrics {metrics} "
+            f"--bids-csv {bids_csv} "
+            f"--ckpt_path_slice_iqa {args.ckpt_path_slice_iqa} "
+            f"--ckpt_path_stack_iqa {args.ckpt_path_stack_iqa} "
+            f"--device {args.device}"
+        )
+    print(cmd)
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        raise RuntimeError("Quality metrics computation failed.")
+
+    # GENERATING REPORTS
+    cmd = f"qc_generate_reports {args.out_path} {bids_csv} --add-js"
+
+    print(cmd)
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        raise RuntimeError("Report generation failed.")
+
+    # RANDOMIZE REPORTS
     if args.randomize:
         import shutil
 
         print("Randomizing the reports.")
-
         raw_reports = Path(args.out_path) / "raw_reports/"
         os.makedirs(raw_reports)
         for f in os.listdir(args.out_path):
             f = Path(args.out_path) / f
-            if os.path.isfile(f):
+            if os.path.isfile(f) and f.suffix == ".html":
                 new_path = raw_reports / Path(f).name
                 shutil.move(f, new_path)
-        randomize_reports(
-            raw_reports,
-            args.out_path,
-            args.n_reports,
-            args.n_raters,
-            args.seed,
+        cmd = (
+            "qc_randomize_reports "
+            f"{raw_reports} {args.out_path} "
+            f"--seed {args.seed} "
+            f"--n-reports {args.n_reports} "
+            f"--n-raters {args.n_raters}"
         )
-    print("Generating index.")
-    generate_index(
-        args.out_path,
-        add_script_to_reports=False,
-        use_ordering_file=args.randomize,
-        navigate=args.navigation,
-    )
+        exit_code = os.system(cmd)
+        if exit_code != 0:
+            raise RuntimeError("Report randomization failed.")
+
+    print("GENERATING INDEX")
+    cmd = f"qc_generate_index {args.out_path} --no-add-script-to-reports "
+    cmd += ("--" if args.randomize else "--no-") + "use-ordering-file "
+    cmd += ("--" if args.navigation else "--no-") + "navigation"
+
+    print(cmd)
+    exit_code = os.system(cmd)
+    if exit_code != 0:
+        raise RuntimeError("Report indexing failed.")
+
+    return 0
 
 
 if __name__ == "__main__":

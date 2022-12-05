@@ -53,6 +53,8 @@ def main():
         args.seed,
     )
 
+    return 0
+
 
 if __name__ == "__main__":
     main()

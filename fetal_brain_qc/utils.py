@@ -17,14 +17,14 @@ def csv_to_list(csv_path):
     return file_list
 
 
-def fill_pattern(bids_layout, sub, ses, run, pattern):
+def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
     ents = {
         "subject": sub,
         "session": ses,
         "run": run,
         "datatype": "anat",
         "acquisition": "haste",
-        "suffix": "T2w_mask",
+        "suffix": suffix,
     }
     return bids_layout.build_path(ents, pattern, validate=False)
 
@@ -264,3 +264,29 @@ def get_rectangular_masked_region(
         range_y.astype(int),
         range_z.astype(int),
     )
+
+
+def validate_inputs(args):
+    """Check the validity of the arguments given
+    in run_pipeline.py
+    """
+    if args.brain_extraction:
+        assert (
+            len(args.mask_patterns) == 1
+        ), "A single mask_pattern must be provided when brain_extraction is enabled"
+        assert args.mask_patterns_base is None, (
+            "`mask_patterns_base` must be None when brain_extraction is enabled, "
+            "as `out_path`/masks is used as the folder to store the outputs."
+        )
+    if args.randomize:
+        raw_reports = Path(args.out_path) / "raw_reports/"
+        assert not os.path.exists(raw_reports), (
+            f"{args.out_path}/raw_reports path exists. Please define a different "
+            "`out_path` for the experiment."
+        )
+        for i in range(args.n_raters):
+            split = Path(args.out_path) / f"split_{i+1}/"
+            assert not os.path.exists(split), (
+                f"{split} path exists. Please define a different "
+                "`out_path` for the experiment."
+            )

@@ -5,14 +5,19 @@ https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/utilities/n4_bias_fie
 https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/application/correct_bias_field.py
 """
 
-# Import libraries
-import numpy as np
-import os
-import argparse
-from fetal_brain_qc.preprocess import crop_input, correct_bias_field
-
 
 def main():
+    # Import libraries
+    import numpy as np
+    import os
+    import argparse
+    from fetal_brain_qc.preprocess import crop_input, correct_bias_field
+    from fetal_brain_qc.utils import csv_to_list
+    import nibabel as ni
+    from pathlib import Path
+    from bids import BIDSLayout
+    from fetal_brain_qc.utils import fill_pattern
+
     np.set_printoptions(precision=3)
 
     parser = argparse.ArgumentParser(
@@ -34,14 +39,14 @@ def main():
     )
 
     parser.add_argument(
-        "--cropped_path",
+        "--cropping",
         action=argparse.BooleanOptionalAction,
         help="Whether cropping should be performed.",
         default=True,
     )
 
     parser.add_argument(
-        "--masked_path",
+        "--masked_cropped_path",
         type=str,
         help="Cropped/masked output directory.",
         default=None,
@@ -84,41 +89,66 @@ def main():
     )
 
     args = parser.parse_args()
-    from fetal_brain_qc.utils import csv_to_list
 
     bids_list = csv_to_list(args.bids_csv)
+    # Extract bids directory, build a layout and use it
+    # to define where the output will be stored.
+    bids_dir = bids_list[0]["im"].split("sub-")[0]
+    layout = BIDSLayout(bids_dir)
+    pattern = os.path.join(
+        os.path.abspath(args.out_path),
+        "sub-{subject}[/ses-{session}][/{datatype}]/",
+    )
 
     print("Running N4ITK Bias Field Correction ... ")
-    os.makedirs(args.out_path, exist_ok=True)
-    # use_mask = True if args.filenames_masks is not None else False
+
     for run in bids_list:
         im_path = run["im"]
+        sub, ses, r = run["sub"], run["ses"], run["run"]
+        out_path = fill_pattern(
+            layout,
+            sub,
+            ses,
+            r,
+            pattern,
+        )
+        os.makedirs(out_path, exist_ok=True)
+
         print(f"\tProcessing {os.path.basename(im_path)}")
         mask_path = run["mask"]
+
+        mask = ni.load(mask_path).get_fdata()
+        if mask.sum() == 0:
+            print(
+                f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
+            )
+            continue
         if args.cropping:
+            pattern_cropped = os.path.join(
+                os.path.abspath(args.masked_cropped_path),
+                "sub-{subject}[/ses-{session}][/{datatype}]/",
+            )
+            masked_cropped_path = fill_pattern(
+                layout,
+                sub,
+                ses,
+                r,
+                pattern_cropped,
+            )
             im_path, mask_path = crop_input(
-                im_path, mask_path, args.apply_mask, args.cropped_path
+                im_path, mask_path, args.apply_mask, masked_cropped_path
             )
 
         correct_bias_field(
             im_path,
             mask_path,
-            args.out_path,
-            args.cropping,
+            out_path,
+            args.apply_mask,
             args.bias_field_fwhm,
             args.convergence_threshold,
             args.spline_order,
             args.wiener_filter_noise,
         )
-
-    # for i, file_path in enumerate(args.filenames):
-
-    #     if args.masked_path:
-    #         if not use_mask:
-    #             raise ValueError(
-    #                 "dir-masked is set, but no masks were provided."
-    #             )
-    #         file_path_mask = args.filenames_masks[i] if use_mask else None
 
     print("Done!")
 

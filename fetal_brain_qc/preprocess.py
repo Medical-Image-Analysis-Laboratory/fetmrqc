@@ -59,14 +59,17 @@ def correct_bias_field(
     bias_field_corrector.SetSplineOrder(spline_order)
     bias_field_corrector.SetWienerFilterNoise(wiener_filter_noise)
 
+    # Extract the base path from a .nii.gz file
+    bias_path = file_path[:-7] + "_bias" + file_path[-7:]
+    # Output files
     output = os.path.join(dir_output, os.path.basename(file_path))
+    output_bias = os.path.join(dir_output, os.path.basename(bias_path))
 
     image_sitk = sitk.ReadImage(str(file_path), sitk.sitkFloat64)
     if use_mask:
         output_mask = os.path.join(dir_output, os.path.basename(mask_path))
         sitk_mask = sitk.ReadImage(str(mask_path), sitk.sitkUInt8)
         sitk_mask.CopyInformation(image_sitk)
-
         bias_corr = bias_field_corrector.Execute(image_sitk, sitk_mask)
 
         stack_corrected_sitk_mask = sitk.Resample(
@@ -82,3 +85,6 @@ def correct_bias_field(
         bias_corr = bias_field_corrector.Execute(image_sitk)
 
     sitk.WriteImage(bias_corr, output)
+
+    bias = bias_field_corrector.GetLogBiasFieldAsImage(image_sitk)
+    sitk.WriteImage(bias, output_bias)

@@ -34,7 +34,7 @@ def main():
     )
 
     p.add_argument(
-        "--mask-pattern-base",
+        "--mask-patterns-base",
         help=(
             "Base folder(s) from which the LR masks must be listed.\n "
             "The method will look for masks at `mask-pattern-base`/`mask-patterns`. "
@@ -63,21 +63,19 @@ def main():
     args = p.parse_args()
     print("Running list_bids.")
     # Constructing patterns.
-    if args.mask_pattern_base:
-        print(args.mask_pattern_base, args.mask_patterns)
-        assert len(args.mask_pattern_base) == len(
+    if args.mask_patterns_base:
+        assert len(args.mask_patterns_base) == len(
             args.mask_patterns
         ), "mask_pattern_base and mask_patterns have different lengths."
         mask_patterns = [
             os.path.join(os.path.abspath(b), m)
-            for b, m in zip(args.mask_pattern_base, args.mask_patterns)
+            for b, m in zip(args.mask_patterns_base, args.mask_patterns)
         ]
     else:
-        mask_pattern_base = [MANU_BASE, AUTO_BASE]
+        mask_patterns_base = [MANU_BASE, AUTO_BASE]
         mask_patterns = [
-            base + args.mask_patterns[0] for base in mask_pattern_base
+            base + args.mask_patterns[0] for base in mask_patterns_base
         ]
-    print(mask_patterns)
     list_bids(
         args.bids_dir,
         mask_patterns,
@@ -86,6 +84,8 @@ def main():
     if args.anonymize_name:
         print(f"Anonymize name in {args.out_csv}.")
         anonymize_bids_csv(args.out_csv, out_bids_csv=args.out_csv)
+
+    return 0
 
 
 if __name__ == "__main__":

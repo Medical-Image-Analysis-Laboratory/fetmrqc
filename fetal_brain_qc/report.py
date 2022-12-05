@@ -122,6 +122,12 @@ def generate_report(
         mask_path = run["mask"]
         print(f"Processing {Path(im_path).name}")
         """Generate a report given an image path and mask"""
+        mask = ni.load(mask_path).get_fdata()
+        if mask.sum() == 0:
+            print(
+                f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
+            )
+            continue
         out_plots = plot_mosaic(
             im_path,
             mask_path,

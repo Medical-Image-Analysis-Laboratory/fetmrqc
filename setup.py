@@ -17,7 +17,8 @@ setup(
             "qc_brain_extraction = fetal_brain_qc.cli.run_brain_extraction:main",
             "qc_preprocessing = fetal_brain_qc.cli.run_preprocessing:main",
             "qc_fetal_iqa_mit = fetal_brain_qc.cli.run_iqa:main",
-            "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa.py:main",
+            "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa:main",
+            "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
         ],
     },
 )

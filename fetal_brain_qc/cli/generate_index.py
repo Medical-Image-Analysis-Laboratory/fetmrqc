@@ -40,6 +40,8 @@ def main():
         args.navigation,
     )
 
+    return 0
+
 
 if __name__ == "__main__":
     main()

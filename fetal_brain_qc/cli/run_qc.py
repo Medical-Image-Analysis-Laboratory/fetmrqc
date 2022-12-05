@@ -41,6 +41,7 @@ def main():
         "--metrics",
         help="Metrics to be evaluated.",
         default=DEFAULT_METRICS,
+        nargs="+",
     )
 
     parser.add_argument(
@@ -89,7 +90,7 @@ def main():
 
     df = pd.concat([df_base, df], axis=1, join="inner")
     df.to_csv(args.out_csv)
-    print(df)
+    return 0
 
 
 if __name__ == "__main__":

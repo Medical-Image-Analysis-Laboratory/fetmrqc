@@ -67,6 +67,8 @@ def main():
     # Move files to their definitive location
     bidsify_monaifbs(bids_layout, mask_pattern, masks_tmp)
 
+    return 0
+
 
 if __name__ == "__main__":
     main()
