@@ -116,7 +116,6 @@ def crop_around_mask_to_256(image_ni, mask_ni):
     xshape, yshape = mask.shape[:2]
     xrange = get_256_range(xshape, xmean)
     yrange = get_256_range(yshape, ymean)
-    print(mask.shape, xrange, yrange, xmean, ymean)
     zrange = (min(coords[2]), max(coords[2]) + 1)
     new_origin = list(
         ni.affines.apply_affine(
