@@ -1,6 +1,6 @@
 # Fetal Brain Quality Control
 ## About
-![fetal brain QC](fetal_brain_qc.png)
+![fetal brain QC](img/fetal_brain_qc.png)
 
 *Fetal brain QC* is a tool to facilitate quality annotations of T2w fetal brain MRI images, by creating interactive html-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
 
