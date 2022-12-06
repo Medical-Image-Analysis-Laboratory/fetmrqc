@@ -17,18 +17,17 @@
     <style type="text/css">
         body {
             font-family: helvetica;
-            padding: 50px 10px 10px;
+            padding: 10px 10px 10px;
         }
 
-        iframe.current {
-            display: block;
+        iframe {
             /* iframes are inline by default */
             background: #000;
             border: none;
             /* Reset default border */
-            height: 100vh;
+            height: calc(100vh - 65px);
             /* Viewport-relative units */
-            width: 100vw;
+            width: calc(100vw - 20px);
         }
 
         td {
@@ -53,6 +52,11 @@
             border-style: solid;
             border-radius: 0.25rem;
             cursor: pointer;
+        }
+
+        div.header {
+            max-height: 45px;
+            overflow: hidden
         }
     </style>
 </head>
@@ -127,15 +131,19 @@
 <body>
     <div class="document">
         <div id="report_div" style="margin:auto;text-align: center; display:none">
-            <a class="btn btn-primary" role="button" id="btn-prev">Previous</a>
-            <a class="btn btn-secondary" role="button" id="btn-home">Home</a>
-            <a class="btn btn-primary" role="button" id="btn-next">Next</a>
+            <div class="header">
+                <a class="btn btn-primary" role="button" id="btn-prev">Previous</a>
+                <a class="btn btn-secondary" role="button" id="btn-home">Home</a>
+                <a class="btn btn-primary" role="button" id="btn-next">Next</a>
+            </div>
             <iframe id="report_frame" class="current" src=""></iframe>
         </div>
         <div id="index">
-            <input class='file-upload-button' type="file" id="file-btn" hidden />
-            <label for="file-btn">Choose File</label>
-            <a class="btn btn-primary" role="button" id="btn-save">Save progress config</a>
+            <div class="header">
+                <input class='file-upload-button' type="file" id="file-btn" hidden />
+                <label for="file-btn">Choose File</label>
+                <a class="btn btn-primary" role="button" id="btn-save">Save progress config</a>
+            </div>
             <h1 class="mt-5 mb-2">Index of reports</h1>
             <table id="results">
                 <thead>
