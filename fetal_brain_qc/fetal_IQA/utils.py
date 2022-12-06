@@ -11,14 +11,14 @@ def eval_model(im_path, mask_path, model, device):
     1. Crop the input image to 256x256 based on the brain mask
     2. Run the evaluation and return a slice-wise score as well as global ratings.
     """
-    from fetal_brain_qc.fetal_IQA.utils import crop_around_mask_to_256
+    from fetal_brain_qc.fetal_IQA.utils import adjust_around_mask_to_256
 
     image_ni = ni.load(im_path)
     mask_ni = ni.load(mask_path)
 
     print(f"Processing {Path(im_path).name}")
     try:
-        image_ni, mask_ni = crop_around_mask_to_256(image_ni, mask_ni)
+        image_ni, mask_ni = adjust_around_mask_to_256(image_ni, mask_ni)
         zmin = min(np.where(mask_ni.get_fdata() == 1)[2])
     except RuntimeError as e:
         print(f"{Path(im_path).name}: {e}")
@@ -95,19 +95,45 @@ def get_256_range(im_size, mask_center):
     return crop_range_low, crop_range_high
 
 
-def crop_around_mask_to_256(image_ni, mask_ni):
-    """Crop the image and mask to a 256x256 in-plane resolution
-    based on the brain mask centroid across all the stack.
-    The method ensures that the returned image is of size 256 also when
-    the brain isn't centered in a stack.
-    """
-    image = image_ni.get_fdata()
+def pad_image(data, target):
+    """Pads the image to the target size (not centered)"""
+    target = np.zeros(target)
+    x, y, z = data.shape
+    target[:x, :y, :z] = data
+    return target
 
-    mask = mask_ni.get_fdata().squeeze(-1)
+
+def crop_pad_nifti(data, affine, xrange, yrange, zrange):
+    """Utility function to apply the cropping around the brain,
+    pad the image if it is too small and return a nifti file.
+    """
+    print("input", data.shape, xrange, yrange, zrange)
+    data = crop_image_to_region(data, xrange, yrange, zrange)
+    print("before", data.shape)
+    if any(x < 256 for x in data.shape[:2]):
+        pad_to = (256, 256, data.shape[2])
+        data = pad_image(data, pad_to)
+    print(data.shape)
+    return ni.Nifti1Image(data, affine)
+
+
+def adjust_around_mask_to_256(image_ni, mask_ni):
+    """Crop the image and mask to a 256x256 in-plane resolution
+    based on the brain mask centroid across all the stack. Also pads
+    the image if needed. The method ensures that the returned image is of
+    size 256 also when the brain isn't centered in a stack.
+    """
+
+    from fetal_brain_qc.utils import crop_image_to_region
+    from copy import deepcopy
+
+    image = image_ni.get_fdata().squeeze()
+    mask = mask_ni.get_fdata().squeeze()
     coords = np.where(mask == 1)
+
     # Discard empty masks
     if len(coords[0]) == 0:
-        raise RuntimeError("Empty mask.")
+        raise ValueError("Empty mask.")
 
     xmean, ymean, = (
         int(coords[0].mean()),
@@ -116,7 +142,8 @@ def crop_around_mask_to_256(image_ni, mask_ni):
     xshape, yshape = mask.shape[:2]
     xrange = get_256_range(xshape, xmean)
     yrange = get_256_range(yshape, ymean)
-    zrange = (min(coords[2]), max(coords[2]) + 1)
+    zrange = (min(coords[2]), max(coords[2] + 1))
+
     new_origin = list(
         ni.affines.apply_affine(
             mask_ni.affine, [xrange[0], yrange[0], yrange[0]]
@@ -125,9 +152,10 @@ def crop_around_mask_to_256(image_ni, mask_ni):
     image_ni = deepcopy(image_ni)
     mask_ni = deepcopy(mask_ni)
 
-    crop_and_nifti = lambda im: ni.Nifti1Image(
-        crop_image_to_region(im, xrange, yrange, zrange), new_affine
-    )
     new_affine = image_ni.affine
     new_affine[:, -1] = new_origin
-    return crop_and_nifti(image), crop_and_nifti(mask)
+    crop_fct = lambda im: crop_pad_nifti(
+        im, new_affine, xrange, yrange, zrange
+    )
+
+    return crop_fct(image), crop_fct(mask)

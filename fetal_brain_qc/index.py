@@ -35,14 +35,7 @@ def list_out_folders(out_folders):
         out_folders = [out_folders]
     out_folder_list = []
     for folder in out_folders:
-        # Add all folders except
-        # `raw_reports` that contains
-        # raw reports
-        out_folder_list += [
-            Path(x[0])
-            for x in os.walk(folder)
-            if Path(x[0]).name != "raw_reports"
-        ]
+        out_folder_list += [Path(x[0]) for x in os.walk(folder)]
     return out_folder_list
 
 

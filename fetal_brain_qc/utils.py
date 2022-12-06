@@ -67,7 +67,10 @@ def get_html_index(folder, use_ordering_file=False):
         for f in Path(folder).iterdir()
         if f.is_file() and f.suffix == ".html" and "index" not in f.name
     ]
-    if use_ordering_file and len(index_list) > 0:
+    # raw_reports will not be ordered
+    if "raw_reports" not in folder.name and (
+        use_ordering_file and len(index_list) > 0
+    ):
         ordering_file = Path(folder) / "ordering.csv"
         if not os.path.isfile(ordering_file):
             raise Exception(
