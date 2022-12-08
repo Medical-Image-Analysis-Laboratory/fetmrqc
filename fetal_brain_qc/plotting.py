@@ -195,14 +195,14 @@ def plot_mosaic(
     mid_x = int(
         np.nonzero(
             np.array(
-                [mask.get_fdata()[:, i, :].sum() for i in range(mask.shape[1])]
+                [mask.get_fdata()[i, :, :].sum() for i in range(mask.shape[0])]
             )
         )[0].mean()
     )
 
     min_x = max(mid_x - n_slices_tp // 2 * every_n_tp, 0)
     max_x = min(
-        mid_x + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[1]
+        mid_x + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[0]
     )
 
     fig2 = plt.figure(figsize=(12, math.ceil(nrows * 4 / 3)))
@@ -227,14 +227,14 @@ def plot_mosaic(
     mid_y = int(
         np.nonzero(
             np.array(
-                [mask.get_fdata()[i, :, :].sum() for i in range(mask.shape[0])]
+                [mask.get_fdata()[:, i, :].sum() for i in range(mask.shape[1])]
             )
         )[0].mean()
     )
 
     min_y = max(mid_y - n_slices_tp // 2 * every_n_tp, 0)
     max_y = min(
-        mid_y + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[0]
+        mid_y + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[1]
     )
 
     naxis = 1
