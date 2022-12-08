@@ -26,22 +26,23 @@ REPORT_TITLES = [
 
 
 def get_image_info(im_path):
+    """Extracting information for the report
+    from the header of the nifti file as well
+    as the json configuration file if it exists.
+    """
     imh = ni.load(im_path).header
     im_json_path = im_path.replace("nii.gz", "json")
+    im_info = dict(
+        dim=imh["dim"][1:4],
+        resolution=imh["pixdim"][1:4],
+    )
     if os.path.isfile(im_json_path):
         with open(im_json_path, "r") as f:
             config = json.load(f)
-        im_info = dict(
-            dim=imh["dim"][1:4],
-            resolution=imh["pixdim"][1:4],
-            field_strength=config["MagneticFieldStrength"],
-        )
+        im_info["field_strength"] = config["MagneticFieldStrength"]
     else:
-        im_info = dict(
-            dim=ni.load(im_path).shape[:3],
-            resolution="Unknown",
-            field_strength="Unknown",
-        )
+        im_info["field_strength"] = "Unknown"
+
     return im_info
 
 
