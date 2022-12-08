@@ -4,9 +4,62 @@ import numpy as np
 import nibabel as ni
 import copy
 from pathlib import Path
-
 import csv
 import os
+import operator
+from collections import defaultdict
+from functools import reduce
+import json
+
+
+def iter_bids_dict(bids_dict: dict, _depth=0, max_depth=1):
+    """Return a single iterator over the dictionary obtained from
+    iter_dir - flexibly handles cases with and without a session date.
+    Taken from https://thispointer.com/python-how-to-iterate-over-
+    nested-dictionary-dict-of-dicts/
+    """
+    assert _depth >= 0
+    for key, value in bids_dict.items():
+        if isinstance(value, dict) and _depth < max_depth:
+            # If value is dict then iterate over all its values
+            for keyvalue in iter_bids_dict(
+                value, _depth + 1, max_depth=max_depth
+            ):
+                yield (key, *keyvalue)
+        else:
+            # If value is not dict type then yield the value
+            yield (key, value)
+
+
+class nested_defaultdict:
+    """Convenience class to create an arbitrary nested dictionary
+    using defaultdict. The dictionary can be accessed using tuples
+    of keys (k1,k2,k3,...).
+    """
+
+    def __init__(self):
+        self._nested_dd = self.nested_default_dict()
+
+    def __repr__(self):
+        return json.dumps(self._nested_dd)
+
+    def __str__(self):
+        return json.dumps(self._nested_dd)
+
+    def nested_default_dict(self):
+        """Define a nested default dictionary"""
+        return defaultdict(self.nested_default_dict)
+
+    def get(self, map_list):
+        """Get an item from a nested dictionary using a tuple of keys"""
+        return reduce(operator.getitem, map_list, self._nested_dd)
+
+    def set(self, map_list, value):
+        """Set an item in a nested dictionary using a tuple of keys"""
+        self.get(map_list[:-1])[map_list[-1]] = value
+
+    def to_dict(self):
+        return json.loads(json.dumps(self._nested_dd))
 
 
 def csv_to_list(csv_path):
@@ -18,12 +71,15 @@ def csv_to_list(csv_path):
 
 
 def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
+
+    query = bids_layout.get(subject=sub, session=ses, run=run)[0]
+    acquisition = query.entities["acquisition"]
     ents = {
         "subject": sub,
         "session": ses,
         "run": run,
         "datatype": "anat",
-        "acquisition": "haste",
+        "acquisition": acquisition,
         "suffix": suffix,
     }
     return bids_layout.build_path(ents, pattern, validate=False)
@@ -62,11 +118,14 @@ def get_html_index(folder, use_ordering_file=False):
     if `use_ordering_file=True`, loads the ordering from
     `folder`/ordering.csv
     """
-    index_list = [
-        f
-        for f in Path(folder).iterdir()
-        if f.is_file() and f.suffix == ".html" and "index" not in f.name
-    ]
+    folder = Path(folder)
+    index_list = sorted(
+        [
+            f
+            for f in Path(folder).iterdir()
+            if f.is_file() and f.suffix == ".html" and "index" not in f.name
+        ]
+    )
     # raw_reports will not be ordered
     if "raw_reports" not in folder.name and (
         use_ordering_file and len(index_list) > 0

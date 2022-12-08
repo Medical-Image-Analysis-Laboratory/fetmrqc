@@ -176,9 +176,8 @@ def plot_mosaic(
     vmin, vmax = _get_limits(im_data, only_plot_noise=False)
 
     naxis = 1
-    for z_val in range(nslices):
+    for z_val in range(nslices - 1, -1, -1):
         ax = fig.add_subplot(nrows, ncols_ip, naxis)
-
         plot_slice(
             im_data[:, :, z_val],
             vmin=vmin,

@@ -28,13 +28,20 @@ REPORT_TITLES = [
 def get_image_info(im_path):
     imh = ni.load(im_path).header
     im_json_path = im_path.replace("nii.gz", "json")
-    with open(im_json_path, "r") as f:
-        config = json.load(f)
-    im_info = dict(
-        dim=imh["dim"][1:4],
-        resolution=imh["pixdim"][1:4],
-        field_strength=config["MagneticFieldStrength"],
-    )
+    if os.path.isfile(im_json_path):
+        with open(im_json_path, "r") as f:
+            config = json.load(f)
+        im_info = dict(
+            dim=imh["dim"][1:4],
+            resolution=imh["pixdim"][1:4],
+            field_strength=config["MagneticFieldStrength"],
+        )
+    else:
+        im_info = dict(
+            dim=ni.load(im_path).shape[:3],
+            resolution="Unknown",
+            field_strength="Unknown",
+        )
     return im_info
 
 
