@@ -18,10 +18,12 @@ To install this repository, first clone it via
 ```
 git clone git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
 ```
-and enter into the directory. Create a conda environment using `conda create -f environment.yml `
+and enter into the directory. Create a conda environment using `conda env create -f environment.yml `
 
 ### MONAIfbs [2]
 Download and install [MONAIfbs](https://github.com/gift-surg/MONAIfbs/tree/main): clone the repository, go into the repository and install it using `python -m pip install -e .`
+
+Download the pretrained model [here](https://zenodo.org/record/4282679#.X7fyttvgqL5), and to add it to `fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt`.
 
 ### fetal-IQA [3,4,5]
 Download the checkpoint `pytorch.ckpt` from [fetal-IQA](https://github.com/daviddmc/fetal-IQA) at [https://zenodo.org/record/7368570]. Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
