@@ -31,7 +31,7 @@ def main():
             "can be changed with `--mask-pattern-base`."
         ),
         nargs="+",
-        default=[MASK_PATTERN],
+        #default=[MASK_PATTERN],
     )
 
     p.add_argument(
@@ -65,17 +65,23 @@ def main():
     print_title("Running list_bids")
     # Constructing patterns.
     if args.mask_patterns_base:
-        assert len(args.mask_patterns_base) == len(
-            args.mask_patterns
-        ), "mask_pattern_base and mask_patterns have different lengths."
-        mask_patterns = [
-            os.path.join(os.path.abspath(b), m)
-            for b, m in zip(args.mask_patterns_base, args.mask_patterns)
-        ]
+        if args.mask_patterns:
+            assert len(args.mask_patterns_base) == len(
+                args.mask_patterns
+            ), "mask_pattern_base and mask_patterns have different lengths."
+            mask_patterns = [
+                os.path.join(os.path.abspath(b), m)
+                for b, m in zip(args.mask_patterns_base, args.mask_patterns)
+            ]
+        else:
+            mask_patterns = [
+                os.path.join(os.path.abspath(b), MASK_PATTERN)
+                for b in args.mask_patterns_base
+            ]
     else:
         mask_patterns_base = [MANU_BASE, AUTO_BASE]
         mask_patterns = [
-            base + args.mask_patterns[0] for base in mask_patterns_base
+            base + MASK_PATTERN for base in mask_patterns_base
         ]
     list_bids(
         args.bids_dir,
