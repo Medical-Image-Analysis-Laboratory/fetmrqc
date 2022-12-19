@@ -10,6 +10,7 @@ import operator
 from collections import defaultdict
 from functools import reduce
 import json
+import random
 
 
 def squeeze_dim(arr, dim):
@@ -151,6 +152,7 @@ def get_html_index(folder, use_ordering_file=False):
                 f"\tWARNING: ordering.csv was found but not used in {folder}.\n"
                 f"\tDid you mean to run with --use-ordering-file?"
             )
+    random.shuffle(index_list)
     return index_list
 
 

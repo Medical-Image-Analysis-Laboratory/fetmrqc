@@ -27,7 +27,7 @@ def list_out_folders(out_folders):
     """Construct the list of all folders that need
     an index file. Two types of folders can be given as input:
     1. Folders with reports
-    2. Folders containing various splits of reports (contructed
+    2. Folders containing various splits of reports (constructed
         from the randomization step)
     The function returns a list of folders potentially containing reports.
     """
