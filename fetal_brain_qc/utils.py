@@ -12,6 +12,12 @@ from functools import reduce
 import json
 
 
+def squeeze_dim(arr, dim):
+    if arr.shape[dim] == 1:
+        return np.squeeze(arr, axis=dim)
+    return arr
+
+
 def iter_bids_dict(bids_dict: dict, _depth=0, max_depth=1):
     """Return a single iterator over the dictionary obtained from
     iter_dir - flexibly handles cases with and without a session date.
@@ -201,7 +207,7 @@ def get_cropped_stack_based_on_mask(
 
     image_ni = copy.deepcopy(image_ni)
     image = image_ni.get_fdata()
-    mask = mask_ni.get_fdata().squeeze(-1)
+    mask = squeeze_dim(mask_ni.get_fdata(), -1)
     # Get rectangular region surrounding the masked voxels
     [x_range, y_range, z_range] = get_rectangular_masked_region(mask)
 
