@@ -38,37 +38,6 @@ def iter_bids_dict(bids_dict: dict, _depth=0, max_depth=1):
             yield (key, value)
 
 
-class nested_defaultdict:
-    """Convenience class to create an arbitrary nested dictionary
-    using defaultdict. The dictionary can be accessed using tuples
-    of keys (k1,k2,k3,...).
-    """
-
-    def __init__(self):
-        self._nested_dd = self.nested_default_dict()
-
-    def __repr__(self):
-        return json.dumps(self._nested_dd)
-
-    def __str__(self):
-        return json.dumps(self._nested_dd)
-
-    def nested_default_dict(self):
-        """Define a nested default dictionary"""
-        return defaultdict(self.nested_default_dict)
-
-    def get(self, map_list):
-        """Get an item from a nested dictionary using a tuple of keys"""
-        return reduce(operator.getitem, map_list, self._nested_dd)
-
-    def set(self, map_list, value):
-        """Set an item in a nested dictionary using a tuple of keys"""
-        self.get(map_list[:-1])[map_list[-1]] = value
-
-    def to_dict(self):
-        return json.loads(json.dumps(self._nested_dd))
-
-
 def csv_to_list(csv_path):
     file_list = []
     reader = csv.DictReader(open(csv_path))
@@ -99,13 +68,20 @@ def iter_bids(
     suffix="T2w",
     target=None,
     return_type="filename",
+    skip_run=False,
 ):
     """Return a single iterator over the BIDSLayout obtained from
     pybids - flexibly handles cases with and without a session date.
     """
     for sub in sorted(bids_layout.get_subjects()):
         for ses in [None] + sorted(bids_layout.get_sessions(subject=sub)):
-            for run in sorted(bids_layout.get_runs(subject=sub, session=ses)):
+            if skip_run:
+                run_list = [None]
+            else:
+                run_list = sorted(
+                    bids_layout.get_runs(subject=sub, session=ses)
+                )
+            for run in run_list:
                 out = bids_layout.get(
                     subject=sub,
                     session=ses,
