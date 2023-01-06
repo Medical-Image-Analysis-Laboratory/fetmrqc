@@ -13,7 +13,7 @@ def main():
     import argparse
     import pandas as pd
     from pathlib import Path
-    from fetal_brain_qc.utils import csv_to_list, print_title
+    from fetal_brain_utils import csv_to_list, print_title
     from fetal_brain_qc.fetal_IQA import eval_model, resnet34
     from fetal_brain_qc.definitions import (
         FETAL_IQA_CKPT,

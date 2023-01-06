@@ -20,6 +20,9 @@ git clone git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
 ```
 and enter into the directory. Create a conda environment using `conda env create -f environment.yml `
 
+### fetal_brain_utils
+Clone and install [fetal_brain_utils](https://github.com/Medical-Image-Analysis-Laboratory/fetal_brain_utils) using `python -m pip install -e .`
+
 ### MONAIfbs [2]
 Download and install [MONAIfbs](https://github.com/gift-surg/MONAIfbs/tree/main): clone the repository, go into the repository and install it using `python -m pip install -e .`
 

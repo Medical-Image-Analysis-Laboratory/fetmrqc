@@ -2,7 +2,7 @@ from copy import deepcopy
 from io import open
 import json
 import nibabel as ni
-from .plotting import plot_mosaic
+from .plotting import plot_mosaic, plot_mosaic_sr
 from pathlib import Path
 import matplotlib.pyplot as plt
 from .data import IndividualTemplate
@@ -32,6 +32,7 @@ def get_image_info(im_path):
     """
     imh = ni.load(im_path).header
     im_json_path = im_path.replace("nii.gz", "json")
+
     im_info = dict(
         dim=imh["dim"][1:4],
         resolution=imh["pixdim"][1:4],
@@ -39,7 +40,7 @@ def get_image_info(im_path):
     if os.path.isfile(im_json_path):
         with open(im_json_path, "r") as f:
             config = json.load(f)
-        im_info["field_strength"] = config["MagneticFieldStrength"]
+        im_info["field_strength"] = "oui"  # config["MagneticFieldStrength"]
     else:
         im_info["field_strength"] = "Unknown"
 
@@ -122,6 +123,7 @@ def generate_report(
     annotate=False,
     cmap="Greys_r",
     do_index=False,
+    is_sr=False,
 ):
     tmp_report_dir = "tmp_report_plots"
     os.makedirs(out_folder, exist_ok=True)
@@ -136,18 +138,29 @@ def generate_report(
                 f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
             )
             continue
-        out_plots = plot_mosaic(
-            im_path,
-            mask_path,
-            boundary=boundary,
-            boundary_tp=boundary_tp,
-            ncols_ip=ncols_ip,
-            n_slices_tp=n_slices_tp,
-            every_n_tp=every_n_tp,
-            annotate=annotate,
-            cmap=cmap,
-            report_dir=tmp_report_dir,
-        )
+        if is_sr:
+            out_plots = plot_mosaic_sr(
+                im_path,
+                mask_path,
+                boundary=boundary,
+                ncols=ncols_ip,
+                annotate=annotate,
+                cmap=cmap,
+                report_dir=tmp_report_dir,
+            )
+        else:
+            out_plots = plot_mosaic(
+                im_path,
+                mask_path,
+                boundary=boundary,
+                boundary_tp=boundary_tp,
+                ncols_ip=ncols_ip,
+                n_slices_tp=n_slices_tp,
+                every_n_tp=every_n_tp,
+                annotate=annotate,
+                cmap=cmap,
+                report_dir=tmp_report_dir,
+            )
         out_path = Path(out_folder) / (run["name"] + "_report.html")
         im_info = get_image_info(im_path)
         out = individual_html(

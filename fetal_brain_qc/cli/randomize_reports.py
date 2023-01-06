@@ -1,7 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.randomize import randomize_reports
-    from fetal_brain_qc.utils import print_title
+    from fetal_brain_utils import print_title
 
     p = argparse.ArgumentParser(
         description=(

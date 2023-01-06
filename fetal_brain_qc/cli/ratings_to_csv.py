@@ -49,7 +49,7 @@ def artifact_text(rating):
 
 def main():
     import argparse
-    from fetal_brain_qc.utils import csv_to_list
+    from fetal_brain_utils import csv_to_list
     import pandas as pd
     import re
     import json

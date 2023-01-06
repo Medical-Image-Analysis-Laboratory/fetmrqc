@@ -1,7 +1,7 @@
 import os
 import SimpleITK as sitk
 import nibabel as ni
-from .utils import get_cropped_stack_based_on_mask
+from fetal_brain_utils import get_cropped_stack_based_on_mask
 
 
 def crop_input(file_path, mask_path, mask_image, dir_cropped):

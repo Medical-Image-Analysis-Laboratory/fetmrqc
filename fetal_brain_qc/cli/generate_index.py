@@ -1,7 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.index import generate_index
-    from fetal_brain_qc.utils import print_title
+    from fetal_brain_utils import print_title
     import numpy as np
     import random
 

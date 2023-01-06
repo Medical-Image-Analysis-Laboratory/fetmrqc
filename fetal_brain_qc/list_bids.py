@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from .utils import iter_bids
+from fetal_brain_utils import iter_bids
 from bids import BIDSLayout
 import csv
 

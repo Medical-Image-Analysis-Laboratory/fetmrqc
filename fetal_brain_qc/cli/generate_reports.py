@@ -1,7 +1,7 @@
 def main():
     import argparse
     from fetal_brain_qc.report import generate_report
-    from fetal_brain_qc.utils import csv_to_list, print_title
+    from fetal_brain_utils import csv_to_list, print_title
 
     p = argparse.ArgumentParser()
 
@@ -13,6 +13,13 @@ def main():
     p.add_argument(
         "bids_csv",
         help="Path where the bids config csv file is located.",
+    )
+
+    p.add_argument(
+        "--sr",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether the reports to be generated are for SR data.",
     )
 
     p.add_argument(
@@ -37,6 +44,7 @@ def main():
         annotate=False,
         cmap="Greys_r",
         do_index=args.add_js,
+        is_sr=args.sr,
     )
 
     return 0

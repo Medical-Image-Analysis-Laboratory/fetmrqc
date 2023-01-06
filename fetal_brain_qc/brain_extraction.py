@@ -1,5 +1,6 @@
 import os
-from .utils import iter_bids, fill_pattern
+from fetal_brain_utils import iter_bids
+from .utils import fill_pattern
 from pathlib import Path
 import shutil
 

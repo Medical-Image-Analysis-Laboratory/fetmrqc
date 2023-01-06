@@ -10,7 +10,7 @@ from .utils import (
     mutual_information,
     normalized_mutual_information,
 )
-from fetal_brain_qc.utils import get_cropped_stack_based_on_mask
+from fetal_brain_utils import get_cropped_stack_based_on_mask
 from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 
 DEFAULT_METRICS = [

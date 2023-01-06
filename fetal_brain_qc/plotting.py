@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import os.path as op
 import matplotlib.pyplot as plt
-from .utils import get_cropped_stack_based_on_mask
+from fetal_brain_utils import get_cropped_stack_based_on_mask
 import math
 
 
@@ -253,6 +253,207 @@ def plot_mosaic(
             annotate=annotate,
         )
         naxis += 1
+
+    os.makedirs(report_dir, exist_ok=True)
+
+    out_files = [
+        f"{report_dir}/ip_mosaic.svg",
+        f"{report_dir}/thp1_mosaic.svg",
+        f"{report_dir}/thp2_mosaic.svg",
+    ]
+
+    for f, out in zip([fig, fig2, fig3], out_files):
+        f.subplots_adjust(
+            left=0.05,
+            right=0.95,
+            bottom=0.05,
+            top=0.95,
+            wspace=0.05,
+            hspace=0.05,
+        )
+
+        f.subplots_adjust(wspace=0.002, hspace=0.002)
+
+        f.savefig(out, format="svg", dpi=300, bbox_inches="tight")
+        plt.close(f)
+    out_files = [op.abspath(fname) for fname in out_files]
+    return out_files
+
+
+def plot_mosaic_sr(
+    imp,
+    maskp,
+    boundary=20,
+    ncols=6,
+    annotate=False,
+    cmap="Greys_r",
+    report_dir="tmp_report",
+):
+    """Inspired from MRIQC.
+    imp:
+        Path to the brain LR T2w image to be plotted
+    boundary:
+        Boundary to be left around the image when cropping it.
+    ncols:
+        Number of columns
+    annotate:
+        Whether the plots should be annotated
+    cmap:
+        Colormap to be used
+    """
+    im = ni.load(imp)
+    mask = ni.load(maskp)
+    imc = get_cropped_stack_based_on_mask(
+        im,
+        mask,
+        boundary_i=boundary,
+        boundary_j=boundary,
+        boundary_k=boundary,
+    )
+    maskc = get_cropped_stack_based_on_mask(
+        mask,
+        mask,
+        boundary_i=boundary,
+        boundary_j=boundary,
+        boundary_k=boundary,
+    )
+    zooms = im.header.get_zooms()
+
+    im_data = imc.get_fdata()
+
+    n_slices = im_data.shape[2]
+    mid_img = im_data.shape[0] // 2
+    nslices = im_data.shape[2]
+
+    nrows = math.ceil(nslices / ncols)
+
+    # fig = plt.figure(figsize=(12, nrows * 2))
+
+    vmin, vmax = _get_limits(im_data, only_plot_noise=False)
+
+    # naxis = 1
+    # for z_val in range(nslices - 1, -1, -1):
+    #     ax = fig.add_subplot(nrows, ncols, naxis)
+    #     plot_slice(
+    #         im_data[:, :, z_val],
+    #         vmin=vmin,
+    #         vmax=vmax,
+    #         cmap=cmap,
+    #         ax=ax,
+    #         spacing=zooms[:2],
+    #         label="%d" % z_val,
+    #         annotate=annotate,
+    #     )
+
+    #     naxis += 1
+
+    def plot_axis(im, axis, vmin, vmax, cmap, zooms, annotate, reverse=False):
+        axes = [0, 1, 2]
+        axes.remove(axis)
+        axes = tuple(axes)
+        print(axis, axes, im.shape)
+        mask = (im.get_fdata() > 0).astype(int)
+        print(mask.sum(axis=axes).shape, mask.shape[axis])
+        plot_range = np.nonzero(mask.sum(axis=axes))[0]
+
+        # plot_range = np.nonzero(
+        #    np.array([mask.sum(axis=axes)[i] for i in range(mask.shape[axis])])
+        # )[axis]
+        min_, max_ = min(plot_range), max(plot_range)
+        print(min_, max_)
+        slc = [slice(None)] * len(im.shape)
+        if not reverse:
+            iter_range = range(min_, max_, 1)
+        else:
+            iter_range = range(max_ - 1, min_ - 1, -1)
+        im = np.moveaxis(im.get_fdata(), axis, 0)
+        print(np.array(zooms).shape)
+        spacing = zooms[axis]
+        fig = plt.figure(figsize=(12, nrows * 2))
+
+        naxis = 1
+        for i in iter_range:
+            ax = fig.add_subplot(nrows, ncols, naxis)
+            plot_slice(
+                im[i, :, :],
+                vmin=vmin,
+                vmax=vmax,
+                cmap=cmap,
+                ax=ax,
+                spacing=spacing,
+                label="%d" % i,
+                annotate=annotate,
+            )
+
+            naxis += 1
+        return fig
+
+    fig = plot_axis(im, 2, vmin, vmax, cmap, zooms, annotate)
+    fig2 = plot_axis(im, 0, vmin, vmax, cmap, zooms, annotate)
+    fig3 = plot_axis(im, 1, vmin, vmax, cmap, zooms, annotate)
+
+    # nrows = math.ceil(n_slices_tp / 2)
+    # mid_x = int(
+    #     np.nonzero(
+    #         np.array(
+    #             [mask.get_fdata()[i, :, :].sum() for i in range(mask.shape[0])]
+    #         )
+    #     )[0].mean()
+    # )
+
+    # min_x = max(mid_x - n_slices_tp // 2 * every_n_tp, 0)
+    # max_x = min(
+    #     mid_x + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[0]
+    # )
+
+    # fig2 = plt.figure(figsize=(12, math.ceil(nrows * 4 / 3)))
+
+    # naxis = 1
+
+    # for x_val in range(min_x, max_x, every_n_tp):
+    #     ax = fig2.add_subplot(nrows, 2, naxis)
+
+    #     plot_slice(
+    #         im.get_fdata()[x_val, :, :],
+    #         vmin=vmin,
+    #         vmax=vmax,
+    #         cmap=cmap,
+    #         ax=ax,
+    #         spacing=zooms[1:],
+    #         label="%d" % x_val,
+    #         annotate=annotate,
+    #     )
+    #     naxis += 1
+
+    # mid_y = int(
+    #     np.nonzero(
+    #         np.array(
+    #             [mask.get_fdata()[:, i, :].sum() for i in range(mask.shape[1])]
+    #         )
+    #     )[0].mean()
+    # )
+
+    # min_y = max(mid_y - n_slices_tp // 2 * every_n_tp, 0)
+    # max_y = min(
+    #     mid_y + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[1]
+    # )
+
+    # naxis = 1
+    # fig3 = plt.figure(figsize=(12, math.ceil(nrows * 4 / 3)))
+    # for y_val in range(min_y, max_y, every_n_tp):
+    #     ax = fig3.add_subplot(3, 2, naxis)
+
+    #     plot_slice(
+    #         im.get_fdata()[:, y_val, :],
+    #         vmin=vmin,
+    #         vmax=vmax,
+    #         cmap=cmap,
+    #         ax=ax,
+    #         spacing=zooms[1:],
+    #         label="%d" % y_val,
+    #         annotate=annotate,
+    #     )
+    #     naxis += 1
 
     os.makedirs(report_dir, exist_ok=True)
 

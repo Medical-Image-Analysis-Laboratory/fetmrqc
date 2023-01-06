@@ -7,7 +7,7 @@ def main():
         bidsify_monaifbs,
         run_brain_extraction,
     )
-    from fetal_brain_qc.utils import iter_bids, print_title
+    from fetal_brain_utils import iter_bids, print_title
 
     p = argparse.ArgumentParser(
         description=(

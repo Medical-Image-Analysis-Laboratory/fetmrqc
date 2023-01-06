@@ -3,7 +3,7 @@ def main():
     from fetal_brain_qc.list_bids import list_bids
     from fetal_brain_qc.anon_bids import anonymize_bids_csv
     from fetal_brain_qc.definitions import MASK_PATTERN, MANU_BASE, AUTO_BASE
-    from fetal_brain_qc.utils import print_title
+    from fetal_brain_utils import print_title
     import os
 
     p = argparse.ArgumentParser(
@@ -31,7 +31,7 @@ def main():
             "can be changed with `--mask-pattern-base`."
         ),
         nargs="+",
-        #default=[MASK_PATTERN],
+        # default=[MASK_PATTERN],
     )
 
     p.add_argument(
@@ -80,9 +80,7 @@ def main():
             ]
     else:
         mask_patterns_base = [MANU_BASE, AUTO_BASE]
-        mask_patterns = [
-            base + MASK_PATTERN for base in mask_patterns_base
-        ]
+        mask_patterns = [base + MASK_PATTERN for base in mask_patterns_base]
     list_bids(
         args.bids_dir,
         mask_patterns,

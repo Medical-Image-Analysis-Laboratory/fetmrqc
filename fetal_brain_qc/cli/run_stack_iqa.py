@@ -19,7 +19,7 @@ def main():
     from pathlib import Path
 
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
-    from fetal_brain_qc.utils import csv_to_list, print_title
+    from fetal_brain_utils import csv_to_list, print_title
     from fetal_brain_qc.definitions import FETAL_STACK_IQA_CKPT
     from fetal_brain_qc.fnndsc_IQA import Predictor, fnndsc_preprocess
 
