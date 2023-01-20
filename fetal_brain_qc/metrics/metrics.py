@@ -12,6 +12,7 @@ from .utils import (
 )
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
+from fetal_brain_qc.utils import squeeze_dim
 
 DEFAULT_METRICS = [
     "dl_slice_iqa",
@@ -136,106 +137,117 @@ class LRStackMetrics:
                 relative_rank=False,
             ),
             "mask_volume": self._metric_mask_volume,
-            "ncc": freeze(
-                self._metric_normalized_cross_correlation, **default_params
+            "ncc": self.process_metric(
+                metric=normalized_cross_correlation, **default_params
             ),
-            "ncc_median": freeze(
-                self._metric_normalized_cross_correlation,
+            "ncc_median": self.process_metric(
+                metric=normalized_cross_correlation,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=False,
                 reduction="median",
             ),
-            "ncc_intersection": freeze(
-                self._metric_normalized_cross_correlation,
+            "ncc_intersection": self.process_metric(
+                metric=normalized_cross_correlation,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "ncc_full": freeze(
-                self._metric_normalized_cross_correlation,
+            "ncc_full": self.process_metric(
+                metric=normalized_cross_correlation,
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "joint_entropy": freeze(
-                self._metric_joint_entropy, **default_params
+            "joint_entropy": self.process_metric(
+                metric=joint_entropy, **default_params
             ),
-            "joint_entropy_median": freeze(
-                self._metric_joint_entropy,
+            "joint_entropy_median": self.process_metric(
+                metric=joint_entropy,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=False,
                 reduction="median",
             ),
-            "joint_entropy_intersection": freeze(
-                self._metric_joint_entropy,
+            "joint_entropy_intersection": self.process_metric(
+                metric=joint_entropy,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "joint_entropy_full": freeze(
-                self._metric_joint_entropy,
+            "joint_entropy_full": self.process_metric(
+                metric=joint_entropy,
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "mi": freeze(self._metric_mutual_information, **default_params),
-            "mi_median": freeze(
-                self._metric_mutual_information,
+            "mi": self.process_metric(
+                metric=mutual_information, **default_params
+            ),
+            "mi_window": self.process_metric(
+                metric=mutual_information,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
+            "mi_median": self.process_metric(
+                metric=mutual_information,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=False,
                 reduction="median",
             ),
-            "mi_intersection": freeze(
-                self._metric_mutual_information,
+            "mi_intersection": self.process_metric(
+                metric=mutual_information,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "mi_full": freeze(
-                self._metric_mutual_information,
+            "mi_full": self.process_metric(
+                metric=mutual_information,
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "nmi": freeze(
-                self._metric_normalized_mutual_information, **default_params
+            "nmi": self.process_metric(
+                metric=normalized_mutual_information, **default_params
             ),
-            "nmi_median": freeze(
-                self._metric_normalized_mutual_information,
+            "nmi_median": self.process_metric(
+                metric=normalized_mutual_information,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=False,
                 reduction="median",
             ),
-            "nmi_intersection": freeze(
-                self._metric_normalized_mutual_information,
+            "nmi_intersection": self.process_metric(
+                metric=normalized_mutual_information,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "nmi_full": freeze(
-                self._metric_normalized_mutual_information,
+            "nmi_full": self.process_metric(
+                metric=normalized_mutual_information,
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
@@ -243,10 +255,10 @@ class LRStackMetrics:
                 reduction="mean",
             ),
             "shannon_entropy": freeze(
-                self._metric_joint_entropy, **default_params
+                self._metric_shannon_entropy, **default_params
             ),
             "shannon_entropy_median": freeze(
-                self._metric_joint_entropy,
+                self._metric_shannon_entropy,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
@@ -254,7 +266,7 @@ class LRStackMetrics:
                 reduction="median",
             ),
             "shannon_entropy_full": freeze(
-                self._metric_joint_entropy,
+                self._metric_shannon_entropy,
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
@@ -273,6 +285,9 @@ class LRStackMetrics:
     def get_all_metrics(self):
         return list(self.metrics_func.keys())
 
+    def set_metrics(self, metrics):
+        self._metrics = metrics
+
     def _valid_mask(self, mask_path):
         mask = ni.load(mask_path).get_fdata()
         if mask.sum() == 0:
@@ -289,6 +304,7 @@ class LRStackMetrics:
         if not self._valid_mask(mask_path):
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
+            print("\nRunning", m)
             if self._valid_mask(mask_path):
                 out = self.metrics_func[m](**args_dict)
             else:
@@ -313,6 +329,17 @@ class LRStackMetrics:
             ), "dl_slice_iqa requires passing a checkpoint and a device for for the DL slice-wise model."
 
     @classmethod
+    def process_metric(
+        cls,
+        metric,
+        **kwargs,
+    ):
+
+        return freeze(
+            cls.preprocess_and_evaluate_metric, metric=metric, **kwargs
+        )
+
+    @classmethod
     @allow_kwargs
     def _metric_mask_centroid(
         cls, mask_path: str, central_third: bool = True
@@ -333,7 +360,7 @@ class LRStackMetrics:
         The computed score based on mask centroid
         """
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze(-1)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1)
         if central_third:
             num_z = mask.shape[2]
             center_z = int(num_z / 2.0)
@@ -380,7 +407,7 @@ class LRStackMetrics:
         """
 
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze(-1)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1)
         vx_volume = np.array(mask_ni.header.get_zooms()).prod()
         isnan = False
         return np.sum(mask) * vx_volume, isnan
@@ -421,7 +448,7 @@ class LRStackMetrics:
         image_ni = ni.load(lr_path)
         image = image_ni.get_fdata()
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze(-1)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1)
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
@@ -474,7 +501,7 @@ class LRStackMetrics:
         image_ni = ni.load(lr_path)
         image = image_ni.get_fdata().transpose(2, 1, 0)
         mask_ni = ni.load(mask_path)
-        mask = mask_ni.get_fdata().squeeze(-1).transpose(2, 1, 0)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
@@ -483,7 +510,7 @@ class LRStackMetrics:
                 return None, None
 
             image = image.get_fdata().transpose(2, 1, 0)
-            mask = mask.get_fdata().squeeze(-1).transpose(2, 1, 0)
+            mask = squeeze_dim(mask.get_fdata(), -1).transpose(2, 1, 0)
         if central_third:
             num_z = image.shape[0]
             center_z = int(num_z / 2.0)
@@ -506,6 +533,8 @@ class LRStackMetrics:
         compute_on_mask=True,
         mask_intersection=True,
         reduction="mean",
+        use_window=False,
+        window_size=3,
     ):
 
         VALID_REDUCTIONS = ["mean", "median"]
@@ -519,26 +548,32 @@ class LRStackMetrics:
         if image is None or mask is None:
             # image is None when the mask is empty: nothing is computed.
             return np.nan, True
-        metric_array = np.zeros((image.shape[0], image.shape[0]))
-        # TODO: This computation is run between all slices in an image.
-        # What about doing something on a window around a given image?
+        metric_out = []
+        isnan = False
         for i, img_i in enumerate(image):
-            for j, img_j in enumerate(image):
+            if use_window:
+                l, r = window_size // 2, window_size - window_size // 2
+                range_j = range(max(0, i - l), min(image.shape[0], i + r))
+            else:
+                range_j = range(0, image.shape[0])
+            for j in range_j:
                 if compute_on_mask:
                     idx = (
                         np.where(mask[i] * mask[j])
                         if mask_intersection
                         else np.where(mask[i] + mask[j])
                     )
-                    metric_array[i, j] = metric(img_i[idx], img_j[idx])
+                    m = metric(img_i[idx], image[j][idx])
                 else:
-
-                    metric_array[i, j] = metric(img_i, img_j)
-
+                    m = metric(img_i, image[j])
+                if not np.isnan(m):
+                    metric_out.append(m)
+                if np.isnan(m):
+                    isnan = True
         if reduction == "mean":
-            return np.nanmean(metric_array), np.isnan(metric_array).any()
+            return np.mean(metric_out), isnan
         elif reduction == "median":
-            return np.nanmedian(metric_array), np.isnan(metric_array).any()
+            return np.median(metric_out), isnan
 
     @classmethod
     def preprocess_and_evaluate_noref_metric(
@@ -556,46 +591,8 @@ class LRStackMetrics:
 
         if compute_on_mask:
             image = image[np.where(mask)]
-        return noref_metric(image.flatten())
-
-    @classmethod
-    @allow_kwargs
-    def _metric_normalized_cross_correlation(
-        cls,
-        lr_path,
-        mask_path,
-        central_third=True,
-        crop_image=True,
-        compute_on_mask=True,
-        mask_intersection=True,
-        reduction="mean",
-    ) -> np.ndarray:
-        """TODO
-        Computes the normalized cross correlation on a given stack at lr_path
-
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        central_third:
-        compute_on_mask:
-        mask_intersection:
-        reduction:
-
-        Output
-        ------
-        The normalized cross correlation on the stack as a scalar in the range -1, 1
-        """
-        return cls.preprocess_and_evaluate_metric(
-            normalized_cross_correlation,
-            lr_path,
-            mask_path,
-            central_third,
-            crop_image,
-            compute_on_mask,
-            mask_intersection,
-            reduction,
-        )
+        metric = noref_metric(image.flatten())
+        return metric, np.isnan(metric)
 
     @classmethod
     @allow_kwargs
@@ -630,128 +627,6 @@ class LRStackMetrics:
             compute_on_mask,
         )
 
-    @classmethod
-    @allow_kwargs
-    def _metric_joint_entropy(
-        cls,
-        lr_path,
-        mask_path,
-        central_third=True,
-        crop_image=True,
-        compute_on_mask=True,
-        mask_intersection=True,
-        reduction="mean",
-    ) -> np.ndarray:
-        """TODO
-        Computes the joint entropy on a given stack at lr_path
-
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        central_third:
-        compute_on_mask:
-        mask_intersection:
-        reduction:
-
-        Output
-        ------
-        The joint entropy on the stack as scalar value >= 0
-        """
-        return cls.preprocess_and_evaluate_metric(
-            joint_entropy,
-            lr_path,
-            mask_path,
-            central_third,
-            crop_image,
-            compute_on_mask,
-            mask_intersection,
-            reduction,
-        )
-
-    @classmethod
-    @allow_kwargs
-    def _metric_mutual_information(
-        cls,
-        lr_path,
-        mask_path,
-        central_third=True,
-        crop_image=True,
-        compute_on_mask=True,
-        mask_intersection=True,
-        reduction="mean",
-    ) -> np.ndarray:
-        """TODO
-        Computes the mutual information on a given stack at lr_path
-
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        central_third:
-        compute_on_mask:
-        mask_intersection:
-        reduction:
-
-        Output
-        ------
-        The normalized mutual information on the stack as a scalar >= 0
-        """
-        return cls.preprocess_and_evaluate_metric(
-            mutual_information,
-            lr_path,
-            mask_path,
-            central_third,
-            crop_image,
-            compute_on_mask,
-            mask_intersection,
-            reduction,
-        )
-
-    @classmethod
-    @allow_kwargs
-    def _metric_normalized_mutual_information(
-        cls,
-        lr_path,
-        mask_path,
-        central_third=True,
-        crop_image=True,
-        compute_on_mask=True,
-        mask_intersection=True,
-        reduction="mean",
-    ) -> np.ndarray:
-        """TODO
-        Computes the normalized mutual information on a given stack at lr_path
-
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        central_third:
-        compute_on_mask:
-        mask_intersection:
-        reduction:
-
-        Output
-        ------
-        The normalized mutual information on the stack as scalar value >= 0
-        with upper bound as in Skouson2001
-
-        Skouson, M.B., Quji Guo & Zhi-Pei Liang, 2001. A bound on mutual
-             information for image registration. IEEE Transactions on Medical
-             Imaging, 20(8), pp.843-846.
-        """
-        return cls.preprocess_and_evaluate_metric(
-            normalized_mutual_information,
-            lr_path,
-            mask_path,
-            central_third,
-            crop_image,
-            compute_on_mask,
-            mask_intersection,
-            reduction,
-        )
-
     @allow_kwargs
     def _metric_stack_iqa(
         self,
@@ -761,9 +636,14 @@ class LRStackMetrics:
         """ """
         # Loading data
 
-        img = ni.load(lr_path).get_fdata()
-        mask = ni.load(mask_path).get_fdata().squeeze(-1)
-
+        image_ni = ni.load(lr_path)
+        mask_ni = ni.load(mask_path)
+        img = squeeze_dim(
+            get_cropped_stack_based_on_mask(image_ni, mask_ni).get_fdata(), -1
+        )
+        mask = squeeze_dim(
+            get_cropped_stack_based_on_mask(mask_ni, mask_ni).get_fdata(), -1
+        )
         img = fnndsc_preprocess(img, mask)
         df = self.stack_predictor.predict([img], ["img"])
         df = df.set_index("filename")
