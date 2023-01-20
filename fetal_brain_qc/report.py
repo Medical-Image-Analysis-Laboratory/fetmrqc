@@ -24,6 +24,12 @@ REPORT_TITLES = [
     ("Through-plane view 2", "tp2"),
 ]
 
+REPORT_TITLES_SR = [
+    ("Axial view", "axial"),
+    ("Sagittal view", "sagittal"),
+    ("Coronal view", "coronal"),
+]
+
 
 def get_image_info(im_path):
     """Extracting information for the report
@@ -79,6 +85,7 @@ def individual_html(
     bids_name=None,
     out_path=None,
     do_index=False,
+    sr=False,
 ):
     """From MRIQC"""
 
@@ -89,9 +96,12 @@ def individual_html(
 
     # Extract and prune metadata
 
+    if sr:
+        titles = REPORT_TITLES_SR
+    else:
+        titles = REPORT_TITLES
     in_plots = [
-        (REPORT_TITLES[i] + (read_report_snippet(v),))
-        for i, v in enumerate(in_plots)
+        (titles[i] + (read_report_snippet(v),)) for i, v in enumerate(in_plots)
     ]
 
     date = datetime.datetime.now()
@@ -132,12 +142,17 @@ def generate_report(
         mask_path = run["mask"]
         print(f"Processing {Path(im_path).name}")
         """Generate a report given an image path and mask"""
-        mask = ni.load(mask_path).get_fdata()
-        if mask.sum() == 0:
+        if mask_path == "":
             print(
-                f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
+                "WARNING: No mask was provided, using the binarization of the SR."
             )
-            continue
+        else:
+            mask = ni.load(mask_path).get_fdata()
+            if mask.sum() == 0:
+                print(
+                    f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
+                )
+                continue
         if is_sr:
             out_plots = plot_mosaic_sr(
                 im_path,
@@ -169,6 +184,7 @@ def generate_report(
             bids_name=run["name"],
             out_path=out_path,
             do_index=do_index,
+            sr=is_sr,
         )
         plt.close()
     # Remove temporary directory for report generation

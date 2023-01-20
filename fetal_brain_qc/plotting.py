@@ -258,8 +258,8 @@ def plot_mosaic(
 
     out_files = [
         f"{report_dir}/ip_mosaic.svg",
-        f"{report_dir}/thp1_mosaic.svg",
-        f"{report_dir}/thp2_mosaic.svg",
+        f"{report_dir}/tp1_mosaic.svg",
+        f"{report_dir}/tp2_mosaic.svg",
     ]
 
     for f, out in zip([fig, fig2, fig3], out_files):
@@ -283,7 +283,7 @@ def plot_mosaic(
 def plot_mosaic_sr(
     imp,
     maskp,
-    boundary=20,
+    boundary=0,
     ncols=6,
     annotate=False,
     cmap="Greys_r",
@@ -302,7 +302,13 @@ def plot_mosaic_sr(
         Colormap to be used
     """
     im = ni.load(imp)
-    mask = ni.load(maskp)
+    if maskp == "":
+        mask = ni.load(imp)
+        mask = ni.Nifti1Image(
+            (mask.get_fdata() > 0).astype(int), mask.affine, mask.header
+        )
+    else:
+        mask = ni.load(maskp)
     imc = get_cropped_stack_based_on_mask(
         im,
         mask,
@@ -310,64 +316,57 @@ def plot_mosaic_sr(
         boundary_j=boundary,
         boundary_k=boundary,
     )
-    maskc = get_cropped_stack_based_on_mask(
-        mask,
-        mask,
-        boundary_i=boundary,
-        boundary_j=boundary,
-        boundary_k=boundary,
-    )
+    # maskc = get_cropped_stack_based_on_mask(
+    #    mask,
+    #    mask,
+    #    boundary_i=boundary,
+    #    boundary_j=boundary,
+    #    boundary_k=boundary,
+    # )
     zooms = im.header.get_zooms()
 
     im_data = imc.get_fdata()
 
-    n_slices = im_data.shape[2]
-    mid_img = im_data.shape[0] // 2
-    nslices = im_data.shape[2]
-
-    nrows = math.ceil(nslices / ncols)
-
-    # fig = plt.figure(figsize=(12, nrows * 2))
-
     vmin, vmax = _get_limits(im_data, only_plot_noise=False)
 
-    # naxis = 1
-    # for z_val in range(nslices - 1, -1, -1):
-    #     ax = fig.add_subplot(nrows, ncols, naxis)
-    #     plot_slice(
-    #         im_data[:, :, z_val],
-    #         vmin=vmin,
-    #         vmax=vmax,
-    #         cmap=cmap,
-    #         ax=ax,
-    #         spacing=zooms[:2],
-    #         label="%d" % z_val,
-    #         annotate=annotate,
-    #     )
-
-    #     naxis += 1
+    # Use the affine to re-order the axes in standardized manner for visualization
+    # 1. Extract the affine orientation (non-zero entry in the line)
+    affine_axes = tuple(np.nonzero(im.affine[:3, :3]))
+    # Define axes to be flipped based on whether the entry is positive.
+    flip_axis = np.nonzero(np.sign(im.affine[affine_axes]).astype(int) == -1)[
+        0
+    ]
+    affine_axes = affine_axes[1]
+    # Flip axes
+    im_data = np.flip(im_data, axis=flip_axis)
+    # Swap axes
+    im_data = im_data.transpose(affine_axes)
 
     def plot_axis(im, axis, vmin, vmax, cmap, zooms, annotate, reverse=False):
+        """Plot a 3D volume along a given axis."""
         axes = [0, 1, 2]
         axes.remove(axis)
         axes = tuple(axes)
-        print(axis, axes, im.shape)
-        mask = (im.get_fdata() > 0).astype(int)
-        print(mask.sum(axis=axes).shape, mask.shape[axis])
-        plot_range = np.nonzero(mask.sum(axis=axes))[0]
+        # Generate the mask from the image.
+        mask = (im > 0).astype(int)
+        plot_sum = mask.sum(axis=axes)
+        # Define the range of slices to be plotted and exclude
+        # slices with too little pixels of interest.
+        plot_range = np.nonzero(
+            mask.sum(axis=axes) > (np.median(plot_sum) * 0.2)
+        )[0]
 
-        # plot_range = np.nonzero(
-        #    np.array([mask.sum(axis=axes)[i] for i in range(mask.shape[axis])])
-        # )[axis]
+        nrows = math.ceil(im.shape[axis] / ncols)
+
         min_, max_ = min(plot_range), max(plot_range)
-        print(min_, max_)
+
         slc = [slice(None)] * len(im.shape)
         if not reverse:
             iter_range = range(min_, max_, 1)
         else:
             iter_range = range(max_ - 1, min_ - 1, -1)
-        im = np.moveaxis(im.get_fdata(), axis, 0)
-        print(np.array(zooms).shape)
+
+        im = np.moveaxis(im, axis, 0)
         spacing = zooms[axis]
         fig = plt.figure(figsize=(12, nrows * 2))
 
@@ -388,79 +387,19 @@ def plot_mosaic_sr(
             naxis += 1
         return fig
 
-    fig = plot_axis(im, 2, vmin, vmax, cmap, zooms, annotate)
-    fig2 = plot_axis(im, 0, vmin, vmax, cmap, zooms, annotate)
-    fig3 = plot_axis(im, 1, vmin, vmax, cmap, zooms, annotate)
-
-    # nrows = math.ceil(n_slices_tp / 2)
-    # mid_x = int(
-    #     np.nonzero(
-    #         np.array(
-    #             [mask.get_fdata()[i, :, :].sum() for i in range(mask.shape[0])]
-    #         )
-    #     )[0].mean()
-    # )
-
-    # min_x = max(mid_x - n_slices_tp // 2 * every_n_tp, 0)
-    # max_x = min(
-    #     mid_x + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[0]
-    # )
-
-    # fig2 = plt.figure(figsize=(12, math.ceil(nrows * 4 / 3)))
-
-    # naxis = 1
-
-    # for x_val in range(min_x, max_x, every_n_tp):
-    #     ax = fig2.add_subplot(nrows, 2, naxis)
-
-    #     plot_slice(
-    #         im.get_fdata()[x_val, :, :],
-    #         vmin=vmin,
-    #         vmax=vmax,
-    #         cmap=cmap,
-    #         ax=ax,
-    #         spacing=zooms[1:],
-    #         label="%d" % x_val,
-    #         annotate=annotate,
-    #     )
-    #     naxis += 1
-
-    # mid_y = int(
-    #     np.nonzero(
-    #         np.array(
-    #             [mask.get_fdata()[:, i, :].sum() for i in range(mask.shape[1])]
-    #         )
-    #     )[0].mean()
-    # )
-
-    # min_y = max(mid_y - n_slices_tp // 2 * every_n_tp, 0)
-    # max_y = min(
-    #     mid_y + n_slices_tp // 2 * every_n_tp - every_n_tp // 2, mask.shape[1]
-    # )
-
-    # naxis = 1
-    # fig3 = plt.figure(figsize=(12, math.ceil(nrows * 4 / 3)))
-    # for y_val in range(min_y, max_y, every_n_tp):
-    #     ax = fig3.add_subplot(3, 2, naxis)
-
-    #     plot_slice(
-    #         im.get_fdata()[:, y_val, :],
-    #         vmin=vmin,
-    #         vmax=vmax,
-    #         cmap=cmap,
-    #         ax=ax,
-    #         spacing=zooms[1:],
-    #         label="%d" % y_val,
-    #         annotate=annotate,
-    #     )
-    #     naxis += 1
+    fig = plot_axis(im_data, 2, vmin, vmax, cmap, zooms, annotate)
+    print(im_data.shape)
+    fig2 = plot_axis(im_data, 0, vmin, vmax, cmap, zooms, annotate)
+    print(im_data.shape)
+    fig3 = plot_axis(im_data, 1, vmin, vmax, cmap, zooms, annotate)
+    print(im_data.shape)
 
     os.makedirs(report_dir, exist_ok=True)
 
     out_files = [
-        f"{report_dir}/ip_mosaic.svg",
-        f"{report_dir}/thp1_mosaic.svg",
-        f"{report_dir}/thp2_mosaic.svg",
+        f"{report_dir}/axial_mosaic.svg",
+        f"{report_dir}/sagittal_mosaic.svg",
+        f"{report_dir}/coronal_mosaic.svg",
     ]
 
     for f, out in zip([fig, fig2, fig3], out_files):
