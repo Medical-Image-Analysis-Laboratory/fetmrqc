@@ -1,4 +1,4 @@
-from fetal_brain_qc.utils import crop_image_to_region
+from fetal_brain_utils.cropping import crop_image_to_region
 from copy import deepcopy
 import numpy as np
 import nibabel as ni
@@ -11,7 +11,6 @@ def eval_model(im_path, mask_path, model, device):
     1. Crop the input image to 256x256 based on the brain mask
     2. Run the evaluation and return a slice-wise score as well as global ratings.
     """
-    from fetal_brain_qc.fetal_IQA.utils import adjust_around_mask_to_256
 
     image_ni = ni.load(im_path)
     mask_ni = ni.load(mask_path)
@@ -107,13 +106,10 @@ def crop_pad_nifti(data, affine, xrange, yrange, zrange):
     """Utility function to apply the cropping around the brain,
     pad the image if it is too small and return a nifti file.
     """
-    print("input", data.shape, xrange, yrange, zrange)
     data = crop_image_to_region(data, xrange, yrange, zrange)
-    print("before", data.shape)
     if any(x < 256 for x in data.shape[:2]):
         pad_to = (256, 256, data.shape[2])
         data = pad_image(data, pad_to)
-    print(data.shape)
     return ni.Nifti1Image(data, affine)
 
 
@@ -124,7 +120,7 @@ def adjust_around_mask_to_256(image_ni, mask_ni):
     size 256 also when the brain isn't centered in a stack.
     """
 
-    from fetal_brain_qc.utils import crop_image_to_region
+    from fetal_brain_utils.cropping import crop_image_to_region
     from copy import deepcopy
 
     image = image_ni.get_fdata().squeeze()
