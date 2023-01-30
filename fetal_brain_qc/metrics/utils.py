@@ -7,7 +7,8 @@ from functools import wraps
 
 
 def allow_kwargs(func):
-    """TODO"""
+    """Wrapper to allow flexible kwargs: if the kwargs do not match
+    the argspec of the function, they are simply ignored."""
     argspec = getfullargspec(func)
 
     # if the original allows kwargs then do nothing
@@ -20,12 +21,17 @@ def allow_kwargs(func):
         matched_args = dict(
             (k, kwargs[k]) for k in argspec.args if k in kwargs
         )
+
         return func(*args, **matched_args)
 
     return wrapper
 
 
 def freeze(f, **kwargs):
+    """Decorator to wrap a function and set the value
+    of part of its argument.
+    //Q. What is the difference with partial?
+    """
     frozen = kwargs
 
     def wrapper(*args, **kwargs):
@@ -188,3 +194,52 @@ def normalized_mutual_information(x, x_ref, bins=100):
     nmi += shannon_entropy(x_ref, bins=bins)
     nmi /= joint_entropy(x, x_ref, bins=bins)
     return nmi
+
+
+import skimage
+
+
+def psnr(x, x_ref, datarange=None):
+    if not datarange:
+        datarange = int(np.amax(x_ref) - min(np.amin(x), np.amin(x_ref)))
+
+    if sum(abs(x - x_ref)) < 1e-13:
+        # Avoiding to compute the psnr on exactly the same slices.
+        return np.nan
+    psnr = skimage.metrics.peak_signal_noise_ratio(
+        x, x_ref, data_range=datarange
+    )
+    return psnr
+
+
+def nrmse(x, x_ref):
+    return skimage.metrics.normalized_root_mse(x, x_ref)
+
+
+def rmse(x, x_ref):
+    return np.sqrt(skimage.metrics.mean_squared_error(x, x_ref))
+
+
+def ssim(x, x_ref, mask=None, datarange=None):
+    if not datarange:
+        datarange = int(np.amax(x_ref) - min(np.amin(x), np.amin(x_ref)))
+
+    # SSIM
+    ssim = skimage.metrics.structural_similarity(
+        x_ref,
+        x,
+        data_range=datarange,
+        full=True,
+    )
+
+    def pick_ssim(ssim, mask):
+        """Pick the SSIM output:
+        1- If masked input, take the full SSIM on the masked input
+        2- Else, return the average SSIM
+        """
+        if mask is None:
+            return ssim[0]
+        else:
+            return ssim[1][mask > 0].mean()
+
+    return pick_ssim(ssim, mask)

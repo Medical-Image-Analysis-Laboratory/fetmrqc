@@ -9,14 +9,20 @@ from .utils import (
     joint_entropy,
     mutual_information,
     normalized_mutual_information,
+    psnr,
+    rmse,
+    nrmse,
+    ssim,
 )
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 from fetal_brain_qc.utils import squeeze_dim
+from scipy.stats import kurtosis, variation
+from functools import partial
 
 DEFAULT_METRICS = [
-    "dl_slice_iqa",
-    "dl_stack_iqa",
+    "dl_slice_iqa_full",
+    "dl_stack_iqa_full",
     "centroid",
     "rank_error",
     "mask_volume",
@@ -140,6 +146,15 @@ class LRStackMetrics:
             "ncc": self.process_metric(
                 metric=normalized_cross_correlation, **default_params
             ),
+            "ncc_window": self.process_metric(
+                metric=normalized_cross_correlation,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
             "ncc_median": self.process_metric(
                 metric=normalized_cross_correlation,
                 central_third=True,
@@ -166,6 +181,15 @@ class LRStackMetrics:
             ),
             "joint_entropy": self.process_metric(
                 metric=joint_entropy, **default_params
+            ),
+            "joint_entropy_window": self.process_metric(
+                metric=joint_entropy,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
             ),
             "joint_entropy_median": self.process_metric(
                 metric=joint_entropy,
@@ -230,6 +254,15 @@ class LRStackMetrics:
             "nmi": self.process_metric(
                 metric=normalized_mutual_information, **default_params
             ),
+            "nmi_window": self.process_metric(
+                metric=normalized_mutual_information,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
             "nmi_median": self.process_metric(
                 metric=normalized_mutual_information,
                 central_third=True,
@@ -254,27 +287,200 @@ class LRStackMetrics:
                 mask_intersection=True,
                 reduction="mean",
             ),
-            "shannon_entropy": freeze(
-                self._metric_shannon_entropy, **default_params
+            "shannon_entropy": self.process_metric(
+                shannon_entropy,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
             ),
-            "shannon_entropy_median": freeze(
-                self._metric_shannon_entropy,
+            "shannon_entropy_full": self.process_metric(
+                shannon_entropy,
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            # This should be the default metric, but
+            # this preprocessing does not work with stack iqa
+            # "dl_stack_iqa": self.process_metric(
+            #     self._metric_stack_iqa,
+            #     type="dl",
+            #     central_third=True,
+            #     crop_image=True,
+            # ),
+            "dl_stack_iqa_full": self.process_metric(
+                self._metric_stack_iqa,
+                type="dl",
+                central_third=False,
+                crop_image=True,
+            ),
+            "dl_slice_iqa": self.process_metric(
+                self._metric_slice_iqa,
+                type="dl",
+                central_third=True,
+                crop_image=False,
+            ),
+            "dl_slice_iqa_cropped": self.process_metric(
+                self._metric_slice_iqa,
+                type="dl",
+                central_third=True,
+                crop_image=True,
+            ),
+            "dl_slice_iqa_full": self.process_metric(
+                self._metric_slice_iqa,
+                type="dl",
+                central_third=False,
+                crop_image=False,
+            ),
+            "dl_slice_iqa_full_cropped": self.process_metric(
+                self._metric_slice_iqa,
+                type="dl",
+                central_third=False,
+                crop_image=True,
+            ),
+            "psnr": self.process_metric(
+                psnr,
+                use_datarange=True,
+            ),
+            "psnr_window": self.process_metric(
+                psnr,
+                use_datarange=True,
                 central_third=True,
                 crop_image=True,
                 compute_on_mask=True,
                 mask_intersection=False,
-                reduction="median",
+                reduction="mean",
+                use_window=True,
             ),
-            "shannon_entropy_full": freeze(
-                self._metric_shannon_entropy,
+            "nrmse": self.process_metric(nrmse, **default_params),
+            "nrmse_window": self.process_metric(
+                nrmse,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
+            "rmse": self.process_metric(rmse, **default_params),
+            "rmse_window": self.process_metric(
+                rmse,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
+            "ssim": freeze(self._ssim, **default_params),
+            "ssim_window": freeze(
+                self._ssim,
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+                mask_intersection=False,
+                reduction="mean",
+                use_window=True,
+            ),
+            "mean": self.process_metric(
+                np.mean,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "mean_full": self.process_metric(
+                np.mean,
+                type="noref",
                 central_third=False,
                 crop_image=True,
                 compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
             ),
-            "dl_stack_iqa": self._metric_stack_iqa,
-            "dl_slice_iqa": self._metric_slice_iqa,
+            "std": self.process_metric(
+                np.std,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "std_full": self.process_metric(
+                np.std,
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "median": self.process_metric(
+                np.median,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "median_full": self.process_metric(
+                np.median,
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "percentile_5": self.process_metric(
+                partial(np.percentile, q=5),
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "percentile_5_full": self.process_metric(
+                partial(np.percentile, q=5),
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "percentile_95": self.process_metric(
+                partial(np.percentile, q=95),
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "percentile_95_full": self.process_metric(
+                partial(np.percentile, q=95),
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "kurtosis": self.process_metric(
+                kurtosis,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "kurtosis_full": self.process_metric(
+                kurtosis,
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "variation": self.process_metric(
+                variation,
+                type="noref",
+                central_third=True,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
+            "variation_full": self.process_metric(
+                variation,
+                type="noref",
+                central_third=False,
+                crop_image=True,
+                compute_on_mask=True,
+            ),
         }
 
         self._check_metrics()
@@ -304,7 +510,7 @@ class LRStackMetrics:
         if not self._valid_mask(mask_path):
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
-            print("\nRunning", m)
+            print("Running", m)
             if self._valid_mask(mask_path):
                 out = self.metrics_func[m](**args_dict)
             else:
@@ -332,12 +538,29 @@ class LRStackMetrics:
     def process_metric(
         cls,
         metric,
+        type="ref",
         **kwargs,
     ):
-
-        return freeze(
-            cls.preprocess_and_evaluate_metric, metric=metric, **kwargs
-        )
+        if type == "ref":
+            return freeze(
+                cls.preprocess_and_evaluate_metric, metric=metric, **kwargs
+            )
+        elif type == "noref":
+            return freeze(
+                cls.preprocess_and_evaluate_noref_metric,
+                noref_metric=metric,
+                **kwargs,
+            )
+        elif type == "dl":
+            return freeze(
+                cls.preprocess_and_evaluate_dl_metric,
+                dl_metric=metric,
+                **kwargs,
+            )
+        else:
+            raise RuntimeError(
+                "Unknown metric type {type}. Please choose among ['ref', 'noref', 'dl']"
+            )
 
     @classmethod
     @allow_kwargs
@@ -499,7 +722,7 @@ class LRStackMetrics:
     ):
         """TODO"""
         image_ni = ni.load(lr_path)
-        image = image_ni.get_fdata().transpose(2, 1, 0)
+        image = squeeze_dim(image_ni.get_fdata(), -1).transpose(2, 1, 0)
         mask_ni = ni.load(mask_path)
         mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
 
@@ -509,7 +732,7 @@ class LRStackMetrics:
             if image is None or mask is None:
                 return None, None
 
-            image = image.get_fdata().transpose(2, 1, 0)
+            image = squeeze_dim(image.get_fdata(), -1).transpose(2, 1, 0)
             mask = squeeze_dim(mask.get_fdata(), -1).transpose(2, 1, 0)
         if central_third:
             num_z = image.shape[0]
@@ -521,6 +744,61 @@ class LRStackMetrics:
                 int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
             ]
         return image, mask
+
+    @classmethod
+    def _ssim(
+        cls,
+        lr_path,
+        mask_path,
+        central_third=True,
+        crop_image=True,
+        compute_on_mask=True,
+        mask_intersection=True,
+        reduction="mean",
+        use_window=False,
+        window_size=3,
+    ):
+        image, mask = cls._load_and_prep_nifti(
+            lr_path, mask_path, crop_image, central_third
+        )
+
+        if image is None or mask is None:
+            # image is None when the mask is empty: nothing is computed.
+            return np.nan, True
+        metric_out = []
+        isnan = False
+        datarange = image[mask > 0].max() - image[mask > 0].min()
+
+        for i, img_i in enumerate(image):
+            if use_window:
+                l, r = window_size // 2, window_size - window_size // 2
+                range_j = range(max(0, i - l), min(image.shape[0], i + r))
+            else:
+                range_j = range(0, image.shape[0])
+            for j in range_j:
+                im_i = img_i
+                im_j = image[j]
+                mask_curr = (
+                    mask[i] * mask[j]
+                    if mask_intersection
+                    else ((mask[i] + mask[j]) > 0).astype(int)
+                )
+
+                m = (
+                    ssim(im_i, im_j, mask_curr, datarange)
+                    if compute_on_mask
+                    else ssim(im_i, im_j, datarange)
+                )
+                # Try to not consider self-correlation
+                if not np.isnan(m) and i != j:
+                    metric_out.append(m)
+                if np.isnan(m):
+                    isnan = True
+
+        if reduction == "mean":
+            return np.mean(metric_out), isnan
+        elif reduction == "median":
+            return np.median(metric_out), isnan
 
     @classmethod
     def preprocess_and_evaluate_metric(
@@ -535,6 +813,7 @@ class LRStackMetrics:
         reduction="mean",
         use_window=False,
         window_size=3,
+        use_datarange=False,
     ):
 
         VALID_REDUCTIONS = ["mean", "median"]
@@ -550,6 +829,11 @@ class LRStackMetrics:
             return np.nan, True
         metric_out = []
         isnan = False
+        if use_datarange:
+            if compute_on_mask:
+                datarange = image[mask > 0].max() - image[mask > 0].min()
+            else:
+                datarange = image.max() - image.min()
         for i, img_i in enumerate(image):
             if use_window:
                 l, r = window_size // 2, window_size - window_size // 2
@@ -557,16 +841,21 @@ class LRStackMetrics:
             else:
                 range_j = range(0, image.shape[0])
             for j in range_j:
+                im_i = img_i
+                im_j = image[j]
                 if compute_on_mask:
                     idx = (
                         np.where(mask[i] * mask[j])
                         if mask_intersection
                         else np.where(mask[i] + mask[j])
                     )
-                    m = metric(img_i[idx], image[j][idx])
+                    im_i, im_j = im_i[idx], im_j[idx]
+                if use_datarange:
+                    m = metric(im_i, im_j, datarange)
                 else:
-                    m = metric(img_i, image[j])
-                if not np.isnan(m):
+                    m = metric(im_i, im_j)
+
+                if not np.isnan(m) and i != j:
                     metric_out.append(m)
                 if np.isnan(m):
                     isnan = True
@@ -595,80 +884,56 @@ class LRStackMetrics:
         return metric, np.isnan(metric)
 
     @classmethod
-    @allow_kwargs
-    def _metric_shannon_entropy(
+    def preprocess_and_evaluate_dl_metric(
         cls,
+        dl_metric,
         lr_path,
         mask_path,
         central_third=True,
         crop_image=True,
-        compute_on_mask=True,
-    ) -> np.ndarray:
-        """TODO
-        Computes the Shannon entropy on a given stack at lr_path
-
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        central_third:
-        compute_on_mask:
-
-        Output
-        ------
-        The joint entropy on the stack as scalar value in [0, log_b(n)]
-        """
-        return cls.preprocess_and_evaluate_noref_metric(
-            shannon_entropy,
-            lr_path,
-            mask_path,
-            central_third,
-            crop_image,
-            compute_on_mask,
+    ):
+        image, mask = cls._load_and_prep_nifti(
+            lr_path, mask_path, crop_image, central_third
         )
+
+        metric = dl_metric(image, mask)
+        return metric, np.isnan(metric)
 
     @allow_kwargs
     def _metric_stack_iqa(
         self,
-        lr_path,
-        mask_path,
+        image,
+        mask,
     ) -> np.ndarray:
         """ """
         # Loading data
 
-        image_ni = ni.load(lr_path)
-        mask_ni = ni.load(mask_path)
-        img = squeeze_dim(
-            get_cropped_stack_based_on_mask(image_ni, mask_ni).get_fdata(), -1
-        )
-        mask = squeeze_dim(
-            get_cropped_stack_based_on_mask(mask_ni, mask_ni).get_fdata(), -1
-        )
-        img = fnndsc_preprocess(img, mask)
-        df = self.stack_predictor.predict([img], ["img"])
+        # Input to fnndsc must be n_h x n_w x n_slices, not the other way around.
+        image = image.transpose(2, 1, 0)
+        mask = mask.transpose(2, 1, 0)
+        image = fnndsc_preprocess(image, mask)
+        df = self.stack_predictor.predict([image], ["img"])
         df = df.set_index("filename")
-        return df.loc["img"]["quality"], False
+        return df.loc["img"]["quality"]
 
     @allow_kwargs
     def _metric_slice_iqa(
         self,
-        lr_path,
-        mask_path,
+        image,
+        mask,
     ) -> np.ndarray:
         """ """
         # Loading data
         from fetal_brain_qc.fetal_IQA import eval_model
 
-        iqa_dict = eval_model(
-            lr_path, mask_path, self.slice_model, self.device
-        )
+        iqa_dict = eval_model(image, mask, self.slice_model, self.device)
         weighted_score = iqa_dict[list(iqa_dict.keys())[0]]["weighted"]
         p_good, p_bad = [], []
         for v in iqa_dict.values():
             p_good.append(v["good"])
             p_bad.append(v["bad"])
         weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
-        return weighted_score, False
+        return weighted_score
 
 
 class SubjectMetrics:

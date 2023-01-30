@@ -6,21 +6,12 @@ import torch
 from pathlib import Path
 
 
-def eval_model(im_path, mask_path, model, device):
-    """Evaluates the fetal IQA model:
-    1. Crop the input image to 256x256 based on the brain mask
-    2. Run the evaluation and return a slice-wise score as well as global ratings.
-    """
-
-    image_ni = ni.load(im_path)
-    mask_ni = ni.load(mask_path)
-
-    print(f"Processing {Path(im_path).name}")
+def eval_model(image, mask, model, device):
     try:
-        image_ni, mask_ni = adjust_around_mask_to_256(image_ni, mask_ni)
-        zmin = min(np.where(mask_ni.get_fdata() == 1)[2])
+        image, mask = adjust_around_mask_to_256(image, mask)
+        zmin = min(np.where(mask == 1)[2])
     except RuntimeError as e:
-        print(f"{Path(im_path).name}: {e}")
+        print(e)
         pred_dict = {
             0: {
                 "in": None,
@@ -33,8 +24,7 @@ def eval_model(im_path, mask_path, model, device):
             }
         }
         return pred_dict
-
-    img = np.transpose(image_ni.get_fdata(), [2, 0, 1])
+    img = np.transpose(image, [2, 0, 1])
 
     # the size of image should be 256x256
     assert img.shape[1] == 256 and img.shape[2] == 256
@@ -102,7 +92,7 @@ def pad_image(data, target):
     return target
 
 
-def crop_pad_nifti(data, affine, xrange, yrange, zrange):
+def crop_pad_img(data, xrange, yrange, zrange):
     """Utility function to apply the cropping around the brain,
     pad the image if it is too small and return a nifti file.
     """
@@ -110,21 +100,17 @@ def crop_pad_nifti(data, affine, xrange, yrange, zrange):
     if any(x < 256 for x in data.shape[:2]):
         pad_to = (256, 256, data.shape[2])
         data = pad_image(data, pad_to)
-    return ni.Nifti1Image(data, affine)
+    return data
 
 
-def adjust_around_mask_to_256(image_ni, mask_ni):
+def adjust_around_mask_to_256(image, mask):
     """Crop the image and mask to a 256x256 in-plane resolution
     based on the brain mask centroid across all the stack. Also pads
     the image if needed. The method ensures that the returned image is of
     size 256 also when the brain isn't centered in a stack.
     """
-
-    from fetal_brain_utils.cropping import crop_image_to_region
-    from copy import deepcopy
-
-    image = image_ni.get_fdata().squeeze()
-    mask = mask_ni.get_fdata().squeeze()
+    image = image.transpose(2, 1, 0)
+    mask = mask.transpose(2, 1, 0)
     coords = np.where(mask == 1)
 
     # Discard empty masks
@@ -140,18 +126,6 @@ def adjust_around_mask_to_256(image_ni, mask_ni):
     yrange = get_256_range(yshape, ymean)
     zrange = (min(coords[2]), max(coords[2] + 1))
 
-    new_origin = list(
-        ni.affines.apply_affine(
-            mask_ni.affine, [xrange[0], yrange[0], yrange[0]]
-        )
-    ) + [1]
-    image_ni = deepcopy(image_ni)
-    mask_ni = deepcopy(mask_ni)
-
-    new_affine = image_ni.affine
-    new_affine[:, -1] = new_origin
-    crop_fct = lambda im: crop_pad_nifti(
-        im, new_affine, xrange, yrange, zrange
-    )
+    crop_fct = lambda im: crop_pad_img(im, xrange, yrange, zrange)
 
     return crop_fct(image), crop_fct(mask)
