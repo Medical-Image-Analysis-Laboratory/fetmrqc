@@ -46,7 +46,7 @@ def get_image_info(im_path):
     if os.path.isfile(im_json_path):
         with open(im_json_path, "r") as f:
             config = json.load(f)
-        im_info["field_strength"] = "oui"  # config["MagneticFieldStrength"]
+        im_info["field_strength"] = config["MagneticFieldStrength"]
     else:
         im_info["field_strength"] = "Unknown"
 
@@ -137,10 +137,10 @@ def generate_report(
 ):
     tmp_report_dir = "tmp_report_plots"
     os.makedirs(out_folder, exist_ok=True)
-    for run in bids_list:
+    for i, run in enumerate(bids_list):
         im_path = run["im"]
         mask_path = run["mask"]
-        print(f"Processing {Path(im_path).name}")
+        print(f"{i+1} - Processing {Path(im_path).name} as {run['name']}")
         """Generate a report given an image path and mask"""
         if mask_path == "":
             print(

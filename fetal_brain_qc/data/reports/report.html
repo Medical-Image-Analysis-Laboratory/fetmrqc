@@ -270,9 +270,9 @@
                         <div id="qcslider-collapse" class="accordion-collapse collapse show"
                             aria-labelledby="qcslider-head">
                             <div class="accordion-body">
-                                <input type="range" min="1.0" max="4.0" step="0.05" value="2.5" id="qcslider"
-                                    class="slider">
-                                <ul class="list-group list-group-horizontal slider-labels" style="width: 100%">
+                                <input type="range" min="0.0" max="4.0" step="0.05" value="2." id="qcslider"
+                                    class="slider" style="width:100%; margin-left:0%">
+                                <ul class=" list-group list-group-horizontal slider-labels" style="width:100%">
                                     <li class="list-group-item list-group-item-danger"
                                         style="width: 25%; text-align:center">Exclude</button>
                                     <li class="list-group-item list-group-item-warning"
@@ -315,7 +315,7 @@
                             <div class="accordion-body">
                                 <label for="motionslider">Fetal motion:</label>
                                 <div id="motionslider-collapse">
-                                    <input type="range" min="1.0" max="4.0" step="0.05" value="2.0" id="motionslider"
+                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="motionslider"
                                         class="slider">
                                     <ul class="list-group list-group-horizontal slider-labels"
                                         style="width:80%;margin-left:10%">
@@ -329,7 +329,7 @@
                                 </div>
                                 <label for="biasslider">Bias field:</label>
                                 <div id="biasslider-collapse">
-                                    <input type="range" min="1.0" max="4.0" step="0.05" value="2.0" id="biasslider"
+                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="biasslider"
                                         class="slider">
                                     <ul class="list-group list-group-horizontal slider-labels"
                                         style="width:80%;margin-left:10%">
@@ -415,11 +415,11 @@
                             return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
                         });
 
-                        if ($(this).val() < 1.5) {
+                        if ($(this).val() < 1.) {
                             $('#qcslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($(this).val() > 3.5) {
+                        } else if ($(this).val() > 3.) {
                             $('#qcslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() < 2.5) {
+                        } else if ($(this).val() < 2.) {
                             $('#qcslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
                         } else {
                             $('#qcslider-collapse .list-group-item-primary').addClass('bg-primary text-white');
@@ -443,9 +443,9 @@
                             return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
                         });
 
-                        if ($(this).val() < 2.) {
+                        if ($(this).val() < 1.) {
                             $('#motionslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() > 3.) {
+                        } else if ($(this).val() > 2.) {
                             $('#motionslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
                         } else {
                             $('#motionslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
@@ -468,9 +468,9 @@
                             return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
                         });
 
-                        if ($(this).val() < 2.) {
+                        if ($(this).val() < 1.) {
                             $('#biasslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() > 3.) {
+                        } else if ($(this).val() > 2.) {
                             $('#biasslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
                         } else {
                             $('#biasslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
