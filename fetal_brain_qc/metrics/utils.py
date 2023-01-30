@@ -220,6 +220,14 @@ def rmse(x, x_ref):
     return np.sqrt(skimage.metrics.mean_squared_error(x, x_ref))
 
 
+def mae(x, x_ref):
+    return np.mean(abs(x - x_ref))
+
+
+def nmae(x, x_ref):
+    return mae(x, x_ref) / np.mean(np.abs(x_ref))
+
+
 def ssim(x, x_ref, mask=None, datarange=None):
     if not datarange:
         datarange = int(np.amax(x_ref) - min(np.amin(x), np.amin(x_ref)))
