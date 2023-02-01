@@ -45,6 +45,20 @@ def main():
     )
 
     p.add_argument(
+        "--use_all_metrics",
+        help="Whether all metrics should be evaluated",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
+    p.add_argument(
+        "--normalization",
+        help="Whether input data should be normalized",
+        default=None,
+        choices=[None, "sub_ses", "site", "run"],
+    )
+
+    p.add_argument(
         "--bids-csv",
         help="Path where the bids config csv file is located.",
         required=True,
@@ -79,12 +93,24 @@ def main():
     args = p.parse_args()
     bids_list = csv_to_list(args.bids_csv)
     print_title("Running QC evaluation")
+
     lr_metrics = LRStackMetrics(
-        args.metrics,
         ckpt_stack_iqa=args.ckpt_path_stack_iqa,
         ckpt_slice_iqa=args.ckpt_path_slice_iqa,
         device=args.device,
     )
+
+    if args.use_all_metrics:
+        if args.metrics != DEFAULT_METRICS:
+            print(
+                f"WARNING: --use_all_metrics is enabled. Ignoring custom metrics {args.metrics}"
+            )
+        lr_metrics.set_metrics(lr_metrics.get_all_metrics())
+    else:
+        lr_metrics.set_metrics(args.metrics)
+
+    lr_metrics.normalize_dataset(bids_list, args.normalization)
+
     metrics_dict = {}
     df_base = pd.DataFrame.from_dict(bids_list)
     df_base = df_base.set_index("name")

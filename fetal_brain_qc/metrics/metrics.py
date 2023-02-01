@@ -21,6 +21,7 @@ from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 from fetal_brain_qc.utils import squeeze_dim
 from scipy.stats import kurtosis, variation
 from functools import partial
+import pandas as pd
 
 DEFAULT_METRICS = [
     "dl_slice_iqa_full",
@@ -503,9 +504,26 @@ class LRStackMetrics:
                 crop_image=True,
                 compute_on_mask=True,
             ),
+            "bias": freeze(
+                self._metric_bias_field,
+                compute_on_mask=True,
+                central_third=True,
+            ),
+            "bias_full": freeze(
+                self._metric_bias_field,
+                compute_on_mask=True,
+                central_third=False,
+            ),
+            "bias_full_not_mask": freeze(
+                self._metric_bias_field,
+                compute_on_mask=False,
+                central_third=False,
+            ),
         }
 
         self._check_metrics()
+        self.normalization = None
+        self.norm_dict = {}
 
     def get_default_metrics(self):
         return DEFAULT_METRICS
@@ -523,6 +541,55 @@ class LRStackMetrics:
         else:
             return True
 
+    def _max_normalize(self, group):
+        """Normalize the data to have on average the max at 255."""
+        max_list = []
+        iter_ = (
+            group.iterrows() if not isinstance(group, pd.Series) else [group]
+        )
+        for row in iter_:
+            row = row[1] if not isinstance(group, pd.Series) else row
+            im, _ = self._load_and_prep_nifti(
+                row["im"], row["mask"], crop_image=True, central_third=False
+            )
+            assert (im >= 0).all(), "Images should have positive values."
+            max_list.append(np.max(im))
+        factor = 255 / np.mean(max_list)
+        return factor
+
+    def normalize_dataset(self, bids_list, normalization="sub_ses"):
+        """Taking a `bids_list` obtained using csv_to_list,
+        computes the factor that should be used to scale the input to the LR method."""
+
+        assert normalization in ["sub_ses", "site", "run", None]
+
+        # This is not the cleanest: normalization needs to be None because
+        # the _max_normalize functions calls _load_and_prep_nifti
+        # which uses the computed normalization.
+        self.normalization = None
+        self.norm_dict = {}
+        df = pd.DataFrame(bids_list)
+
+        if normalization is None:
+            self.norm_dict = None
+            return
+        elif normalization in ["sub_ses", "site"]:
+            grp_by = ["sub", "ses"] if normalization == "sub_ses" else "site"
+            grp = (
+                df.groupby(grp_by, group_keys=True)
+                .apply(self._max_normalize)
+                .rename("norm")
+            )
+            df = (
+                df.set_index(grp_by)
+                .merge(grp, left_index=True, right_index=True)
+                .reset_index()
+            )
+        else:
+            df["norm"] = df.apply(self._max_normalize, axis=1)
+        self.normalization = normalization
+        self.norm_dict = df[["im", "norm"]].set_index("im").to_dict()["norm"]
+
     def evaluate_metrics(self, lr_path, mask_path):
         """TODO"""
         # Remark: Could do something better with a class here: giving flexible
@@ -532,7 +599,7 @@ class LRStackMetrics:
         if not self._valid_mask(mask_path):
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
-            print("Running", m)
+            print("\tRunning", m)
             if self._valid_mask(mask_path):
                 out = self.metrics_func[m](**args_dict)
             else:
@@ -556,26 +623,25 @@ class LRStackMetrics:
                 self.slice_iqa_enabled
             ), "dl_slice_iqa requires passing a checkpoint and a device for for the DL slice-wise model."
 
-    @classmethod
     def process_metric(
-        cls,
+        self,
         metric,
         type="ref",
         **kwargs,
     ):
         if type == "ref":
             return freeze(
-                cls.preprocess_and_evaluate_metric, metric=metric, **kwargs
+                self.preprocess_and_evaluate_metric, metric=metric, **kwargs
             )
         elif type == "noref":
             return freeze(
-                cls.preprocess_and_evaluate_noref_metric,
+                self.preprocess_and_evaluate_noref_metric,
                 noref_metric=metric,
                 **kwargs,
             )
         elif type == "dl":
             return freeze(
-                cls.preprocess_and_evaluate_dl_metric,
+                self.preprocess_and_evaluate_dl_metric,
                 dl_metric=metric,
                 **kwargs,
             )
@@ -584,10 +650,9 @@ class LRStackMetrics:
                 "Unknown metric type {type}. Please choose among ['ref', 'noref', 'dl']"
             )
 
-    @classmethod
     @allow_kwargs
     def _metric_mask_centroid(
-        cls, mask_path: str, central_third: bool = True
+        self, mask_path: str, central_third: bool = True
     ) -> np.ndarray:
         """Given a path to a brain mask `mask_path`, computes
         a motion index based on centroids of this mask. Lower is better.
@@ -630,9 +695,8 @@ class LRStackMetrics:
             isnan,
         )
 
-    @classmethod
     @allow_kwargs
-    def _metric_mask_volume(cls, mask_path):
+    def _metric_mask_volume(self, mask_path):
         """
         Compute volume of a nifti-encoded mask.
         Simply computes the volume of a voxel and multiply it
@@ -657,10 +721,9 @@ class LRStackMetrics:
         isnan = False
         return np.sum(mask) * vx_volume, isnan
 
-    @classmethod
     @allow_kwargs
     def _metric_rank_error(
-        cls,
+        self,
         lr_path,
         mask_path,
         threshold: float = 0.99,
@@ -738,13 +801,13 @@ class LRStackMetrics:
 
         return rank * svd_error, isnan
 
-    @classmethod
     def _load_and_prep_nifti(
-        cls, lr_path, mask_path, crop_image, central_third
+        self, lr_path, mask_path, crop_image, central_third
     ):
         """TODO"""
         image_ni = ni.load(lr_path)
         image = squeeze_dim(image_ni.get_fdata(), -1).transpose(2, 1, 0)
+
         mask_ni = ni.load(mask_path)
         mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
 
@@ -765,11 +828,14 @@ class LRStackMetrics:
             mask = mask[
                 int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
             ]
+
+        if self.normalization is not None:
+            norm = self.norm_dict[lr_path]
+            image = image * norm
         return image, mask
 
-    @classmethod
     def _ssim(
-        cls,
+        self,
         lr_path,
         mask_path,
         central_third=True,
@@ -780,7 +846,7 @@ class LRStackMetrics:
         use_window=False,
         window_size=3,
     ):
-        image, mask = cls._load_and_prep_nifti(
+        image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
 
@@ -822,9 +888,8 @@ class LRStackMetrics:
         elif reduction == "median":
             return np.median(metric_out), isnan
 
-    @classmethod
     def preprocess_and_evaluate_metric(
-        cls,
+        self,
         metric,
         lr_path,
         mask_path,
@@ -843,7 +908,7 @@ class LRStackMetrics:
             f"Unknown reduction function {reduction}."
             f"Choose from {VALID_REDUCTIONS}"
         )
-        image, mask = cls._load_and_prep_nifti(
+        image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
         if image is None or mask is None:
@@ -886,9 +951,8 @@ class LRStackMetrics:
         elif reduction == "median":
             return np.median(metric_out), isnan
 
-    @classmethod
     def preprocess_and_evaluate_noref_metric(
-        cls,
+        self,
         noref_metric,
         lr_path,
         mask_path,
@@ -896,7 +960,7 @@ class LRStackMetrics:
         crop_image=True,
         compute_on_mask=True,
     ):
-        image, mask = cls._load_and_prep_nifti(
+        image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
 
@@ -905,16 +969,15 @@ class LRStackMetrics:
         metric = noref_metric(image.flatten())
         return metric, np.isnan(metric)
 
-    @classmethod
     def preprocess_and_evaluate_dl_metric(
-        cls,
+        self,
         dl_metric,
         lr_path,
         mask_path,
         central_third=True,
         crop_image=True,
     ):
-        image, mask = cls._load_and_prep_nifti(
+        image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
 
@@ -957,12 +1020,77 @@ class LRStackMetrics:
         weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
         return weighted_score
 
+    @allow_kwargs
+    def _metric_bias_field(
+        self,
+        lr_path,
+        mask_path,
+        compute_on_mask=True,
+        central_third=True,
+        spline_order=3,
+        wiener_filter_noise=0.11,
+        convergence_threshold=1e-6,
+        fwhm=0.15,
+    ) -> np.ndarray:
+        """ """
+
+        import SimpleITK as sitk
+
+        bias_corr = sitk.N4BiasFieldCorrectionImageFilter()
+
+        bias_corr.SetBiasFieldFullWidthAtHalfMaximum(fwhm)
+        bias_corr.SetConvergenceThreshold(convergence_threshold)
+        bias_corr.SetSplineOrder(spline_order)
+        bias_corr.SetWienerFilterNoise(wiener_filter_noise)
+
+        image_sitk = sitk.ReadImage(str(lr_path), sitk.sitkFloat64)
+
+        sitk_mask = sitk.ReadImage(str(mask_path), sitk.sitkUInt8)
+        # Allows to deal with masks that have a different shape than the input image.
+        sitk_mask = sitk.Resample(
+            sitk_mask,
+            image_sitk,
+            sitk.Euler3DTransform(),
+            sitk.sitkNearestNeighbor,
+            0,
+            sitk_mask.GetPixelIDValue(),
+        )
+        sitk_mask.CopyInformation(image_sitk)
+        bias_corr.Execute(image_sitk, sitk_mask)
+        bias_field = sitk.Cast(
+            sitk.Exp(bias_corr.GetLogBiasFieldAsImage(image_sitk)),
+            sitk.sitkFloat64,
+        )
+        bias_error = sitk.GetArrayFromImage(
+            abs(image_sitk - image_sitk / bias_field)
+        )
+        im_ref = sitk.GetArrayFromImage(image_sitk)
+        mask = sitk.GetArrayFromImage(sitk_mask)
+        if central_third:
+            num_z = im_ref.shape[0]
+            center_z = int(num_z / 2.0)
+            bias_error = bias_error[
+                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+            ]
+            im_ref = im_ref[
+                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+            ]
+            mask = mask[
+                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+            ]
+        if compute_on_mask:
+            bias_error = bias_error[mask > 0]
+            im_ref = im_ref[mask > 0]
+
+        isnan = np.any(np.isnan(bias_error))
+        bias_nmae = np.nanmean(bias_error) / np.nanmean(abs(im_ref))
+        return bias_nmae, isnan
+
 
 class SubjectMetrics:
     """TODO"""
 
-    @classmethod
-    def metric_include_volumes_median(cls, sub_volumes_dict):
+    def metric_include_volumes_median(self, sub_volumes_dict):
         """TODO"""
         median_volume = np.median(list(sub_volumes_dict.values()))
         median_volume_dict = {

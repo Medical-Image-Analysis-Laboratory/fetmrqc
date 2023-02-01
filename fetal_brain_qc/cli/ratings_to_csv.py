@@ -97,6 +97,12 @@ def main():
         sub = re.findall(r"_(sub-\w+?)_", str(f))[0]
         df_base.at[sub, "ratings_json"].append(f)
 
+    unrated = list(df_base[df_base["ratings_json"].apply(len) == 0].index)
+    if len(unrated) > 0:
+        unrated_str = ", ".join(unrated)
+        error = f"{len(unrated)} subjects were not rated. Aborting. The unrated subjects are \n{unrated_str}"
+        raise RuntimeError(error)
+
     df_base["ratings_json"] = df_base["ratings_json"].apply(get_last_json)
     df_base = df_base.assign(
         artifacts=df_base.apply(lambda row: [], axis=1),

@@ -12,12 +12,16 @@ import os
 import logging
 import numpy as np
 import pandas as pd
-import tensorflow
+import tensorflow as tf
 from tensorflow.keras.losses import Huber
 from tensorflow.keras.optimizers import Adam
 from .resnet_architecture import (
     model_architecture as create_model_architecture,
 )
+
+gpus = tf.config.experimental.list_physical_devices("GPU")
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,7 @@ class Predictor:
         self,
         weights="/usr/local/share/fetal_brain_assessment/weights_resnet.hdf5",
     ):
+
         logger.debug("Creating model")
         self.model = create_model_architecture()
         logger.debug("Model created")
@@ -46,7 +51,7 @@ class Predictor:
 
         # Normalize dataset
         min1 = np.amin(stacked_data)
-        max1 = 10000
+        max1 = np.amax(stacked_data)
         logger.info("Min: %s", min1)
         logger.info("Max: %s", max1)
         stacked_data = (stacked_data - min1) / (max1 - min1)

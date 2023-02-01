@@ -19,6 +19,7 @@ setup(
             "qc_fetal_iqa_mit = fetal_brain_qc.cli.run_iqa:main",
             "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa:main",
             "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
+            "qc_ratings_to_csv = fetal_brain_qc.cli.ratings_to_csv:main",
         ],
     },
 )
