@@ -11,40 +11,42 @@ def get_last_json(ratings_list):
             x for _, x in sorted(zip(modification_time, ratings_list))
         ]
         return sorted_ratings[-1]
-    else:
+    elif len(ratings_list)==1:
         return ratings_list[0]
+    else:
+        return []
 
 
 def rating_text(rating):
     """Convert the quality rating to a human readable category."""
     rating = float(rating)
-    if rating < 1:
-        raise ValueError("Invalid value. Rating should be in [1,4].")
-    elif rating < 1.5:
+    if rating < 0:
+        raise ValueError("Invalid value. Rating should be in [0,4].")
+    elif rating < 1:
         return "exclude"
-    elif rating < 2.5:
+    elif rating < 2:
         return "poor"
-    elif rating < 3.5:
+    elif rating < 3:
         return "acceptable"
     elif rating <= 4:
         return "excellent"
     else:
-        raise ValueError("Invalid value. Rating should be in [1,4].")
+        raise ValueError("Invalid value. Rating should be in [0,4].")
 
 
 def artifact_text(rating):
     """Convert the artifact rating to a human readable category."""
     rating = float(rating)
-    if rating < 1:
-        raise ValueError("Invalid value. Artifact should be in [1,4].")
-    elif rating < 2.0:
+    if rating < 0.:
+        raise ValueError("Invalid value. Artifact should be in [0,3].")
+    elif rating < 1.0:
         return "low"
-    elif rating < 3.0:
+    elif rating < 2.0:
         return "moderate"
-    elif rating <= 4.0:
+    elif rating <= 3.0:
         return "high"
     else:
-        raise ValueError("Invalid value. Rating should be in [1,4].")
+        raise ValueError("Invalid value. Rating should be in [0,3].")
 
 
 def main():
@@ -99,32 +101,36 @@ def main():
 
     unrated = list(df_base[df_base["ratings_json"].apply(len) == 0].index)
     if len(unrated) > 0:
+        unrated = ["'" + str(x) + "_report.html'" for x in unrated]
         unrated_str = ", ".join(unrated)
         error = f"{len(unrated)} subjects were not rated. Aborting. The unrated subjects are \n{unrated_str}"
-        raise RuntimeError(error)
+        #raise RuntimeError(error)
+        print(f"WARNING: {error}")
 
     df_base["ratings_json"] = df_base["ratings_json"].apply(get_last_json)
     df_base = df_base.assign(
         artifacts=df_base.apply(lambda row: [], axis=1),
         selected_slices=df_base.apply(lambda row: [], axis=1),
     )
-    for (idx, row) in df_base.T.iteritems():
-        with open(row["ratings_json"], "r") as f:
-            data = json.load(f)
 
-        for k, v in data.items():
-            # Format the slices selected to a list
-            if k == "selected_slices":
-                if v == "":
-                    df_base.at[idx, k] = []
+    for (idx, row) in df_base.T.items():
+        if row["ratings_json"] != []:
+            with open(row["ratings_json"], "r") as f:
+                data = json.load(f)
+
+            for k, v in data.items():
+                # Format the slices selected to a list
+                if k == "selected_slices":
+                    if v == "":
+                        df_base.at[idx, k] = []
+                    else:
+                        df_base.at[idx, k] = [int(f) for f in v.split(",")]
+
                 else:
-                    df_base.at[idx, k] = [int(f) for f in v.split(",")]
-
-            else:
-                df_base.at[idx, k] = v
+                    df_base.at[idx, k] = v
     # Convert some entries to float
+    df_base=df_base.dropna()
     df_base[["rating", "fetal_motion", "bias_field"]].astype(float)
-
     # Add human readable categories to the ratings.
     df_base["rating_text"] = df_base["rating"].apply(rating_text)
     df_base["fetal_motion_text"] = df_base["fetal_motion"].apply(artifact_text)
