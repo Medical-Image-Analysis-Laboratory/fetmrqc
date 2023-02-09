@@ -18,9 +18,7 @@ def allow_kwargs(func):
     # Otherwise, define a decorator
     @wraps(func)
     def wrapper(*args, **kwargs):
-        matched_args = dict(
-            (k, kwargs[k]) for k in argspec.args if k in kwargs
-        )
+        matched_args = dict((k, kwargs[k]) for k in argspec.args if k in kwargs)
 
         return func(*args, **matched_args)
 
@@ -126,9 +124,7 @@ def joint_entropy(x, x_ref, bins=100):
     Original code from https://github.com/gift-surg/NSoL/blob/master/nsol/similarity_measures.py
     """
 
-    hist, x_edges, y_edges = np.histogram2d(
-        x.flatten(), x_ref.flatten(), bins=bins
-    )
+    hist, x_edges, y_edges = np.histogram2d(x.flatten(), x_ref.flatten(), bins=bins)
 
     # Compute probabilities
     prob = hist / float(np.sum(hist))
@@ -206,9 +202,7 @@ def psnr(x, x_ref, datarange=None):
     if sum(abs(x - x_ref)) < 1e-13:
         # Avoiding to compute the psnr on exactly the same slices.
         return np.nan
-    psnr = skimage.metrics.peak_signal_noise_ratio(
-        x, x_ref, data_range=datarange
-    )
+    psnr = skimage.metrics.peak_signal_noise_ratio(x, x_ref, data_range=datarange)
     return psnr
 
 

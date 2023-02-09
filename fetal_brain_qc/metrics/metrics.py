@@ -16,6 +16,9 @@ from .utils import (
     nrmse,
     ssim,
 )
+from skimage.morphology import binary_dilation, binary_erosion
+from skimage.filters import sobel, laplace
+from inspect import getmembers, isfunction
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 from fetal_brain_qc.utils import squeeze_dim
@@ -23,6 +26,8 @@ from scipy.stats import kurtosis, variation
 from functools import partial
 import pandas as pd
 
+
+SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
     "dl_slice_iqa_full",
     "dl_stack_iqa_full",
@@ -342,6 +347,13 @@ class LRStackMetrics:
                 central_third=False,
                 crop_image=True,
             ),
+            "dl_slice_iqa_pos_only_full": self.process_metric(
+                self._metric_slice_iqa,
+                type="dl",
+                central_third=False,
+                crop_image=False,
+                positive_only=True,
+            ),
             "psnr": self.process_metric(
                 psnr,
                 use_datarange=True,
@@ -519,6 +531,33 @@ class LRStackMetrics:
                 compute_on_mask=False,
                 central_third=False,
             ),
+            ## Filter-based metrics
+            "dilate_erode_mask": freeze(
+                self._metric_dilate_erode_mask, central_third=True
+            ),
+            "dilate_erode_mask_full": freeze(
+                self._metric_dilate_erode_mask, central_third=False
+            ),
+            "filter_laplace_mask": freeze(
+                self._metric_filter_mask, filter=laplace
+            ),
+            "filter_laplace_mask_full": freeze(
+                self._metric_filter_mask, filter=laplace, central_third=False
+            ),
+            "filter_sobel_mask": freeze(
+                self._metric_filter_mask, filter=sobel
+            ),
+            "filter_sobel_mask_full": freeze(
+                self._metric_filter_mask, filter=sobel, central_third=False
+            ),
+            "filter_laplace": freeze(self._metric_filter, filter=laplace),
+            "filter_laplace_full": freeze(
+                self._metric_filter, filter=laplace, central_third=False
+            ),
+            "filter_sobel": freeze(self._metric_filter, filter=sobel),
+            "filter_sobel_full": freeze(
+                self._metric_filter, filter=sobel, central_third=False
+            ),
         }
 
         self._check_metrics()
@@ -647,7 +686,7 @@ class LRStackMetrics:
             )
         else:
             raise RuntimeError(
-                "Unknown metric type {type}. Please choose among ['ref', 'noref', 'dl']"
+                f"Unknown metric type {type}. Please choose among ['ref', 'noref', 'dl']"
             )
 
     @allow_kwargs
@@ -807,26 +846,26 @@ class LRStackMetrics:
         """TODO"""
         image_ni = ni.load(lr_path)
         image = squeeze_dim(image_ni.get_fdata(), -1).transpose(2, 1, 0)
-
         mask_ni = ni.load(mask_path)
         mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
+        if mask.sum() == 0.0:
+            return None, None
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
             mask = get_cropped_stack_based_on_mask(mask_ni, mask_ni)
             if image is None or mask is None:
                 return None, None
-
             image = squeeze_dim(image.get_fdata(), -1).transpose(2, 1, 0)
             mask = squeeze_dim(mask.get_fdata(), -1).transpose(2, 1, 0)
         if central_third:
             num_z = image.shape[0]
             center_z = int(num_z / 2.0)
             image = image[
-                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0) + 1
             ]
             mask = mask[
-                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0) + 1
             ]
 
         if self.normalization is not None:
@@ -959,14 +998,15 @@ class LRStackMetrics:
         central_third=True,
         crop_image=True,
         compute_on_mask=True,
+        flatten=True,
     ):
         image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
-
         if compute_on_mask:
             image = image[np.where(mask)]
-        metric = noref_metric(image.flatten())
+        if flatten:
+            metric = noref_metric(image.flatten())
         return metric, np.isnan(metric)
 
     def preprocess_and_evaluate_dl_metric(
@@ -976,20 +1016,17 @@ class LRStackMetrics:
         mask_path,
         central_third=True,
         crop_image=True,
+        positive_only=False,
     ):
         image, mask = self._load_and_prep_nifti(
             lr_path, mask_path, crop_image, central_third
         )
 
-        metric = dl_metric(image, mask)
+        metric = dl_metric(image, mask, positive_only=False)
         return metric, np.isnan(metric)
 
     @allow_kwargs
-    def _metric_stack_iqa(
-        self,
-        image,
-        mask,
-    ) -> np.ndarray:
+    def _metric_stack_iqa(self, image, mask, positive_only=None) -> np.ndarray:
         """ """
         # Loading data
 
@@ -1006,18 +1043,25 @@ class LRStackMetrics:
         self,
         image,
         mask,
+        positive_only=False,
     ) -> np.ndarray:
         """ """
         # Loading data
         from fetal_brain_qc.fetal_IQA import eval_model
 
         iqa_dict = eval_model(image, mask, self.slice_model, self.device)
+        if iqa_dict is None:
+            return np.nan
         weighted_score = iqa_dict[list(iqa_dict.keys())[0]]["weighted"]
         p_good, p_bad = [], []
         for v in iqa_dict.values():
             p_good.append(v["good"])
             p_bad.append(v["bad"])
-        weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
+
+        if positive_only is None:
+            weighted_score = sum(p_good) / len(p_good)
+        else:
+            weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
         return weighted_score
 
     @allow_kwargs
@@ -1085,6 +1129,124 @@ class LRStackMetrics:
         isnan = np.any(np.isnan(bias_error))
         bias_nmae = np.nanmean(bias_error) / np.nanmean(abs(im_ref))
         return bias_nmae, isnan
+
+    ### Filter-based metrics
+
+    @allow_kwargs
+    def _metric_dilate_erode_mask(
+        self, mask_path: str, central_third: bool = True
+    ) -> np.ndarray:
+        """Given a path to a brain mask `mask_path`, dilates and
+        erodes the mask in the z-direction to see the overlap between masks
+        in consecutive slices.
+
+        Inputs
+        ------
+        central_third:
+            whether the dilation-erosion should only be computed
+            from the most central part of the data
+
+        Output
+        ------
+        """
+
+        # Structuring element (Vertical line to only dilate and erode)
+        # through the plane
+        struc = np.array(
+            [
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            ]
+        )
+
+        mask_ni = ni.load(mask_path)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1)
+
+        if central_third:
+            num_z = mask.shape[2]
+            center_z = int(num_z / 2.0)
+            mask = mask[
+                ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+            ]
+        processed = binary_erosion(binary_dilation(mask, struc), struc)
+        volume = np.sum(mask)
+        if volume == 0.0:
+            return np.nan, True
+        else:
+            res = np.sum(abs(processed - mask)) / volume
+            return res, False
+
+    @allow_kwargs
+    def _metric_filter_mask(
+        self, mask_path: str, filter=None, central_third: bool = True
+    ) -> np.ndarray:
+        """Given a path to a
+
+        Inputs
+        ------
+        filter:
+            A filter from skimage.filters to be applied to the mask
+        central_third:
+            whether the dilation-erosion should only be computed
+            from the most central part of the data
+
+        Output
+        ------
+        """
+        mask_ni = ni.load(mask_path)
+        mask_ni = get_cropped_stack_based_on_mask(mask_ni, mask_ni)
+        mask = squeeze_dim(mask_ni.get_fdata(), -1)
+
+        if central_third:
+            num_z = mask.shape[2]
+            center_z = int(num_z / 2.0)
+            mask = mask[
+                ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+            ]
+
+        assert (
+            filter in SKIMAGE_FCT
+        ), f"ERROR: {filter} is not a function from `skimage.filters`"
+
+        filtered = filter(mask)
+        res = np.mean(abs(filtered - mask))
+        return res, np.isnan(res)
+
+    @allow_kwargs
+    def _metric_filter(
+        self,
+        lr_path: str,
+        mask_path: str,
+        filter=None,
+        central_third: bool = True,
+    ) -> np.ndarray:
+        """Given a path to a LR image and its corresponding image,
+        loads and processes the LR image, filters it with a `filter` from
+        skimage.filters and returns the mean of the absolute value.
+
+        Inputs
+        ------
+        filter:
+            A filter from skimage.filters to be applied to the mask
+        central_third:
+            whether the dilation-erosion should only be computed
+            from the most central part of the data
+
+        Output
+        ------
+        """
+        im, mask = self._load_and_prep_nifti(
+            lr_path, mask_path, crop_image=True, central_third=central_third
+        )
+
+        assert (
+            filter in SKIMAGE_FCT
+        ), f"ERROR: {filter} is not a function from `skimage.filters`"
+
+        filtered = filter(im)
+        res = np.mean(abs(filtered - im))
+        return res, np.isnan(res)
 
 
 class SubjectMetrics:

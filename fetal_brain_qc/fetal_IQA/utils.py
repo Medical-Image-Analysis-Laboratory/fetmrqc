@@ -10,20 +10,9 @@ def eval_model(image, mask, model, device):
     try:
         image, mask = adjust_around_mask_to_256(image, mask)
         zmin = min(np.where(mask == 1)[2])
-    except RuntimeError as e:
-        print(e)
-        pred_dict = {
-            0: {
-                "in": None,
-                "good": None,
-                "bad": None,
-                "mean_in": None,
-                "mean_good": None,
-                "mean_bad": None,
-                "weighted": None,
-            }
-        }
-        return pred_dict
+    except Exception as e:
+        print(f"WARNING: Failed mask extraction: {e}")
+        return None
     img = np.transpose(image, [2, 0, 1])
 
     # the size of image should be 256x256

@@ -14,7 +14,7 @@ import random
 
 
 def squeeze_dim(arr, dim):
-    if arr.shape[dim] == 1:
+    if arr.shape[dim] == 1 and len(arr.shape) > 3:
         return np.squeeze(arr, axis=dim)
     return arr
 
