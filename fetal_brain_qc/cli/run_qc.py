@@ -24,10 +24,7 @@ def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     p = argparse.ArgumentParser(
-        description=(
-            "Performs deep learning-based, slice-wise fetal brain"
-            " image quality assessment."
-        ),
+        description=("Computes quality metrics from given images."),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
