@@ -889,13 +889,17 @@ class LRStackMetrics:
             lr_path, mask_path, crop_image, central_third
         )
 
-        if image is None or mask is None:
+        if (
+            image is None
+            or mask is None
+            or any([s < 7 for s in image.shape[1:]])
+        ):
             # image is None when the mask is empty: nothing is computed.
+            # Similarly, return None when the image is of size smaller than 7
             return np.nan, True
         metric_out = []
         isnan = False
         datarange = image[mask > 0].max() - image[mask > 0].min()
-
         for i, img_i in enumerate(image):
             if use_window:
                 l, r = window_size // 2, window_size - window_size // 2
@@ -910,7 +914,6 @@ class LRStackMetrics:
                     if mask_intersection
                     else ((mask[i] + mask[j]) > 0).astype(int)
                 )
-
                 m = (
                     ssim(im_i, im_j, mask_curr, datarange)
                     if compute_on_mask
