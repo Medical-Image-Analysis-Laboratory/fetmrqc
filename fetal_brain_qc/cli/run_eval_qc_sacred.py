@@ -1,6 +1,5 @@
-from sklearn.decomposition import PCA, SparsePCA
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.decomposition import PCA
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
@@ -22,9 +21,10 @@ from sklearn.model_selection import cross_validate, GroupKFold
 import numpy as np
 from fetal_brain_qc.qc_evaluation import preprocess as pp
 from fetal_brain_qc.qc_evaluation.preprocess import (
-    PassThroughScaler,
     GroupRobustScaler,
     GroupStandardScaler,
+    GroupScalerSelector,
+    PassThroughScaler,
     NoiseWinnowFeatSelect,
     GroupScalerSelector,
     DropCorrelatedFeatures,
@@ -50,134 +50,36 @@ from sklearn.linear_model import (
     RidgeClassifier,
 )
 from sklearn.tree import DecisionTreeClassifier
-
+import pickle
+import dill
 from sacred import Experiment
 from sacred import SETTINGS
-
-SCALERS = [
-    StandardScaler(),
-    RobustScaler(),
-    PassThroughScaler(),
-    GroupRobustScaler(),
-    GroupStandardScaler(),
-]
-NOISE_FEATURES = ["passthrough", pp.NoiseWinnowFeatSelect()]
-PCA_FEATURES = ["passthrough", PCA(), SparsePCA()]
+from sacred.observers import MongoObserver
+import copy
+import inspect
+from fetal_brain_qc.qc_evaluation import (
+    VALID_EXP,
+    METRICS_BASE,
+    METRICS_BASE_CENTER,
+    METRICS,
+    SCALERS,
+    NOISE_FEATURES,
+    PCA_FEATURES,
+)
+from pdb import set_trace
+from fetal_brain_qc.qc_evaluation import preprocess as pp
+from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.decomposition import PCA, SparsePCA
+import os
+from fetal_brain_qc.qc_evaluation.sacred_helpers import (
+    print_dict,
+    save_to_csv,
+    get_cv,
+)
 
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
-
-
-class PrintDebug(BaseEstimator, TransformerMixin):
-    """Report to the log current columns."""
-
-    def fit(self, X, y=None):
-        print(X)
-        return self
-
-    def transform(self, X, y=None):
-        return X
-
-
-VALID_EXP = ["regression", "classification"]
-METRICS_BASE = [
-    "dl_slice_iqa_pos_only_full",
-    "dl_stack_iqa_full",
-    "rank_error_full",
-    "mask_volume",
-    "centroid_full",
-]
-METRICS_BASE += [m + "_nan" for m in METRICS_BASE]
-METRICS_BASE_CENTER = [
-    "centroid",
-    "centroid_full",
-    "dl_slice_iqa",
-    "dl_slice_iqa_pos_only_full",
-    "dl_stack_iqa_full",
-    "rank_error",
-    "rank_error_center",
-    "rank_error_full",
-    "mask_volume",
-]
-METRICS_BASE_CENTER += [m + "_nan" for m in METRICS_BASE_CENTER]
-METRICS = [
-    "centroid",
-    "centroid_full",
-    "bias",
-    "bias_full",
-    "bias_full_not_mask",
-    "dilate_erode_mask",
-    "dilate_erode_mask_full",
-    "dl_slice_iqa",
-    "dl_slice_iqa_cropped",
-    "dl_slice_iqa_full",
-    "dl_slice_iqa_full_cropped",
-    "dl_slice_iqa_pos_only_full",
-    "dl_stack_iqa_full",
-    "filter_laplace",
-    "filter_laplace_full",
-    "filter_laplace_mask",
-    "filter_laplace_mask_full",
-    "filter_sobel",
-    "filter_sobel_full",
-    "filter_sobel_mask",
-    "filter_sobel_mask_full",
-    "joint_entropy",
-    "joint_entropy_full",
-    "joint_entropy_intersection",
-    "joint_entropy_median",
-    "joint_entropy_window",
-    "kurtosis",
-    "kurtosis_full",
-    "mae",
-    "mae_window",
-    "mask_volume",
-    "mean",
-    "mean_full",
-    "median",
-    "median_full",
-    "mi",
-    "mi_full",
-    "mi_intersection",
-    "mi_median",
-    "mi_window",
-    "ncc",
-    "ncc_full",
-    "ncc_intersection",
-    "ncc_median",
-    "ncc_window",
-    "nmae",
-    "nmae_window",
-    "nmi",
-    "nmi_full",
-    "nmi_intersection",
-    "nmi_median",
-    "nmi_window",
-    "nrmse",
-    "nrmse_window",
-    "percentile_5",
-    "percentile_5_full",
-    "percentile_95",
-    "percentile_95_full",
-    "psnr",
-    "psnr_window",
-    "rank_error",
-    "rank_error_center",
-    "rank_error_center_relative",
-    "rank_error_full",
-    "rank_error_full_cropped_relative",
-    "rmse",
-    "rmse_window",
-    "shannon_entropy",
-    "shannon_entropy_full",
-    "ssim",
-    "ssim_window",
-    "std",
-    "std_full",
-    "variation",
-    "variation_full",
-]
-METRICS += [m + "_nan" for m in METRICS]
+ex.observers.append(MongoObserver())
 
 
 @ex.config
@@ -206,6 +108,8 @@ def config():
         "scaler__scaler": ["StandardScaler()", "RobustScaler()"],
         "model": ["LinearRegression()"],
     }
+    name = f"{experiment['type']}_{experiment['scoring']}_{parameters['model'][0]}_{experiment['metrics']}"
+    ex.path = name
 
 
 @ex.capture(prefix="experiment")
@@ -235,32 +139,6 @@ def get_metrics(metrics):
         return METRICS
     else:
         return NotImplementedError
-
-
-import copy
-import inspect
-
-
-def get_cv(cv_dict):
-    cv_copy = copy.deepcopy(cv_dict)
-    cv = cv_copy.pop("cv")
-    group_by = cv_copy.pop("group_by", None)
-    valid_cv = [
-        "GroupKFold",
-        "GroupShuffleSplit",
-    ]
-    assert cv in valid_cv, f"The only valid CV splitters are {valid_cv}"
-    # Get class from globals and create an instance
-    cv_func = globals()[cv]
-    argspec = inspect.getfullargspec(cv_func).args
-    argspec.remove("self")
-    for k in cv_copy.keys():
-        if k not in argspec:
-            raise RuntimeError(
-                f"Invalid key in {cv_dict}. {k} is not a key from {cv_func} "
-            )
-    cv_model = cv_func(**cv_copy)
-    return cv_model
 
 
 @ex.capture
@@ -300,20 +178,6 @@ def read_parameter_grid(experiment, parameters):
     return out_grid
 
 
-def print_dict(d, indent=0):
-    sp = " " * indent
-    for k, v in d.items():
-        if isinstance(v, dict):
-            print(f"{sp}{k}:")
-            print_dict(v, indent + 2)
-        elif isinstance(v, list):
-            print(f"{sp}{k}:")
-            for el in v:
-                print(f"{sp}- {el}")
-        else:
-            print(f"{sp}{k}: {v}")
-
-
 @ex.automain
 def run(
     dataset,
@@ -349,8 +213,8 @@ def run(
                     ignore="group",
                 ),
             ),
-            ("scaler", GroupScalerSelector(group="group")),
-            ("noise_feature", NoiseWinnowFeatSelect()),
+            ("scaler", pp.GroupScalerSelector(group="group")),
+            ("noise_feature", pp.NoiseWinnowFeatSelect()),
             ("pca", PCA(n_components=10)),
             ("model", GradientBoostingRegressor()),
         ]
@@ -361,14 +225,13 @@ def run(
     i_cv = get_cv(cv["inner_cv"])
     print(
         f"Experiment: {experiment['type']} - scoring: {experiment['scoring']}".upper()
+        + f" - metrics: {experiment['metrics']}  - outer_group_by: {cv['outer_cv']['group_by']}".upper()
         + "\nUsing parameters:"
     )
     print_dict(params, 2)
     print()
 
     print(f"CROSS-VALIDATION:\n\tOuter CV: {o_cv}\n\tInner CV: {i_cv}\n")
-    print(scores, i_cv, pipeline, params)
-    from pdb import set_trace
 
     clf = GridSearchCV(
         estimator=pipeline,
@@ -408,13 +271,12 @@ def run(
             ex.log_scalar(f"{k}_mean", v.mean())
             ex.log_scalar(f"{k}_std", v.std())
             print(f"\t{k:20} = {v.mean():6.3f} +- {v.std():5.3f}")
-    # print(nested_score)
-    import pickle
 
-    out_file = "nested_score.npz"
+    out_file = "nested_score.dill"
     with open(out_file, "wb") as f:
-        pickle.dump(nested_score, f)
-    ex.add_artifact(out_file)
-    import os
+        dill.dump(nested_score, f)
 
+    ex.add_artifact(out_file)
+
+    save_to_csv(ex, _config, nested_score, metrics_list)
     os.remove(out_file)

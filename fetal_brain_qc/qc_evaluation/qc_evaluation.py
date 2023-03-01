@@ -26,6 +26,7 @@ from sklearn.utils.validation import (
 )
 from sklearn.metrics import make_scorer, confusion_matrix
 from sklearn.tree import DecisionTreeClassifier
+from functools import wraps
 
 
 def load_dataset(csv_path, first_iqm="centroid"):
@@ -188,11 +189,42 @@ REGRESSION_MODELS = [
 ]
 
 
+### BINARIZING
+from sklearn.metrics import (
+    f1_score,
+    accuracy_score,
+    roc_auc_score,
+    precision_score,
+    recall_score,
+)
+
+
+def binarize_metric_input(metric, threshold=1):
+    @wraps(metric)
+    def binarized_metric(y_true, y_pred):
+        y_true = y_true > threshold
+        y_pred = y_pred > threshold
+        return metric(y_true, y_pred)
+
+    return binarized_metric
+
+
+acc = binarize_metric_input(accuracy_score)
+prec = binarize_metric_input(precision_score)
+rec = binarize_metric_input(recall_score)
+f1 = binarize_metric_input(f1_score)
+roc_auc = binarize_metric_input(roc_auc_score)
+
 REGRESSION_SCORING = {
     "r2": "r2",
     "neg_mae": "neg_mean_absolute_error",
     "neg_median_ae": "neg_median_absolute_error",
     "spearman": make_scorer(spearman_correlation),
+    "acc": make_scorer(acc),
+    "prec": make_scorer(prec),
+    "rec": make_scorer(rec),
+    "f1": make_scorer(f1),
+    "roc_auc": make_scorer(roc_auc),
 }
 
 

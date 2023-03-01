@@ -498,6 +498,7 @@ class DropCorrelatedFeatures(_FeatureSelection):
         self.ignore = ignore
         self.drop_cst = drop_cst
         self.threshold = threshold
+        self.drop = []
 
     def fit(self, X, y=None):
         """Fit the model with X.

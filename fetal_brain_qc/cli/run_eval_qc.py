@@ -2,237 +2,11 @@
 Train various models and evaluate them.
 """
 
-import pandas as pd
-import numpy as np
-
-
-def load_dataset(csv_path, first_iqm="centroid"):
-    """Load and preprocess metrics, by removing rows containing
-    NaNs and splitting the dataframe between `iqms` and the
-    `rest` of the information (ratings, subject, etc.)
-    """
-    if csv_path.endswith("csv"):
-        metrics = pd.read_csv(csv_path)
-    elif csv_path.endswith("tsv"):
-        metrics = pd.read_csv(csv_path, index_col=None, delimiter=r"\s+")
-    else:
-        raise RuntimeError(
-            "Unknown extension for {args.metrics_csv}. Please provide a .tsv or .csv file."
-        )
-    # Dropping NaN rows
-    if any(metrics.isnull()):
-        print("NaN entries fround:")
-        df = metrics[metrics.isnull().any(axis=1)]
-        print(df)
-        print(f"Dropping {df.shape[0]} rows")
-        metrics = metrics.dropna(axis=0)
-    iqm_idx = np.where(df.columns == first_iqm)[0][0]
-
-    # Casting IQMs as float
-    cols = metrics.columns[iqm_idx:]
-    iqms = metrics[cols]
-    types = {col: float if "nan" not in col else bool for col in cols}
-    iqms = iqms.astype(types).astype(float)
-    rest = metrics[metrics.columns[:iqm_idx]]
-    return iqms, rest
-
-
-def drop_largest_correlation(iqms, threshold=0.95, verbose=True):
-    """Given a dataframe of iqms, finds highly correlated features
-    and drops them.
-    """
-    corrmat = iqms.corr()
-    # Select upper triangle of correlation matrix
-    upper = corrmat.where(np.triu(np.ones(corrmat.shape), k=1).astype(bool))
-
-    # Find features with correlation greater than threshold
-    to_drop = [
-        column
-        for column in upper.columns
-        if any(abs(upper[column]) > threshold)
-    ]
-
-    if verbose:
-        for col in sorted(to_drop):
-            df_col = upper[col]
-            corr_expl = f"{col} correlated with:\n\t"
-            for k, v in df_col[abs(df_col) > threshold].items():
-                corr_expl += f"{k} ({v:.2f}), "
-            print(corr_expl[:-2])
-
-    print(f"Dropping {len(to_drop)} redundant metrics: {to_drop}\n")
-    iqms = iqms.drop(to_drop, axis=1)
-    return iqms, to_drop
-
-
-def z_score(x):
-    """Standardize a vector x"""
-    return (x - x.mean()) / (x.std() + 1e-8)
-
-
-def preprocess_iqms(iqms, drop_correlated=True, normalize_features=True):
-    """ """
-    # Re-order columns: features first, whether there is a nan second
-    cols_nan = [col for col in iqms.columns if "_nan" in col]
-    cols_rest = [col for col in iqms.columns if "_nan" not in col]
-    iqms = iqms[cols_rest + cols_nan]
-
-    # Drop constant columns
-
-    cst_cols = iqms.columns[(iqms.var() == 0).values].tolist()
-    print(f"Dropped {len(cst_cols)} constant columns: {cst_cols}\n")
-    iqms = iqms.drop(cst_cols, axis=1)
-
-    # Drop highly correlated columns
-    if drop_correlated:
-        iqms, corr_cols = drop_largest_correlation(
-            iqms, threshold=0.92, verbose=False
-        )
-
-    if normalize_features:
-        iqms = iqms.apply(z_score)
-    return iqms, cst_cols, corr_cols
-
-
-def plot_confusion_matrix(tp, fp, fn, tn):
-    """Utility to plot a confusion matrix with precision,
-    recall, PPV, NPV
-    """
-    print("Pred |  Actual val.  | Tot.")
-    print("     |  Pos.   Neg.  |")
-    print("-----------------------------")
-    print(
-        f"Pos. | {tp:5.1f}  {fp:5.1f}  | {tp+fp:5.1f} - PPV={tp/(tp+fp):.3f}"
-    )
-    print(
-        f"Neg. | {fn:5.1f}  {tn:5.1f}  | {fn+tn:5.1f} - NPV={tn/(tn+fn):.3f} "
-    )
-    print(f"----------------------------")
-    print(f"Tot. | {tp+fn:5.1f}  {fp+tn:5.1f}  | {tp+fp+fn+tn:5.1f}")
-    print(f"Prec={tp/(tp+fn):.3f} - Rec={tn/(fp+tn):.3f}")
-
-
-from sklearn.ensemble import (
-    GradientBoostingRegressor,
-    AdaBoostRegressor,
-    HistGradientBoostingRegressor,
-    RandomForestRegressor,
-)
-from sklearn.svm import LinearSVR
-from sklearn.linear_model import (
-    # LinearRegression,
-    # ElasticNet,
-    Ridge,
-    Lasso,
-    HuberRegressor,
-    QuantileRegressor,
-)
-
-REGRESSION_MODELS = [
-    LinearSVR(max_iter=10000),
-    # LinearRegression(),
-    # ElasticNet(),
-    HuberRegressor(),
-    QuantileRegressor(),
-    Ridge(),
-    Lasso(),
-    # tree.DecisionTreeRegressor(),
-    GradientBoostingRegressor(),
-    GradientBoostingRegressor(loss="absolute_error"),
-    GradientBoostingRegressor(loss="huber"),
-    AdaBoostRegressor(),
-    HistGradientBoostingRegressor(),
-    HistGradientBoostingRegressor(loss="absolute_error"),
-    RandomForestRegressor(),
-    RandomForestRegressor(criterion="absolute_error"),
-]
-
-
-from scipy.stats import spearmanr
-from sklearn.utils.validation import (
-    check_array,
-    check_consistent_length,
-)
-from sklearn.metrics import make_scorer
-
-
-def spearman_correlation(y_true, y_pred):
-    """Compute Spearman correlation between a reference and a prediction"""
-    check_consistent_length(y_true, y_pred)
-
-    sp = spearmanr(y_true, y_pred)
-
-    return sp.correlation
-
-
-REGRESSION_SCORING = {
-    "r2": "r2",
-    "neg_mae": "neg_mean_absolute_error",
-    "neg_median_ae": "neg_median_absolute_error",
-    "spearman": make_scorer(spearman_correlation),
-}
-
-
-from sklearn.linear_model import LogisticRegression, RidgeClassifier
-from sklearn.svm import LinearSVC
-from sklearn.ensemble import (
-    RandomForestClassifier,
-    GradientBoostingClassifier,
-    AdaBoostClassifier,
-)
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import (
-    confusion_matrix,
-)
-
-CLASSIFICATION_MODELS = [
-    # LogisticRegression(),
-    RidgeClassifier(),
-    LinearSVC(max_iter=100000),
-    DecisionTreeClassifier(),
-    # ElasticNet(),
-    RandomForestClassifier(),
-    GradientBoostingClassifier(),
-    AdaBoostClassifier(),
-]
-
-
-def tp(y_true, y_pred):
-    cm = confusion_matrix(y_true, y_pred)
-    return cm[1, 1]
-
-
-def fp(y_true, y_pred):
-    cm = confusion_matrix(y_true, y_pred)
-    return cm[0, 1]
-
-
-def fn(y_true, y_pred):
-    cm = confusion_matrix(y_true, y_pred)
-    return cm[1, 0]
-
-
-def tn(y_true, y_pred):
-    cm = confusion_matrix(y_true, y_pred)
-    return cm[0, 0]
-
-
-CLASSIFICATION_SCORING = {
-    "acc": "accuracy",
-    "prec": "precision",
-    "rec": "recall",
-    "f1": "f1",
-    "tp": make_scorer(tp),
-    "fp": make_scorer(fp),
-    "fn": make_scorer(fn),
-    "tn": make_scorer(tn),
-    "roc_auc": "roc_auc",
-}
-
 
 def main():
     import os
     import numpy as np
+    import pandas as pd
     import argparse
     from fetal_brain_utils import print_title
     import json
@@ -242,6 +16,15 @@ def main():
         GroupShuffleSplit,
     )
     from sklearn.model_selection import cross_validate
+    from ..qc_evaluation.qc_evaluation import (
+        load_dataset,
+        preprocess_iqms,
+        plot_confusion_matrix,
+        REGRESSION_MODELS,
+        REGRESSION_SCORING,
+        CLASSIFICATION_MODELS,
+        CLASSIFICATION_SCORING,
+    )
 
     p = argparse.ArgumentParser(
         description=(
@@ -251,9 +34,9 @@ def main():
     )
 
     p.add_argument(
-        "--out_folder",
-        help="Path where the results will be stored.",
-        required=True,
+        "--out_path",
+        help="Base path where the results will be stored (file name *without* extension).",
+        default=None,
     )
 
     p.add_argument(
@@ -309,13 +92,44 @@ def main():
         type=str,
         default="centroid",
     )
+
+    p.add_argument(
+        "--drop_correlated",
+        help="Whether correlated features should be dropped",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
+    p.add_argument(
+        "--norm_features",
+        help="Whether each feature should be normalized",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+
     args = p.parse_args()
     print_title("Evaluating QC models")
-
-    os.makedirs(args.out_folder)
+    out_folder = os.path.dirname(os.path.abspath(args.out_path))
+    os.makedirs(out_folder, exist_ok=True)
 
     regression = args.regression
     threshold = args.threshold
+    regr = "regression" if regression else "classification"
+
+    out_base = f"{args.out_path}_nsplits-{args.splits_cv}_norm-{args.norm_features}_dropCorrelated-{args.drop_correlated}"
+    if not regression:
+        thresh_str = str(threshold).replace(".", "p")
+        out_base += f"_threshold-{thresh_str}"
+    if args.use_groups_cv:
+        out_base += f"_group-{args.group_by_cv}"
+    out_base += f"_mode-{regr}"
+
+    assert not os.path.isfile(
+        out_base + ".csv"
+    ), f"ERROR: {out_base}.csv already exists"
+    assert not os.path.isfile(
+        out_base + ".json"
+    ), f"ERROR: {out_base}.json already exists"
 
     iqms, rest = load_dataset(args.metrics_csv, args.first_iqm)
 
@@ -329,7 +143,9 @@ def main():
         group = None
 
     iqms, cst_cols, corr_cols = preprocess_iqms(
-        iqms, drop_correlated=True, normalize_features=True
+        iqms,
+        drop_correlated=args.drop_correlated,
+        normalize_features=args.norm_features,
     )
     X = np.array(iqms)
 
@@ -338,7 +154,6 @@ def main():
     else:
         kf = KFold(n_splits=args.splits_cv)
 
-    regr = "regression" if regression else "classification"
     print_title(
         f"{regr} - Cross-validation using {kf} with n_splits={args.splits_cv}"
     )
@@ -362,7 +177,6 @@ def main():
             scoring=scoring,
             # return_estimator=True,
         )
-        print(out)
         out.pop("fit_time")
         out.pop("score_time")
         m_dict[m] = out
@@ -399,13 +213,13 @@ def main():
     result_df = result_df.explode(list(result_df.columns))
     result_df = result_df.reset_index().set_index(["index", "split"])
 
-    result_df.to_csv(os.path.join(args.out_folder, "results.csv"))
+    result_df.to_csv(out_base + ".csv")
 
     out_dict = args.__dict__
     out_dict["iqms"] = iqms.columns.tolist()
     out_dict["drop_cst_cols"] = cst_cols
     out_dict["drop_corr_cols"] = corr_cols
-    with open(os.path.join(args.out_folder, "results.json"), "w") as f:
+    with open(out_base + ".json", "w") as f:
         json.dump(out_dict, f, indent=4)
     return 0
 
