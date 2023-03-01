@@ -14,20 +14,20 @@ METRICS_BASE = [
 ]
 
 METRICS_BASE += [m + "_nan" for m in METRICS_BASE]
-METRICS_BASE_CENTER = [
-    "centroid",
-    "centroid_full",
-    "dl_slice_iqa",
-    "dl_slice_iqa_pos_only_full",
-    "dl_stack_iqa_full",
-    "rank_error",
-    "rank_error_center",
-    "rank_error_full",
-    "mask_volume",
-]
+# METRICS_BASE_CENTER = [
+#     "centroid",
+#     "centroid_full",
+#     "dl_slice_iqa",
+#     "dl_slice_iqa_pos_only_full",
+#     "dl_stack_iqa_full",
+#     "rank_error",
+#     "rank_error_center",
+#     "rank_error_full",
+#     "mask_volume",
+# ]
 
 
-METRICS_BASE_CENTER += [m + "_nan" for m in METRICS_BASE_CENTER]
+# METRICS_BASE_CENTER += [m + "_nan" for m in METRICS_BASE_CENTER]
 METRICS = [
     "centroid",
     "centroid_full",

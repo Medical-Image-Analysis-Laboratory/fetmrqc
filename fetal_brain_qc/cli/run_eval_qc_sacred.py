@@ -60,7 +60,7 @@ import inspect
 from fetal_brain_qc.qc_evaluation import (
     VALID_EXP,
     METRICS_BASE,
-    METRICS_BASE_CENTER,
+    # METRICS_BASE_CENTER,
     METRICS,
     SCALERS,
     NOISE_FEATURES,
@@ -108,7 +108,7 @@ def config():
         "scaler__scaler": ["StandardScaler()", "RobustScaler()"],
         "model": ["LinearRegression()"],
     }
-    name = f"{experiment['type']}_{experiment['scoring']}_{parameters['model'][0]}_{experiment['metrics']}"
+    name = f"{experiment['type']}_{experiment['scoring']}_{experiment['metrics']}_{cv['outer_cv']['group_by']}"
     ex.path = name
 
 
@@ -133,8 +133,8 @@ def get_metrics(metrics):
     assert metrics in ["base", "base_center", "full"]
     if metrics == "base":
         return METRICS_BASE
-    elif metrics == "base_center":
-        return METRICS_BASE_CENTER
+    # elif metrics == "base_center":
+    #    return METRICS_BASE_CENTER
     elif metrics == "full":
         return METRICS
     else:

@@ -21,6 +21,7 @@ setup(
             "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
             "qc_ratings_to_csv = fetal_brain_qc.cli.ratings_to_csv:main",
             "qc_evaluate_qc = fetal_brain_qc.cli.run_eval_qc:main",
+            "qc_summary_eval = fetal_brain_qc.cli.summarize_qc_eval.py:main",
         ],
     },
 )

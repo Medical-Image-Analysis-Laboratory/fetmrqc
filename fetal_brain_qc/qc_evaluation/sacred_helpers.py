@@ -90,12 +90,14 @@ def format_config(config):
     return config.loc[0].to_dict()
 
 
-def save_to_csv(exp, config_, nested_score, metrics_list):
-    out_path = "scores.csv"
-    out_path_agg = "scores_agg.csv"
-    out_path_agg_2 = "scores_agg_more.csv"
-    out_path_outer = "scores_outer_cv.csv"
-    out_path_outer_2 = "scores_outer_cv_agg.csv"
+def save_inner_scores(exp, config_, nested_score):
+    """This function works on the score of the inner estimator.
+    We get a score for each estimator and average it based on the
+    performance on the *inner* cross validation loop
+    """
+    out_path = "scores_inner.csv"
+    out_path_agg = "scores_inner_agg.csv"
+    out_path_agg_2 = "scores_inner_agg_more.csv"
     params = list(nested_score["estimator"][0].param_grid.keys())
     scores = list(nested_score["estimator"][0].scoring.keys())
     scores = [f"{m}_test_{k}" for k in scores for m in ["mean", "std"]]
@@ -103,9 +105,6 @@ def save_to_csv(exp, config_, nested_score, metrics_list):
     config_keys = list(config.keys())
     cols = config_keys + ["outer_split", "inner_idx"] + params + scores
     results = pd.DataFrame(columns=cols)
-    results_best = pd.DataFrame(
-        columns=cols + ["features_dropped", "features_importance"]
-    )
     for i, gridsearch in enumerate(nested_score["estimator"]):
         len_grid = len(gridsearch.cv_results_["params"])
 
@@ -128,17 +127,6 @@ def save_to_csv(exp, config_, nested_score, metrics_list):
             results = pd.concat(
                 [results, pd.DataFrame([cv_step])], ignore_index=True
             )
-            if j == gridsearch.best_index_:
-                (
-                    cv_step["features_dropped"],
-                    cv_step["features_importance"],
-                ) = get_feature_importance(
-                    gridsearch.best_estimator_, metrics_list
-                )
-                results_best = pd.concat(
-                    [results_best, pd.DataFrame([cv_step])],
-                    ignore_index=True,
-                )
     results.to_csv(out_path, index=False)
     results.groupby(["outer_split"] + params).mean(numeric_only=True).to_csv(
         out_path_agg, index=False
@@ -146,6 +134,47 @@ def save_to_csv(exp, config_, nested_score, metrics_list):
     results.groupby(params).mean(numeric_only=True).to_csv(
         out_path_agg_2, index=False
     )
+    for p in [
+        out_path,
+        out_path_agg,
+        out_path_agg_2,
+    ]:
+        exp.add_artifact(p)
+        os.remove(p)
+
+
+def save_outer_scores(exp, config_, nested_score, metrics_list):
+    """This function extracts and aggregates the results of the outer
+    cross validation loop.
+    """
+    out_path_outer = "scores_outer.csv"
+    out_path_outer_2 = "scores_outer_agg.csv"
+    params = list(nested_score["estimator"][0].param_grid.keys())
+    scores = list(nested_score["estimator"][0].scoring.keys())
+    scores = [f"test_{k}" for k in scores]
+    config = format_config(copy.deepcopy(config_))
+    config_keys = list(config.keys())
+    cols = config_keys + ["outer_split"] + params + scores
+    n_eval = len(nested_score["estimator"])
+    results_best = pd.DataFrame(
+        columns=cols + ["features_dropped", "features_importance"]
+    )
+    for i in range(n_eval):
+
+        cv_step = {k: v for k, v in config.items()}
+        est = nested_score["estimator"][0]
+        cv_step.update({k: str(v) for k, v in est.best_params_.items()})
+        cv_step.update({s: nested_score[s][i] for s in scores})
+
+        (
+            cv_step["features_dropped"],
+            cv_step["features_importance"],
+        ) = get_feature_importance(est.best_estimator_, metrics_list)
+        cv_step.update({"outer_split": i + 1})
+        results_best = pd.concat(
+            [results_best, pd.DataFrame([cv_step])],
+            ignore_index=True,
+        )
     results_best.to_csv(out_path_outer, index=False)
 
     ## Aggregating outer cv results into a single line.
@@ -167,11 +196,13 @@ def save_to_csv(exp, config_, nested_score, metrics_list):
         out_path_outer_2, index=False
     )
     for p in [
-        out_path,
-        out_path_agg,
-        out_path_agg_2,
         out_path_outer,
         out_path_outer_2,
     ]:
         exp.add_artifact(p)
         os.remove(p)
+
+
+def save_to_csv(exp, config_, nested_score, metrics_list):
+    save_inner_scores(exp, config_, nested_score)
+    save_outer_scores(exp, config_, nested_score, metrics_list)
