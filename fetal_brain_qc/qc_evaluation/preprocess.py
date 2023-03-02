@@ -76,8 +76,14 @@ class _FeatureSelection(BaseEstimator, TransformerMixin):
         """
         if self.disable or not self.drop:
             return X
+
         return X.drop(
-            [field for field in self.drop if field not in self.ignore], axis=1
+            [
+                field
+                for field in self.drop
+                if self.ignore is None or field not in self.ignore
+            ],
+            axis=1,
         )
 
 

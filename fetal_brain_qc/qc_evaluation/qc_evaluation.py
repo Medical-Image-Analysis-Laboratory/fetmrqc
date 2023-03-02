@@ -214,6 +214,10 @@ prec = binarize_metric_input(precision_score)
 rec = binarize_metric_input(recall_score)
 f1 = binarize_metric_input(f1_score)
 roc_auc = binarize_metric_input(roc_auc_score)
+tp_ = binarize_metric_input(tp)
+fp_ = binarize_metric_input(fp)
+fn_ = binarize_metric_input(fn)
+tn_ = binarize_metric_input(tn)
 
 REGRESSION_SCORING = {
     "r2": "r2",
@@ -225,6 +229,10 @@ REGRESSION_SCORING = {
     "rec": make_scorer(rec),
     "f1": make_scorer(f1),
     "roc_auc": make_scorer(roc_auc),
+    "tp": make_scorer(tp_),
+    "fp": make_scorer(fp_),
+    "fn": make_scorer(fn_),
+    "tn": make_scorer(tn_),
 }
 
 

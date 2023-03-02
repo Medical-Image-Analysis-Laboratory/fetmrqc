@@ -130,13 +130,15 @@ def check_entries(type, metrics, scoring):
 # ToDo: define basic metrics, check that if it's a list then we can use it as well.
 @ex.capture(prefix="experiment")
 def get_metrics(metrics):
-    assert metrics in ["base", "base_center", "full"]
+    assert metrics in ["base", "base_center", "full"] + METRICS
     if metrics == "base":
         return METRICS_BASE
     # elif metrics == "base_center":
     #    return METRICS_BASE_CENTER
     elif metrics == "full":
         return METRICS
+    elif metrics in METRICS:
+        return [metrics]
     else:
         return NotImplementedError
 
