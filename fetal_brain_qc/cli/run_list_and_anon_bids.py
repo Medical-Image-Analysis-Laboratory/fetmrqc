@@ -60,6 +60,12 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+    p.add_argument(
+        "--seed",
+        help="Seed for the random number generator.",
+        type=int,
+        default=None,
+    )
 
     args = p.parse_args()
     print_title("Running list_bids")
@@ -88,7 +94,7 @@ def main():
     )
     if args.anonymize_name:
         print(f"Anonymize name in {args.out_csv}.")
-        anonymize_bids_csv(args.out_csv, out_bids_csv=args.out_csv)
+        anonymize_bids_csv(args.out_csv, out_bids_csv=args.out_csv, seed=args.seed)
 
     return 0
 

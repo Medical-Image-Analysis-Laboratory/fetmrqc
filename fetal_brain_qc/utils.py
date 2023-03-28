@@ -22,7 +22,7 @@ def squeeze_dim(arr, dim):
 def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
 
     query = bids_layout.get(subject=sub, session=ses, run=run)[0]
-    acquisition = query.entities["acquisition"]
+    acquisition = query.entities["acquisition"] if "acquisition" in query.entities else None
     ents = {
         "subject": sub,
         "session": ses,

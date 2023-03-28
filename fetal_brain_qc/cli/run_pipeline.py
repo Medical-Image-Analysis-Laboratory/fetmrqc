@@ -1,4 +1,4 @@
-def main():
+def main(argv=None):
     import argparse
     from fetal_brain_qc.definitions import (
         MASK_PATTERN,
@@ -22,17 +22,19 @@ def main():
     )
 
     p.add_argument(
-        dest="bids_dir",
+        "--bids_dir",
+        required=True,
         help="BIDS directory containing the LR series.",
     )
 
     p.add_argument(
-        dest="out_path",
+        "--out_path",
+        required=True,
         help="Path where the reports will be stored.",
     )
 
     p.add_argument(
-        "--brain-extraction",
+        "--brain_extraction",
         help=(
             "Whether brain extraction should be run.\n"
             "If run, it will store masks at `out_path`/`mask_patterns[0]`."
@@ -42,14 +44,14 @@ def main():
     )
 
     p.add_argument(
-        "--run-qc",
+        "--run_qc",
         help=("Whether quality control should be run.\n"),
         action=argparse.BooleanOptionalAction,
         default=False,
     )
 
     p.add_argument(
-        "--mask-patterns",
+        "--mask_patterns",
         help=(
             "Pattern(s) to find the LR masks corresponding to the LR series.\n "
             'Patterns will be of the form "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
@@ -62,7 +64,7 @@ def main():
     )
 
     p.add_argument(
-        "--mask-patterns-base",
+        "--mask_patterns_base",
         help=(
             "Base folder(s) from which the LR masks must be listed.\n "
             "The method will look for masks at `mask-pattern-base`/`mask-patterns`. "
@@ -73,13 +75,13 @@ def main():
     )
 
     p.add_argument(
-        "--bids-csv",
+        "--bids_csv",
         help="CSV file where the list of available LR series and masks is stored.",
         default="bids_csv.csv",
     )
 
     p.add_argument(
-        "--anonymize-name",
+        "--anonymize_name",
         help=(
             "Whether an anonymized name must be stored along the paths in `out-csv`. "
             "This will determine whether the reports will be anonymous in the end."
@@ -108,7 +110,7 @@ def main():
     )
 
     p.add_argument(
-        "--n-reports",
+        "--n_reports",
         type=int,
         default=100,
         help=(
@@ -118,7 +120,7 @@ def main():
     )
 
     p.add_argument(
-        "--n-raters",
+        "--n_raters",
         type=int,
         default=3,
         help=(
@@ -150,7 +152,7 @@ def main():
     )
 
     p.add_argument(
-        "--continue-run",
+        "--continue_run",
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
@@ -177,7 +179,7 @@ def main():
         default=BRAIN_CKPT,
     )
 
-    args = p.parse_args()
+    args = p.parse_args(argv)
     validate_inputs(args)
 
     # Creating various variables and paths
@@ -187,9 +189,7 @@ def main():
     # To be used only when args.brain_extraction is true
     masks_dir = Path(args.out_path) / "masks"
 
-    mask_patterns_base = (
-        [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
-    )
+    mask_patterns_base = [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
     if mask_patterns_base:
         mask_patterns_base = " ".join(str(x) for x in mask_patterns_base)
     mask_patterns = " ".join(str(x) for x in args.mask_patterns)
@@ -210,25 +210,18 @@ def main():
     # BIDS FOLDER AND MASKS LIST
     if args.continue_run:
         if os.path.isfile(bids_csv):
-            print(
-                f"File found at {bids_csv}. Using it to continue the previous run."
-            )
+            print(f"File found at {bids_csv}. Using it to continue the previous run.")
         else:
-            raise RuntimeError(
-                f"No file found at {bids_csv} while continue_run is true."
-            )
+            raise RuntimeError(f"No file found at {bids_csv} while continue_run is true.")
     else:
         cmd = (
             f"qc_list_bids_csv "
             f"{args.bids_dir} "
             f"--mask-patterns {mask_patterns} "
             f"--out-csv {bids_csv} "
+            f"--seed {args.seed} "
         )
-        cmd += (
-            f"--mask-patterns-base {mask_patterns_base} "
-            if mask_patterns_base
-            else ""
-        )
+        cmd += f"--mask-patterns-base {mask_patterns_base} " if mask_patterns_base else ""
         cmd += "--anonymize-name" if args.anonymize_name else ""
 
         print(cmd)

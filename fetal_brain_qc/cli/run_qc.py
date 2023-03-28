@@ -9,6 +9,7 @@ https://github.com/daviddmc/fetal-IQA
 
 def main():
     import os
+    import numpy as np
     import torch
     import argparse
     import pandas as pd

@@ -3,7 +3,7 @@ def main():
     import argparse
     import pandas as pd
     from pathlib import Path
-    from fetal_brain_utils import csv_to_list, print_title, find_run_id
+    from fetal_brain_utils import csv_to_list, print_title
     from fetal_brain_qc.metrics import LRStackMetrics
     import pdb
 
