@@ -69,11 +69,7 @@ def drop_largest_correlation(iqms, threshold=0.95, verbose=True):
     upper = corrmat.where(np.triu(np.ones(corrmat.shape), k=1).astype(bool))
 
     # Find features with correlation greater than threshold
-    to_drop = [
-        column
-        for column in upper.columns
-        if any(abs(upper[column]) > threshold)
-    ]
+    to_drop = [column for column in upper.columns if any(abs(upper[column]) > threshold)]
 
     if verbose:
         for col in sorted(to_drop):
@@ -109,9 +105,7 @@ def preprocess_iqms(iqms, drop_correlated=True, normalize_features=True):
     # Drop highly correlated columns
     corr_cols = []
     if drop_correlated:
-        iqms, corr_cols = drop_largest_correlation(
-            iqms, threshold=0.92, verbose=False
-        )
+        iqms, corr_cols = drop_largest_correlation(iqms, threshold=0.92, verbose=False)
 
     if normalize_features:
         iqms = iqms.apply(z_score)
@@ -125,12 +119,8 @@ def plot_confusion_matrix(tp, fp, fn, tn):
     print("Pred |  Actual val.  | Tot.")
     print("     |  Pos.   Neg.  |")
     print("-----------------------------")
-    print(
-        f"Pos. | {tp:5.1f}  {fp:5.1f}  | {tp+fp:5.1f} - PPV={tp/(tp+fp):.3f}"
-    )
-    print(
-        f"Neg. | {fn:5.1f}  {tn:5.1f}  | {fn+tn:5.1f} - NPV={tn/(tn+fn):.3f} "
-    )
+    print(f"Pos. | {tp:5.1f}  {fp:5.1f}  | {tp+fp:5.1f} - PPV={tp/(tp+fp):.3f}")
+    print(f"Neg. | {fn:5.1f}  {tn:5.1f}  | {fn+tn:5.1f} - NPV={tn/(tn+fn):.3f} ")
     print(f"----------------------------")
     print(f"Tot. | {tp+fn:5.1f}  {fp+tn:5.1f}  | {tp+fp+fn+tn:5.1f}")
     print(f"Prec={tp/(tp+fn):.3f} - Rec={tn/(fp+tn):.3f}")

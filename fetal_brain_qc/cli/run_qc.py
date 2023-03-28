@@ -118,7 +118,11 @@ def main():
         print("\tCONTINUING FROM A PREVIOUSLY FOUND RUN.")
         df = pd.read_csv(args.out_csv).set_index("name")
         metrics_dict = df.to_dict(orient="index")
-
+        # Remove duplicate keys
+        metrics_dict = {
+            k: {k2: v2 for k2, v2 in v.items() if k2 not in df_base.columns}
+            for k, v in metrics_dict.items()
+        }
     for run in bids_list:
         # Loading data
         name = Path(run["im"]).name

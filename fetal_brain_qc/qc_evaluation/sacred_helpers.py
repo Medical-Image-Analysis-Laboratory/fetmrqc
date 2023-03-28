@@ -26,6 +26,7 @@ def get_cv(cv_dict):
     `cv_type(cv_param1=val1, ...)`
     """
     from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+    from .model_selection import CustomStratifiedGroupKFold
 
     cv_copy = copy.deepcopy(cv_dict)
     cv = cv_copy.pop("cv")
@@ -33,6 +34,7 @@ def get_cv(cv_dict):
     valid_cv = [
         "GroupKFold",
         "GroupShuffleSplit",
+        "CustomStratifiedGroupKFold",
     ]
     assert cv in valid_cv, f"The only valid CV splitters are {valid_cv}"
     # Get class from globals and create an instance

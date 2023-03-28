@@ -97,8 +97,8 @@ def config():
     }
 
     cv = {
-        "outer_cv": {"cv": "GroupKFold", "n_splits": 2, "group_by": "sub_ses"},
-        "inner_cv": {"cv": "GroupKFold", "n_splits": 2, "group_by": "sub_ses"},
+        "outer_cv": {"cv": "GroupKFold", "group_by": "sub_ses"},
+        "inner_cv": {"cv": "GroupKFold", "group_by": "sub_ses"},
     }
 
     parameters = {

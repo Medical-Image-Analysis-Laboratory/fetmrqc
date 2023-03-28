@@ -642,7 +642,7 @@ class LRStackMetrics:
             if self._valid_mask(mask_path):
                 out = self.metrics_func[m](**args_dict)
             else:
-                out = [None, None]
+                out = [0, True]
             results[m], results[m + "_nan"] = out
         return results
 
