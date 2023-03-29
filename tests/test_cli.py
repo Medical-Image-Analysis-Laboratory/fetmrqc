@@ -53,3 +53,74 @@ def test_run_pipeline():
         txt = f.readlines()
 
     assert list_files == [l.replace("\n", "") for l in txt]
+
+import pandas as pd
+import numpy as np
+def mock_iqms(n_rows=50):
+    # import LRStackMetrics and get all available metrics
+    from fetal_brain_qc.metrics import LRStackMetrics
+    cols = list(LRStackMetrics().get_all_metrics())
+    cols += [iqm +"_nan" for iqm in cols]
+    cols = ["name","sub_ses","run","rating"]+cols
+    # create a dataframe with the columns
+    df = pd.DataFrame(columns=cols)
+    sub_ses = 1
+    while df.shape[0] < n_rows:
+        # get a random number between 3 and 8
+        n_runs = np.random.randint(3,8)
+        sub_ses_str = f"sub-{sub_ses:03d}_ses-01"
+        for run in range(n_runs):
+            # create a row with a random string for name, sub_ses_str, run+1, and a random rating between 1 and 4
+            # and random positive values for the metrics
+            row = [np.random.bytes(5).hex(),sub_ses_str,run+1,np.random.randint(1,5)]+np.random.rand(len(cols)-4).tolist()
+            df.loc[df.shape[0]] = row
+            if df.shape[0] >= n_rows:
+                break
+        sub_ses += 1
+    return df
+
+
+def test_run_iqms():
+    n_entries = 200
+    df = mock_iqms(n_entries)
+    assert df.shape[0] == n_entries
+    # save the dataframe to a output/test_run_iqms.csv file
+    df.to_csv(FILE_DIR / "output/test_run_iqms.csv",index=False)
+    # call the command line interface qc_evaluate_qc using the saved csv file and save the results to "out/out_file" (create the folder)
+    from fetal_brain_qc.cli.run_eval_qc_sacred import run_experiment
+    # delete the out_iqms folder if it exists
+    if (FILE_DIR / "out_iqms").exists():
+        shutil.rmtree(FILE_DIR / "out_iqms")
+    dataset = {"dataset_path": str(FILE_DIR / "output/test_run_iqms.csv"), "first_iqm": "centroid"}
+    experiment = {
+        "type": "regression",
+        "classification_threshold": None,
+        "metrics": "base",
+        "scoring": "neg_mae",
+    }
+
+    cv = {
+        "outer_cv": {"cv": "CustomStratifiedGroupKFold", "group_by": "sub_ses", "train_size": 0.5, "binarize_threshold":1},
+        "inner_cv": {"cv": "CustomStratifiedGroupKFold", "group_by": "sub_ses", "train_size": 0.5, "binarize_threshold":1},
+    }
+
+    parameters = {
+        "drop_correlated__threshold": [0.95, 1.0],
+        "pca": ["passthrough"], 
+        "noise_feature": ["passthrough"],  
+        "scaler__scaler": ["StandardScaler()", "RobustScaler()"],
+        "model": ["LinearRegression()"],
+    }
+
+    nested_score, metrics_list = run_experiment(
+        dataset,
+        experiment,
+        cv,
+        parameters
+    )
+    assert all(["test_"+m in nested_score.keys() for m in ["r2","neg_mae","neg_median_ae","spearman","acc","f1","prec","rec","roc_auc"]])
+    assert all([nested_score["test_"+m].shape==(2,) for m in ["r2","neg_mae","neg_median_ae","spearman","acc","f1","prec","rec","roc_auc"]])
+    
+    
+
+    

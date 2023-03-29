@@ -76,7 +76,8 @@ from fetal_brain_qc.qc_evaluation.sacred_helpers import (
     save_to_csv,
     get_cv,
 )
-
+from pathlib import Path
+import pandas as pd
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
 ex.observers.append(MongoObserver())
@@ -127,8 +128,6 @@ def check_entries(type, metrics, scoring):
         ), f"Invalid eval_score={scoring}, please choose between {CLASSIFICATION_SCORING.keys()}"
 
 
-# ToDo: define basic metrics, check that if it's a list then we can use it as well.
-@ex.capture(prefix="experiment")
 def get_metrics(metrics):
     assert metrics in ["base", "base_center", "full"] + METRICS
     if metrics == "base":
@@ -180,21 +179,20 @@ def read_parameter_grid(experiment, parameters):
     return out_grid
 
 
-@ex.automain
-def run(
-    dataset,
-    experiment,
-    cv,
-    _config,
-):
-
+def run_experiment(dataset, experiment, cv, parameters):
     is_regression = experiment["type"] == "regression"
-    from pathlib import Path
-    import pandas as pd
+    
+    if dataset["dataset_path"].endswith(".tsv"):
 
-    dataframe = pd.read_csv(
-        Path(dataset["dataset_path"]), index_col=None, delimiter=r"\s+"
-    )
+        dataframe = pd.read_csv(
+            Path(dataset["dataset_path"]), index_col=None, delimiter=r"\s+"
+        )
+    elif dataset["dataset_path"].endswith(".csv"):
+        dataframe = pd.read_csv(
+            Path(dataset["dataset_path"]), index_col=None
+        )
+    else:
+        raise ValueError("Dataset should be a csv or tsv file")
 
     # Return the position of the first IQM in the list
     xy_index = dataframe.columns.tolist().index(dataset["first_iqm"])
@@ -205,7 +203,7 @@ def run(
     train_x = dataframe[dataframe.columns[xy_index:]].copy()
     train_y = dataframe[dataframe.columns[:xy_index]].copy()
     del dataframe
-    metrics_list = get_metrics()
+    metrics_list = get_metrics(metrics=experiment["metrics"])
 
     pipeline = Pipeline(
         steps=[
@@ -221,7 +219,7 @@ def run(
             ("model", GradientBoostingRegressor()),
         ]
     )
-    params = read_parameter_grid()
+    params = read_parameter_grid(experiment, parameters)
     scores = REGRESSION_SCORING if is_regression else CLASSIFICATION_SCORING
     o_cv = get_cv(cv["outer_cv"])
     i_cv = get_cv(cv["inner_cv"])
@@ -267,6 +265,18 @@ def run(
         return_estimator=True,
         error_score="raise",
     )
+    return nested_score, metrics_list
+
+@ex.automain
+def run(
+    dataset,
+    experiment,
+    cv,
+    parameters,
+    _config,
+):
+
+    nested_score, metrics_list = run_experiment(dataset, experiment, cv, parameters)
     print("FINAL RESULTS")
     for k, v in nested_score.items():
         if "test" in k:

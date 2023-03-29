@@ -3,7 +3,7 @@ Train various models and evaluate them.
 """
 
 
-def main():
+def main(argv=None):
     import os
     import numpy as np
     import pandas as pd
@@ -107,7 +107,7 @@ def main():
         default=True,
     )
 
-    args = p.parse_args()
+    args = p.parse_args(argv)
     print_title("Evaluating QC models")
     out_folder = os.path.dirname(os.path.abspath(args.out_path))
     os.makedirs(out_folder, exist_ok=True)

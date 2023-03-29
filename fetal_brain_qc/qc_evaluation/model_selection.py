@@ -7,10 +7,25 @@ import numpy as np
 class CustomStratifiedGroupKFold(StratifiedGroupKFold):
     """Extend stratified group k fold to be able to define splits as
     a proportion of the data to be used for training.
+    
+    Parameters
+    ----------
+    train_size : float, default=0.8
+        Proportion of the data to be used for training. If train_size >= 0.5,
+        the splits will be reversed, so that the test set is the largest.
+    shuffle : bool, default=False
+        Whether to shuffle the data before splitting into batches.
+    random_state : int, RandomState instance or None, default=None
+        Controls the shuffling applied to the data before applying the split.
+        Pass an int for reproducible output across multiple function calls.
+        See :term:`Glossary <random_state>`.
+    binarize_threshold : float, default=None
+        Threshold to binarize the ratings. If None, no binarization is applied.
     """
 
-    def __init__(self, train_size=0.8, shuffle=False, random_state=None):
+    def __init__(self, train_size=0.8, shuffle=False, random_state=None, binarize_threshold=None):
         assert train_size >= 0 and train_size <= 1.0
+        self.binarize_threshold=binarize_threshold
         if train_size >= 0.5:
             n_splits = int(1 / (1 - train_size))
             self.reverse = False
@@ -40,6 +55,8 @@ class CustomStratifiedGroupKFold(StratifiedGroupKFold):
         test : ndarray
             The testing set indices for that split.
         """
+        if self.binarize_threshold is not None:
+            y = y > self.binarize_threshold
         X, y, groups = indexable(X, y, groups)
         indices = np.arange(_num_samples(X))
         for test_index in self._iter_test_masks(X, y, groups):
