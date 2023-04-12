@@ -136,7 +136,7 @@ def main():
                 pattern_cropped,
             )
             im_path, mask_path = crop_input(
-                im_path, mask_path, args.apply_mask, masked_cropped_path
+                im_path, mask_path, masked_cropped_path, args.apply_mask
             )
 
         correct_bias_field(

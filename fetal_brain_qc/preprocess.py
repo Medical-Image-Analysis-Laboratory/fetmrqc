@@ -4,7 +4,7 @@ import nibabel as ni
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 
 
-def crop_input(file_path, mask_path, mask_image, dir_cropped):
+def crop_input(file_path, mask_path, dir_cropped, mask_image=True, save_mask=True):
     """Crops input image and mask, optionally masks it and
     saves the files to dir_cropped.
     """
@@ -36,8 +36,11 @@ def crop_input(file_path, mask_path, mask_image, dir_cropped):
         imc = ni.Nifti1Image(imc.get_fdata(), imc.affine)
 
     ni.save(imc, output)
-    ni.save(maskc, output_mask)
-    return output, output_mask
+    if save_mask:
+        ni.save(maskc, output_mask)
+        return output, output_mask
+    else:
+        return output
 
 
 def correct_bias_field(
