@@ -87,15 +87,14 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
                 raise ValueError(f"Segmentation {seg} not found.")
         if out_path is not None:
             print("WARNING: out_path is specified but will be ignored as segmentation paths were provided in bids_csv.")
+        print("Segmentation already computed. All segmentations were found locally. Terminating.")
     else:
         df = compute_segmentations(df, out_path, model, ckpt_path)
-    print(df.columns)
-    
-    # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
-    if bids_csv.endswith(".csv"):
-        df.to_csv(bids_csv, index=False)
-    elif bids_csv.endswith(".tsv"):
-        df.to_csv(bids_csv, index=False, sep="\t")
+        # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
+        if bids_csv.endswith(".csv"):
+            df.to_csv(bids_csv, index=False)
+        elif bids_csv.endswith(".tsv"):
+            df.to_csv(bids_csv, index=False, sep="\t")
 
     return 0
 
