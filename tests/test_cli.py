@@ -1,15 +1,29 @@
 import pytest
 from fetal_brain_utils.utils import get_mask_path, iter_dir, iter_bids
 from fetal_brain_qc.cli.run_pipeline import main as run_pipeline
-
+from fetal_brain_qc.cli.run_pipeline import main as main_pipeline
 from bids import BIDSLayout
 from pathlib import Path
 import json
 import os
 import shutil
+import pandas as pd
+import numpy as np
 FILE_DIR = Path(__file__).parent.resolve()
 BIDS_DIR = FILE_DIR / "data"
 MASKS_DIR = FILE_DIR / "data/derivatives/masks"
+
+def compare_dataframes(df1, df2, numeric_tolerance=1e-6):
+    # compare the string columns
+    string_cols = df1.select_dtypes(include=['object']).columns
+    string_compare = all(df1[col].equals(df2[col]) for col in string_cols)
+
+    # compare the numeric columns
+    numeric_cols = df1.select_dtypes(include=['number']).columns
+    num_compare = np.isclose(df1[numeric_cols], df2[numeric_cols], rtol=numeric_tolerance).all().all()
+    print(string_compare, num_compare)
+    # return the comparison results
+    return string_compare and num_compare
 
 
 # Write a test for the main function of run_pipeline.py where you call the parser and check that everything is run as expected.
@@ -36,7 +50,7 @@ def test_run_pipeline():
             "--run_qc"
         ]
     )
-
+    df_out = pd.read_csv(out_dir / "metrics.csv")
     # Recursively list the files in out_dir relatively from out_dir
     # in a deterministic order
     list_files = []
@@ -48,14 +62,16 @@ def test_run_pipeline():
     # If out_dir exists, recursively delete the folder using shutil.rmtree
     if out_dir.exists():
         shutil.rmtree(out_dir)
-
+    
     with open(FILE_DIR / "output/test_run_pipeline.txt", "r") as f:
         txt = f.readlines()
 
     assert list_files == [l.replace("\n", "") for l in txt]
+    df_ref = pd.read_csv(FILE_DIR / "output/metrics.csv")
+    
+    # Compare df_ref and df_out and make sure that strings match and numbers are close
+    assert compare_dataframes(df_out, df_ref)
 
-import pandas as pd
-import numpy as np
 def mock_iqms(n_rows=50):
     # import LRStackMetrics and get all available metrics
     from fetal_brain_qc.metrics import LRStackMetrics

@@ -7,7 +7,7 @@ https://github.com/daviddmc/fetal-IQA
 # Import libraries
 
 
-def main():
+def main(argv=None):
     import os
     import numpy as np
     import torch
@@ -88,7 +88,7 @@ def main():
         ),
     )
 
-    args = p.parse_args()
+    args = p.parse_args(argv)
     bids_list = csv_to_list(args.bids_csv)
     print_title("Running QC evaluation")
 
