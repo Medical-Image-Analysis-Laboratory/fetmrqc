@@ -7,6 +7,11 @@ import pandas as pd
 import os
 from pathlib import Path
 from fetal_brain_qc.preprocess import crop_input
+from bids.layout.utils import parse_file_entities
+from bids.layout.writing import build_path
+PATTERN = (
+    "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}"
+    "[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz")
 
 MODELS = ["nnUNet"]
 def compute_segmentations(bids_df, out_path, model, ckpt_path):
@@ -27,7 +32,7 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
         if ckpt_path is not None:
             print("WARNING: ckpt_path is specified but will be ignored in nnUNet.")
 
-        cropped_img, seg_list = [], []
+        cropped_img, seg_list, seg_proba_list = [], [], []
 
         # Crop the images and masks
         for im, mask in zip(bids_df["im"], bids_df["mask"]):
@@ -37,28 +42,29 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
             renamed = cropped.parent / (cropped.stem.split(".")[0] + "_0000.nii.gz")
             os.rename(cropped, renamed)
             cropped_img.append(renamed)
-            seg_list.append(cropped)
-
-        # Run nnUNet inference
-        os.system(f"nnUNetv2_predict -d 4 -i {out_path} -o {out_path} -c 2d -f 0")
-
-        # Cleaning up: 1. remove cropped images, 2. rename segmentation files
-        for path in cropped_img:
-            os.remove(path)
-        import shutil
-        for i, (sub, ses, seg) in enumerate(zip(bids_df["sub"],bids_df["ses"], seg_list)):
-            ses = str(ses).zfill(2)
-            seg_path = out_path / f"sub-{sub}" / f"ses-{ses}" / "anat" 
-            os.makedirs(seg_path, exist_ok=True)
-            seg_name = seg_path/ (seg.stem.split("_T2w")[0] + "_seg.nii.gz")
-            print(seg, seg_name)
-            os.rename(seg, seg_name)
-            seg_list[i] = seg_name
         
+        # Run nnUNet inference
+        os.system(f"nnUNetv2_predict -d 4 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities")
+
+        # Move the outputs to the corresponding BIDS folder which will contain
+        # 1. The cropped images, 2. The segmentations 3. The probability maps 4. the pkl files. 
+        for file in list(out_path.glob("*_T2w.nii.gz")):
+            seg_path = out_path / build_path(parse_file_entities(file), PATTERN)
+            os.makedirs(seg_path.parent, exist_ok=True)
+            file, seg_path = str(file), str(seg_path)
+            seg_out = seg_path.replace("_T2w.nii.gz","_seg.nii.gz")
+            seg_proba =seg_path.replace("_T2w.nii.gz","desc-proba_seg.npz")
+            os.rename(file, seg_out)
+            os.rename(file.replace("_T2w.nii.gz","_T2w.pkl"), seg_path.replace("_T2w.nii.gz","_T2w.pkl"))
+            os.rename(file.replace("_T2w.nii.gz","_T2w.npz"), seg_proba)
+            os.rename(file.replace("_T2w.nii.gz","_T2w_0000.nii.gz"), seg_path.replace("_T2w.nii.gz","_desc-cropped_T2w.nii.gz"))     
+            seg_list.append(seg_out)
+            seg_proba_list.append(seg_proba)
     else:
         raise ValueError(f"Model {model} not supported. Please choose among {MODELS}")
     # add a new column with cropped_img to bids_df after the column named mask, with title seg
     bids_df.insert(bids_df.columns.get_loc("mask") + 1, "seg", seg_list)
+    bids_df.insert(bids_df.columns.get_loc("seg") + 1, "seg_proba", seg_proba_list)
     return bids_df
 
 def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
@@ -84,13 +90,13 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
         #Iterate through the entries of the seg column and check that the path exit
         for seg in df["seg"]:
             if not os.path.exists(seg):
-                raise ValueError(f"Segmentation {seg} not found.")
+                raise ValueError(f"'Seg' column found in {bids_csv}, but the file {seg} was not found.")
         if out_path is not None:
             print("WARNING: out_path is specified but will be ignored as segmentation paths were provided in bids_csv.")
         print("Segmentation already computed. All segmentations were found locally. Terminating.")
     else:
         df = compute_segmentations(df, out_path, model, ckpt_path)
-        # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
+        #Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
         if bids_csv.endswith(".csv"):
             df.to_csv(bids_csv, index=False)
         elif bids_csv.endswith(".tsv"):

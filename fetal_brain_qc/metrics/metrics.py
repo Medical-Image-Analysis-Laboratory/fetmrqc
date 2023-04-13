@@ -629,21 +629,30 @@ class LRStackMetrics:
         self.normalization = normalization
         self.norm_dict = df[["im", "norm"]].set_index("im").to_dict()["norm"]
 
-    def evaluate_metrics(self, lr_path, mask_path):
+    def eval_metrics_and_update_results(self, results, metric, args_dict, is_valid_mask):
+        """ Evaluate a metric and update the results dictionary.
+        """
+        if is_valid_mask:
+            out = self.metrics_func[metric](**args_dict)
+        else:
+            out = [0, True]
+        results[metric], results[metric + "_nan"] = out
+        return results
+
+    def evaluate_metrics(self, lr_path, mask_path, seg_path=None):
         """TODO"""
         # Remark: Could do something better with a class here: giving flexible
         # features as input.
-        args_dict = {"lr_path": lr_path, "mask_path": mask_path}
+        args_dict = {"lr_path": lr_path, "mask_path": mask_path, "seg_path": seg_path}
         results = {}
-        if not self._valid_mask(mask_path):
+        is_valid_mask = self._valid_mask(mask_path)
+        if not is_valid_mask:
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
             print("\tRunning", m)
-            if self._valid_mask(mask_path):
-                out = self.metrics_func[m](**args_dict)
-            else:
-                out = [0, True]
-            results[m], results[m + "_nan"] = out
+            results = self.eval_metrics_and_update_results(
+                results, m, args_dict, is_valid_mask
+            )
         return results
 
     def _check_metrics(self):
@@ -668,6 +677,7 @@ class LRStackMetrics:
         type="ref",
         **kwargs,
     ):
+        
         if type == "ref":
             return freeze(
                 self.preprocess_and_evaluate_metric, metric=metric, **kwargs
@@ -935,6 +945,8 @@ class LRStackMetrics:
         metric,
         lr_path,
         mask_path,
+        seg_path=None,
+        *,
         central_third=True,
         crop_image=True,
         compute_on_mask=True,
@@ -998,6 +1010,8 @@ class LRStackMetrics:
         noref_metric,
         lr_path,
         mask_path,
+        seg_path=None,
+        *,
         central_third=True,
         crop_image=True,
         compute_on_mask=True,
@@ -1017,6 +1031,8 @@ class LRStackMetrics:
         dl_metric,
         lr_path,
         mask_path,
+        seg_path=None,
+        *,
         central_third=True,
         crop_image=True,
         positive_only=False,
