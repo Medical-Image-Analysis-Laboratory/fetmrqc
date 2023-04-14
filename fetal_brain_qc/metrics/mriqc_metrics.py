@@ -106,6 +106,8 @@ def snr(mu_fg, sigma_fg, n):
     :param int n: number of voxels in foreground mask.
     :return: the computed SNR
     """
+    if n < 1 or sigma_fg == 0:
+        return np.nan
     return float(mu_fg / (sigma_fg * sqrt(n / (n - 1))))
 
 
@@ -147,6 +149,8 @@ def cjv(mu_wm, mu_gm, sigma_wm, sigma_gm):
     :param float sigma_gm: standard deviation of signal within gray-matter mask.
     :return: the computed CJV
     """
+    if mu_wm == mu_gm:
+        return np.nan
     return float((sigma_wm + sigma_gm) / abs(mu_wm - mu_gm))
 
 

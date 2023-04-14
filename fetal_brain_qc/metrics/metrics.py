@@ -977,13 +977,6 @@ class LRStackMetrics:
             )
         elif seg_path.endswith(".npz"):
             seg = np.load(seg_path)["probabilities"]
-            print(
-                seg.shape,
-                seg[0].sum(),
-                seg[1].sum(),
-                seg[2].sum(),
-                seg[3].sum(),
-            )
             if seg.shape[0] > 4:
                 seg[1] += seg[4]
                 seg[2] += seg[6]
@@ -991,7 +984,6 @@ class LRStackMetrics:
 
             seg = seg.transpose(0, 3, 2, 1)
             seg_dict = {k: seg[l] for k, l in SEGM.items()}
-            print({k: v.sum() for k, v in seg_dict.items()})
         else:
             raise ValueError("Unknown file format for segmentation file")
 
