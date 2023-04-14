@@ -18,6 +18,7 @@ setup(
             "qc_preprocessing = fetal_brain_qc.cli.run_preprocessing:main",
             "qc_fetal_iqa_mit = fetal_brain_qc.cli.run_iqa:main",
             "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa:main",
+            "qc_compute_segmentation = fetal_brain_qc.cli.run_segmentation:main",
             "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
             "qc_compute_niftymic = fetal_brain_qc.cli.run_qc_niftymic:main",
             "qc_compute_svrtk = fetal_brain_qc.cli.run_qc_svrtk:main",

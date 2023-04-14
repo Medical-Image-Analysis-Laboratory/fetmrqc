@@ -13,6 +13,7 @@ def crop_input(file_path, mask_path, dir_cropped, mask_image=True, save_mask=Tru
     output_mask = os.path.join(dir_cropped, os.path.basename(mask_path))
 
     im, m = ni.load(file_path), ni.load(mask_path)
+    
     boundary_mm = 15
     imc = get_cropped_stack_based_on_mask(
         im,
@@ -29,11 +30,10 @@ def crop_input(file_path, mask_path, dir_cropped, mask_image=True, save_mask=Tru
         boundary_j=boundary_mm,
         boundary_k=boundary_mm,
     )
-
     if mask_image:
-        imc = ni.Nifti1Image(imc.get_fdata() * maskc.get_fdata(), imc.affine)
+        imc = ni.Nifti1Image(imc.get_fdata() * maskc.get_fdata(), im.affine, im.header)
     else:  # Masking
-        imc = ni.Nifti1Image(imc.get_fdata(), imc.affine)
+        imc = ni.Nifti1Image(imc.get_fdata(), im.affine, im.header)
 
     ni.save(imc, output)
     if save_mask:
