@@ -2,8 +2,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import PCA
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
-from sklearn.linear_model import LinearRegression
 from fetal_brain_qc.qc_evaluation.qc_evaluation import (
     REGRESSION_SCORING,
     REGRESSION_MODELS,
@@ -26,7 +24,6 @@ from fetal_brain_qc.qc_evaluation.preprocess import (
     GroupScalerSelector,
     PassThroughScaler,
     NoiseWinnowFeatSelect,
-    GroupScalerSelector,
     DropCorrelatedFeatures,
 )
 from sklearn.ensemble import (
@@ -67,9 +64,7 @@ from fetal_brain_qc.qc_evaluation import (
     PCA_FEATURES,
 )
 from pdb import set_trace
-from fetal_brain_qc.qc_evaluation import preprocess as pp
 from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.decomposition import PCA, SparsePCA
 import os
 from fetal_brain_qc.qc_evaluation.sacred_helpers import (
     print_dict,
@@ -78,6 +73,7 @@ from fetal_brain_qc.qc_evaluation.sacred_helpers import (
 )
 from pathlib import Path
 import pandas as pd
+
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
 ex.observers.append(MongoObserver())
@@ -85,7 +81,8 @@ ex.observers.append(MongoObserver())
 
 @ex.config
 def config():
-    dataset = {
+
+    dataset = {  # noqa: F841
         "dataset_path": "/home/tsanchez/Documents/mial/repositories/mriqc-learn/mriqc_learn/datasets/chuv_bcn.tsv",
         "first_iqm": "centroid",
     }
@@ -102,7 +99,7 @@ def config():
         "inner_cv": {"cv": "GroupKFold", "group_by": "sub_ses"},
     }
 
-    parameters = {
+    parameters = {  # noqa: F841
         "drop_correlated__threshold": [0.95, 1.0],
         "pca": ["passthrough"],  # PCA()
         "noise_feature": ["passthrough"],  # NoiseWinnowFeatSelect()
@@ -181,16 +178,14 @@ def read_parameter_grid(experiment, parameters):
 
 def run_experiment(dataset, experiment, cv, parameters):
     is_regression = experiment["type"] == "regression"
-    
+
     if dataset["dataset_path"].endswith(".tsv"):
 
         dataframe = pd.read_csv(
             Path(dataset["dataset_path"]), index_col=None, delimiter=r"\s+"
         )
     elif dataset["dataset_path"].endswith(".csv"):
-        dataframe = pd.read_csv(
-            Path(dataset["dataset_path"]), index_col=None
-        )
+        dataframe = pd.read_csv(Path(dataset["dataset_path"]), index_col=None)
     else:
         raise ValueError("Dataset should be a csv or tsv file")
 
@@ -267,6 +262,7 @@ def run_experiment(dataset, experiment, cv, parameters):
     )
     return nested_score, metrics_list
 
+
 @ex.automain
 def run(
     dataset,
@@ -276,7 +272,9 @@ def run(
     _config,
 ):
 
-    nested_score, metrics_list = run_experiment(dataset, experiment, cv, parameters)
+    nested_score, metrics_list = run_experiment(
+        dataset, experiment, cv, parameters
+    )
     print("FINAL RESULTS")
     for k, v in nested_score.items():
         if "test" in k:

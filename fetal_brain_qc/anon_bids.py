@@ -2,6 +2,7 @@ import string
 import csv
 import random
 
+
 def generate_random_ids(nreports: int, n: int = 5) -> list:
     """Generate a list of nreports unique
     combinations of n uppercase letters to anonymize
@@ -9,7 +10,7 @@ def generate_random_ids(nreports: int, n: int = 5) -> list:
     """
     id_list = []
     while len(id_list) < nreports:
-        id_= "".join(random.choice(string.ascii_uppercase) for i in range(n))
+        id_ = "".join(random.choice(string.ascii_uppercase) for i in range(n))
         if id_ not in id_list:
             id_list.append(id_)
     return id_list

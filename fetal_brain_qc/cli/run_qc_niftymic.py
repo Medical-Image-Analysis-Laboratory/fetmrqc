@@ -8,7 +8,9 @@ def main():
     import pdb
 
     p = argparse.ArgumentParser(
-        description=("Exclude outlying stacks for each subject. Based on the code from NiftyMIC."),
+        description=(
+            "Exclude outlying stacks for each subject. Based on the code from NiftyMIC."
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -62,7 +64,9 @@ def main():
             print(f"Subject {name} found in metrics.csv.")
             continue
         print(f"Processing subject {name}")
-        metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(run["im"], run["mask"])
+        metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
+            run["im"], run["mask"]
+        )
 
         # Save the output throughout the training.
         df = pd.DataFrame.from_dict(metrics_dict, orient="index")
@@ -75,7 +79,9 @@ def main():
         return (input > 0.7 * median_volume).astype(int)
 
     df[["niftymic_qc"]] = (
-        df[["sub", "ses", "mask_volume"]].groupby(["sub", "ses"]).transform(get_median)
+        df[["sub", "ses", "mask_volume"]]
+        .groupby(["sub", "ses"])
+        .transform(get_median)
     )
     df.to_csv(args.out_csv)
     return 0

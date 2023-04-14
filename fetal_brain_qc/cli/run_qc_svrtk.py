@@ -3,7 +3,12 @@ import argparse
 import pandas as pd
 from pathlib import Path
 import nibabel as ni
-from fetal_brain_utils import csv_to_list, print_title, find_run_id, get_cropped_stack_based_on_mask
+from fetal_brain_utils import (
+    csv_to_list,
+    print_title,
+    find_run_id,
+    get_cropped_stack_based_on_mask,
+)
 from functools import partial
 import re
 
@@ -60,8 +65,12 @@ def crop_input(sub_ses_output, img_list, mask_list):
         imc = crop_path(im, m)
         maskc = crop_path(m, m)
         # Masking
-        imc = ni.Nifti1Image(imc.get_fdata() * maskc.get_fdata(), imc.affine, header=imc.header)
-        maskc = ni.Nifti1Image(maskc.get_fdata(), imc.affine, header=imc.header)
+        imc = ni.Nifti1Image(
+            imc.get_fdata() * maskc.get_fdata(), imc.affine, header=imc.header
+        )
+        maskc = ni.Nifti1Image(
+            maskc.get_fdata(), imc.affine, header=imc.header
+        )
 
         ni.save(imc, cropped_im_path)
         ni.save(maskc, cropped_mask_path)
@@ -87,7 +96,9 @@ def is_run_included(run_curr, path):
 def main():
 
     p = argparse.ArgumentParser(
-        description=("Exclude outlying stacks for each subject. Based on the code from NiftyMIC."),
+        description=(
+            "Exclude outlying stacks for each subject. Based on the code from NiftyMIC."
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -133,10 +144,17 @@ def main():
     processed_sub_ses = []
     for run in bids_list:
         # Loading data
-        name, sub, ses, run_ = run["name"], run["sub"], run["ses"], int(run["run"])
+        name, sub, ses, run_ = (
+            run["name"],
+            run["sub"],
+            run["ses"],
+            int(run["run"]),
+        )
         ses_str = f"{int(ses):02d}"
         sub_ses_output = (
-            Path(args.out_path).resolve() / "cropped_input" / f"sub-{sub}/ses-{ses_str}/anat"
+            Path(args.out_path).resolve()
+            / "cropped_input"
+            / f"sub-{sub}/ses-{ses_str}/anat"
         )
         os.makedirs(sub_ses_output, exist_ok=True)
 
@@ -152,7 +170,9 @@ def main():
             processed_sub_ses.append(sub_ses)
             img_list = list(df_base[sel_sub]["im"])
             mask_list = list(df_base[sel_sub]["mask"])
-            img_list, mask_list = crop_input(sub_ses_output, img_list, mask_list)
+            img_list, mask_list = crop_input(
+                sub_ses_output, img_list, mask_list
+            )
             stacks_selection(img_list, mask_list)
             stacks_and_masks_selection(img_list, mask_list)
         metrics_dict[run["name"]] = {

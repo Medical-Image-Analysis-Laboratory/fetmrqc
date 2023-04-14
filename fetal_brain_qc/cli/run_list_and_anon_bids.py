@@ -94,7 +94,9 @@ def main():
     )
     if args.anonymize_name:
         print(f"Anonymize name in {args.out_csv}.")
-        anonymize_bids_csv(args.out_csv, out_bids_csv=args.out_csv, seed=args.seed)
+        anonymize_bids_csv(
+            args.out_csv, out_bids_csv=args.out_csv, seed=args.seed
+        )
 
     return 0
 

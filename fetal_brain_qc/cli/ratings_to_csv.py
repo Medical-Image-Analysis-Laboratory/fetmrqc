@@ -11,7 +11,7 @@ def get_last_json(ratings_list):
             x for _, x in sorted(zip(modification_time, ratings_list))
         ]
         return sorted_ratings[-1]
-    elif len(ratings_list)==1:
+    elif len(ratings_list) == 1:
         return ratings_list[0]
     else:
         return []
@@ -37,7 +37,7 @@ def rating_text(rating):
 def artifact_text(rating):
     """Convert the artifact rating to a human readable category."""
     rating = float(rating)
-    if rating < 0.:
+    if rating < 0.0:
         raise ValueError("Invalid value. Artifact should be in [0,3].")
     elif rating < 1.0:
         return "low"
@@ -104,7 +104,7 @@ def main():
         unrated = ["'" + str(x) + "_report.html'" for x in unrated]
         unrated_str = ", ".join(unrated)
         error = f"{len(unrated)} subjects were not rated. Aborting. The unrated subjects are \n{unrated_str}"
-        #raise RuntimeError(error)
+        # raise RuntimeError(error)
         print(f"WARNING: {error}")
 
     df_base["ratings_json"] = df_base["ratings_json"].apply(get_last_json)
@@ -129,7 +129,7 @@ def main():
                 else:
                     df_base.at[idx, k] = v
     # Convert some entries to float
-    df_base=df_base.dropna()
+    df_base = df_base.dropna()
     df_base[["rating", "fetal_motion", "bias_field"]].astype(float)
     # Add human readable categories to the ratings.
     df_base["rating_text"] = df_base["rating"].apply(rating_text)

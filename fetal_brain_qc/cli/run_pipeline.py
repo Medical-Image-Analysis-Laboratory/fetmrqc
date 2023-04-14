@@ -189,7 +189,9 @@ def main(argv=None):
     # To be used only when args.brain_extraction is true
     masks_dir = Path(args.out_path) / "masks"
 
-    mask_patterns_base = [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
+    mask_patterns_base = (
+        [str(masks_dir)] if args.brain_extraction else args.mask_patterns_base
+    )
     if mask_patterns_base:
         mask_patterns_base = " ".join(str(x) for x in mask_patterns_base)
     mask_patterns = " ".join(str(x) for x in args.mask_patterns)
@@ -210,9 +212,13 @@ def main(argv=None):
     # BIDS FOLDER AND MASKS LIST
     if args.continue_run:
         if os.path.isfile(bids_csv):
-            print(f"File found at {bids_csv}. Using it to continue the previous run.")
+            print(
+                f"File found at {bids_csv}. Using it to continue the previous run."
+            )
         else:
-            raise RuntimeError(f"No file found at {bids_csv} while continue_run is true.")
+            raise RuntimeError(
+                f"No file found at {bids_csv} while continue_run is true."
+            )
     else:
         cmd = (
             f"qc_list_bids_csv "
@@ -221,7 +227,11 @@ def main(argv=None):
             f"--out-csv {bids_csv} "
             f"--seed {args.seed} "
         )
-        cmd += f"--mask-patterns-base {mask_patterns_base} " if mask_patterns_base else ""
+        cmd += (
+            f"--mask-patterns-base {mask_patterns_base} "
+            if mask_patterns_base
+            else ""
+        )
         cmd += "--anonymize-name" if args.anonymize_name else ""
 
         print(cmd)

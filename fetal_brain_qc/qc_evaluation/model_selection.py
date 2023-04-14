@@ -7,7 +7,7 @@ import numpy as np
 class CustomStratifiedGroupKFold(StratifiedGroupKFold):
     """Extend stratified group k fold to be able to define splits as
     a proportion of the data to be used for training.
-    
+
     Parameters
     ----------
     train_size : float, default=0.8
@@ -23,9 +23,15 @@ class CustomStratifiedGroupKFold(StratifiedGroupKFold):
         Threshold to binarize the ratings. If None, no binarization is applied.
     """
 
-    def __init__(self, train_size=0.8, shuffle=False, random_state=None, binarize_threshold=None):
+    def __init__(
+        self,
+        train_size=0.8,
+        shuffle=False,
+        random_state=None,
+        binarize_threshold=None,
+    ):
         assert train_size >= 0 and train_size <= 1.0
-        self.binarize_threshold=binarize_threshold
+        self.binarize_threshold = binarize_threshold
         if train_size >= 0.5:
             n_splits = int(1 / (1 - train_size))
             self.reverse = False

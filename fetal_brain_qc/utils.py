@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 import nibabel as ni
 import copy
-from pathlib import Path
 import csv
 import os
 import operator
@@ -22,7 +21,11 @@ def squeeze_dim(arr, dim):
 def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
 
     query = bids_layout.get(subject=sub, session=ses, run=run)[0]
-    acquisition = query.entities["acquisition"] if "acquisition" in query.entities else None
+    acquisition = (
+        query.entities["acquisition"]
+        if "acquisition" in query.entities
+        else None
+    )
     ents = {
         "subject": sub,
         "session": ses,
