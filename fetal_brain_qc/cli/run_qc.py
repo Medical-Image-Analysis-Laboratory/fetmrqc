@@ -1,4 +1,4 @@
-""" Image quality assessment based on fetal-IQA. 
+""" Image quality assessment based on fetal-IQA.
 
 Based on the code from Junshen Xu at
 https://github.com/daviddmc/fetal-IQA
@@ -130,9 +130,12 @@ def main(argv=None):
         if run["name"] in metrics_dict.keys():
             print(f"Subject {name} found in metrics.csv.")
             continue
+
+        if "seg_proba" not in run.keys():
+            run["seg_proba"] = None
         print(f"Processing subject {name}")
         metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
-            run["im"], run["mask"]
+            run["im"], run["mask"], run["seg_proba"]
         )
         df = pd.DataFrame.from_dict(metrics_dict, orient="index")
         df = pd.concat([df_base, df], axis=1, join="inner")

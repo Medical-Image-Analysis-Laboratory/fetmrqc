@@ -1,6 +1,7 @@
 import numpy as np
 import nibabel as ni
 import skimage
+import os
 from .utils import (
     allow_kwargs,
     freeze,
@@ -25,19 +26,28 @@ from fetal_brain_qc.utils import squeeze_dim
 from scipy.stats import kurtosis, variation
 from functools import partial
 import pandas as pd
-
+from .mriqc_metrics import (
+    summary_stats,
+    volume_fraction,
+    snr,
+    cnr,
+    cjv,
+    wm2max,
+)
 
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
+    "centroid",
     "dl_slice_iqa_full",
     "dl_stack_iqa_full",
-    "centroid",
     "rank_error",
     "mask_volume",
     "ncc",
     "nmi",
 ]
-import os
+SEGM = {"BG": 0, "CSF": 1, "GM": 2, "WM": 3}
+segm_names = list(SEGM.keys())
+
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -143,12 +153,6 @@ class LRStackMetrics:
                 central_third=False,
                 crop_image=True,
                 relative_rank=True,
-            ),
-            "rank_error_center": freeze(
-                self._metric_rank_error,
-                central_third=True,
-                crop_image=False,
-                relative_rank=False,
             ),
             "mask_volume": self._metric_mask_volume,
             "ncc": self.process_metric(
@@ -558,11 +562,50 @@ class LRStackMetrics:
             "filter_sobel_full": freeze(
                 self._metric_filter, filter=sobel, central_third=False
             ),
+            "seg_sstats": self.process_metric(
+                self._seg_sstats, type="seg", central_third=True
+            ),
+            "seg_sstats_full": self.process_metric(
+                self._seg_sstats, type="seg", central_third=False
+            ),
+            "seg_volume": self.process_metric(
+                self._seg_volume, type="seg", central_third=True
+            ),
+            "seg_volume_full": self.process_metric(
+                self._seg_volume, type="seg", central_third=False
+            ),
+            "seg_snr": self.process_metric(
+                self._seg_snr, type="seg", central_third=True
+            ),
+            "seg_snr_full": self.process_metric(
+                self._seg_snr, type="seg", central_third=False
+            ),
+            "seg_cnr": self.process_metric(
+                self._seg_cnr, type="seg", central_third=True
+            ),
+            "seg_cnr_full": self.process_metric(
+                self._seg_cnr, type="seg", central_third=False
+            ),
+            "seg_cjv": self.process_metric(
+                self._seg_cjv, type="seg", central_third=True
+            ),
+            "seg_cjv_full": self.process_metric(
+                self._seg_cjv, type="seg", central_third=False
+            ),
+            "seg_wm2max": self.process_metric(
+                self._seg_wm2max, type="seg", central_third=True
+            ),
+            "seg_wm2max_full": self.process_metric(
+                self._seg_wm2max, type="seg", central_third=False
+            ),
         }
 
         self._check_metrics()
         self.normalization = None
         self.norm_dict = {}
+        # Summary statistics from the segmentation, used for computing a bunch of metrics
+        # besides being a metric itself
+        self._sstats = None
 
     def get_default_metrics(self):
         return DEFAULT_METRICS
@@ -629,21 +672,67 @@ class LRStackMetrics:
         self.normalization = normalization
         self.norm_dict = df[["im", "norm"]].set_index("im").to_dict()["norm"]
 
-    def eval_metrics_and_update_results(self, results, metric, args_dict, is_valid_mask):
-        """ Evaluate a metric and update the results dictionary.
-        """
+    def get_default_output(self, metric):
+        """Return the default output for a given metric when the mask is invalid and metrics cannot be computed."""
+        METRIC_DEFAULT = {"cjv": 0}
+        if metric not in METRIC_DEFAULT.keys():
+            return [0.0, False]
+        else:
+            return METRIC_DEFAULT[metric]
+
+    def _flatten_dict(self, d):
+        """Flatten a nested dictionary by concatenating the keys with '_'."""
+        out = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                out.update(
+                    {
+                        k + "_" + kk: vv
+                        for kk, vv in self._flatten_dict(v).items()
+                    }
+                )
+            else:
+                out[k] = v
+        return out
+
+    def eval_metrics_and_update_results(
+        self, results, metric, args_dict, is_valid_mask
+    ):
+        """Evaluate a metric and update the results dictionary."""
         if is_valid_mask:
             out = self.metrics_func[metric](**args_dict)
         else:
-            out = [0, True]
-        results[metric], results[metric + "_nan"] = out
+            out = self.get_default_output(metric)
+        if isinstance(out, dict):
+            out = self._flatten_dict(out)
+            for k, v in out.items():
+                results[metric + "_" + k] = v if not np.isnan(v) else 0.0
+                results[metric + "_" + k + "_nan"] = np.isnan(v)
+        else:
+            results[metric], results[metric + "_nan"] = out
         return results
 
     def evaluate_metrics(self, lr_path, mask_path, seg_path=None):
-        """TODO"""
+        """Evaluate the metrics for a given LR image and mask.
+
+        Args:
+            lr_path (str): Path to the LR image.
+            mask_path (str): Path to the mask.
+            seg_path (str, optional): Path to the segmentation. Defaults to None.
+
+        Returns:
+            dict: Dictionary containing the results of the metrics.
+        """
+
         # Remark: Could do something better with a class here: giving flexible
         # features as input.
-        args_dict = {"lr_path": lr_path, "mask_path": mask_path, "seg_path": seg_path}
+        # Reset the summary statistics
+        self._sstats = None
+        args_dict = {
+            "lr_path": lr_path,
+            "mask_path": mask_path,
+            "seg_path": seg_path,
+        }
         results = {}
         is_valid_mask = self._valid_mask(mask_path)
         if not is_valid_mask:
@@ -656,7 +745,8 @@ class LRStackMetrics:
         return results
 
     def _check_metrics(self):
-        """TODO"""
+        """Check that the metrics are valid."""
+
         for m in self._metrics:
             if m not in self.metrics_func.keys():
                 raise RuntimeError(
@@ -677,7 +767,18 @@ class LRStackMetrics:
         type="ref",
         **kwargs,
     ):
-        
+        """Wrapper to process the different categories of metrics.
+
+        Args:
+            metric (str): Name of the metric (in the list of available metrics).
+            type (str, optional): Type of metric. Defaults to "ref". Available types are:
+                - "ref": metric that is computed by comparing neighbouring slices.
+                - "noref": metric that relies on individual slices
+                - "dl": metric that leverage a DL model.
+                - "seg": metric that make use of a segmentation.
+            **kwargs: Additional processing to be done before evaluating the metric, detailed in the docstring of the corresponding function.
+        """
+
         if type == "ref":
             return freeze(
                 self.preprocess_and_evaluate_metric, metric=metric, **kwargs
@@ -692,6 +793,12 @@ class LRStackMetrics:
             return freeze(
                 self.preprocess_and_evaluate_dl_metric,
                 dl_metric=metric,
+                **kwargs,
+            )
+        elif type == "seg":
+            return freeze(
+                self.preprocess_and_evaluate_seg_metric,
+                seg_metric=metric,
                 **kwargs,
             )
         else:
@@ -779,7 +886,7 @@ class LRStackMetrics:
         central_third: bool = True,
         crop_image: bool = True,
         relative_rank: bool = True,
-    ) -> np.ndarray:
+    ):
         """Given a low-resolution cropped_stack (image_cropped), computes the
         rank and svd_quality. The algorithm is based on the paper of Kainz
         et al. (2015), and ranks the stacks according to rank*svd_error,
@@ -791,21 +898,22 @@ class LRStackMetrics:
         of the original stack and iterates until the svd_error is below a given threshold.
         In Kainz' paper, they use threshold = 0.99, central_third=True
 
-        Inputs
-        ------
-        lr_path:
-        mask_path:
-        threshold:
-        central_third:
-        crop_image:
-        relative_rank:
-        Output
-        ------
+        Args:
+            lr_path (str): Path to the low-resolution stack
+            mask_path (str): Path to the mask
+            threshold (float, optional): Threshold for the svd_error. Defaults to 0.99.
+            central_third (bool, optional): Whether to only consider the central third of the stack. Defaults to True.
+            crop_image (bool, optional): Whether to crop the image based on the mask. Defaults to True.
+            relative_rank (bool, optional): Whether to use the relative rank (rank/num_slices) or the absolute rank. Defaults to True.
+
+        Returns:
+            rank_error (float): The computed rank_error (rank * svd_error)
+            isnan (bool): Whether the computed value is nan
+
         """
         image_ni = ni.load(lr_path)
         image = image_ni.get_fdata()
         mask_ni = ni.load(mask_path)
-        mask = squeeze_dim(mask_ni.get_fdata(), -1)
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
@@ -850,24 +958,93 @@ class LRStackMetrics:
 
         return rank * svd_error, isnan
 
+    def load_and_format_seg(self, seg_path):
+        """Load segmentation and format it to be used by the metrics"""
+
+        if seg_path.endswith(".nii.gz"):
+            seg_ni = ni.load(seg_path)
+            seg = squeeze_dim(seg_ni.get_fdata(), -1).transpose(2, 1, 0)
+            if seg.max() > 3:
+                seg[seg == 4] = 1
+                seg[seg == 6] = 2
+                seg[seg > 3] = 0
+            seg = seg.transpose(2, 1, 0)
+            seg_dict = {
+                k: (seg == l).astype(np.uint8) for k, l in SEGM.items()
+            }
+            raise NotImplementedError(
+                "The nifti segmentation file has not been tested yet."
+            )
+        elif seg_path.endswith(".npz"):
+            seg = np.load(seg_path)["probabilities"]
+            print(
+                seg.shape,
+                seg[0].sum(),
+                seg[1].sum(),
+                seg[2].sum(),
+                seg[3].sum(),
+            )
+            if seg.shape[0] > 4:
+                seg[1] += seg[4]
+                seg[2] += seg[6]
+                seg = seg[:4]
+
+            seg = seg.transpose(0, 3, 2, 1)
+            seg_dict = {k: seg[l] for k, l in SEGM.items()}
+            print({k: v.sum() for k, v in seg_dict.items()})
+        else:
+            raise ValueError("Unknown file format for segmentation file")
+
+        return seg_dict
+
     def _load_and_prep_nifti(
-        self, lr_path, mask_path, crop_image, central_third
+        self,
+        lr_path,
+        mask_path,
+        seg_path=None,
+        *,
+        crop_image=True,
+        central_third=True,
     ):
         """TODO"""
         image_ni = ni.load(lr_path)
         image = squeeze_dim(image_ni.get_fdata(), -1).transpose(2, 1, 0)
         mask_ni = ni.load(mask_path)
         mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
+        if seg_path is not None:
+            image2 = get_cropped_stack_based_on_mask(
+                image_ni, mask_ni, boundary_i=15, boundary_j=15, boundary_k=15
+            )
+            seg_dict_ni = {
+                k: ni.Nifti1Image(v, image2.affine, image2.header)
+                for k, v in self.load_and_format_seg(seg_path).items()
+            }
         if mask.sum() == 0.0:
             return None, None
 
         if crop_image:
             image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
-            mask = get_cropped_stack_based_on_mask(mask_ni, mask_ni)
+            maskc = get_cropped_stack_based_on_mask(mask_ni, mask_ni)
+
             if image is None or mask is None:
                 return None, None
             image = squeeze_dim(image.get_fdata(), -1).transpose(2, 1, 0)
-            mask = squeeze_dim(mask.get_fdata(), -1).transpose(2, 1, 0)
+            mask = squeeze_dim(maskc.get_fdata(), -1).transpose(2, 1, 0)
+            if seg_path is not None:
+                # The segmentation map is computed on data cropped with margin 15mm
+                # As the mask that is used for cropping should be of smaller or equal
+                # size as the image, we used the cropped mask to compute this
+                seg_dict = {
+                    k: get_cropped_stack_based_on_mask(v, maskc)
+                    for k, v in seg_dict_ni.items()
+                }
+                seg_dict = {
+                    k: squeeze_dim(v.get_fdata(), -1).transpose(2, 1, 0)
+                    for k, v in seg_dict.items()
+                }
+                assert image.shape == (
+                    seg_dict["BG"].shape
+                ), "Image and segmentation have different sizes"
         if central_third:
             num_z = image.shape[0]
             center_z = int(num_z / 2.0)
@@ -877,11 +1054,24 @@ class LRStackMetrics:
             mask = mask[
                 int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0) + 1
             ]
+            if seg_path is not None:
+                seg_dict = {
+                    k: v[
+                        int(center_z - num_z / 6.0) : int(
+                            center_z + num_z / 6.0
+                        )
+                        + 1
+                    ]
+                    for k, v in seg_dict.items()
+                }
 
         if self.normalization is not None:
             norm = self.norm_dict[lr_path]
             image = image * norm
-        return image, mask
+        if seg_path is not None:
+            return image, mask, seg_dict
+        else:
+            return image, mask
 
     def _ssim(
         self,
@@ -896,7 +1086,10 @@ class LRStackMetrics:
         window_size=3,
     ):
         image, mask = self._load_and_prep_nifti(
-            lr_path, mask_path, crop_image, central_third
+            lr_path,
+            mask_path,
+            crop_image=crop_image,
+            central_third=central_third,
         )
 
         if (
@@ -940,6 +1133,60 @@ class LRStackMetrics:
         elif reduction == "median":
             return np.median(metric_out), isnan
 
+    def _seg_sstats(self, image, segmentation):
+        self._sstats = summary_stats(image, segmentation)
+        return self._sstats
+
+    def _seg_volume(self, image, segmentation):
+        return volume_fraction(segmentation)
+
+    def _seg_snr(self, image, segmentation):
+        if self._sstats is None:
+            self._sstats = summary_stats(image, segmentation)
+        snr_dict = {}
+        for tlabel in segmentation.keys():
+
+            snr_dict[tlabel] = snr(
+                self._sstats[tlabel]["median"],
+                self._sstats[tlabel]["stdv"],
+                self._sstats[tlabel]["n"],
+            )
+        snr_dict["total"] = float(np.mean(list(snr_dict.values())))
+        return snr_dict
+
+    def _seg_cnr(self, image, segmentation):
+        if self._sstats is None:
+            self._sstats = summary_stats(image, segmentation)
+        out = cnr(
+            self._sstats["WM"]["median"],
+            self._sstats["GM"]["median"],
+            self._sstats["BG"]["stdv"],
+            self._sstats["WM"]["stdv"],
+            self._sstats["GM"]["stdv"],
+        )
+        is_nan = np.isnan(out)
+        return 0.0 if is_nan else out, is_nan
+
+    def _seg_cjv(self, image, segmentation):
+        if self._sstats is None:
+            self._sstats = summary_stats(image, segmentation)
+        out = cjv(
+            # mu_wm, mu_gm, sigma_wm, sigma_gm
+            self._sstats["WM"]["median"],
+            self._sstats["GM"]["median"],
+            self._sstats["WM"]["mad"],
+            self._sstats["GM"]["mad"],
+        )
+        is_nan = np.isnan(out)
+        return 1000 if is_nan else out, is_nan
+
+    def _seg_wm2max(self, image, segmentation):
+        if self._sstats is None:
+            self._sstats = summary_stats(image, segmentation)
+        out = wm2max(image, self._sstats["WM"]["median"])
+        is_nan = np.isnan(out)
+        return 0.0 if is_nan else out, is_nan
+
     def preprocess_and_evaluate_metric(
         self,
         metric,
@@ -963,7 +1210,10 @@ class LRStackMetrics:
             f"Choose from {VALID_REDUCTIONS}"
         )
         image, mask = self._load_and_prep_nifti(
-            lr_path, mask_path, crop_image, central_third
+            lr_path,
+            mask_path,
+            crop_image=crop_image,
+            central_third=central_third,
         )
         if image is None or mask is None:
             # image is None when the mask is empty: nothing is computed.
@@ -1018,7 +1268,10 @@ class LRStackMetrics:
         flatten=True,
     ):
         image, mask = self._load_and_prep_nifti(
-            lr_path, mask_path, crop_image, central_third
+            lr_path,
+            mask_path,
+            crop_image=crop_image,
+            central_third=central_third,
         )
         if compute_on_mask:
             image = image[np.where(mask)]
@@ -1038,11 +1291,36 @@ class LRStackMetrics:
         positive_only=False,
     ):
         image, mask = self._load_and_prep_nifti(
-            lr_path, mask_path, crop_image, central_third
+            lr_path,
+            mask_path,
+            crop_image=crop_image,
+            central_third=central_third,
         )
 
         metric = dl_metric(image, mask, positive_only=False)
         return metric, np.isnan(metric)
+
+    def preprocess_and_evaluate_seg_metric(
+        self,
+        seg_metric,
+        lr_path,
+        mask_path,
+        seg_path,
+        *,
+        central_third=True,
+        crop_image=True,
+    ):
+        assert (
+            seg_path is not None
+        ), "Segmentation path must be provided for seg metrics."
+        image, _, seg = self._load_and_prep_nifti(
+            lr_path,
+            mask_path,
+            seg_path,
+            crop_image=crop_image,
+            central_third=central_third,
+        )
+        return seg_metric(image, seg)
 
     @allow_kwargs
     def _metric_stack_iqa(self, image, mask, positive_only=None) -> np.ndarray:
