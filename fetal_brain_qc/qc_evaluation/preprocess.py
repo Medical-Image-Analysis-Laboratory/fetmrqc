@@ -23,7 +23,6 @@
 """Preprocessing transformers."""
 import logging
 import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import (
     RobustScaler,
@@ -33,7 +32,6 @@ from sklearn.preprocessing import (
     LabelBinarizer,
 )
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
@@ -488,7 +486,7 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
         X = self.check_group(X)
         scaled = self.scaler.transform(X)
 
-        return self.drop_group(X)
+        return self.drop_group(scaled)
 
 
 class DropCorrelatedFeatures(_FeatureSelection):
