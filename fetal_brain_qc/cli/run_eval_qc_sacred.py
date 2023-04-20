@@ -251,13 +251,13 @@ def run_experiment(dataset, experiment, cv, parameters):
     inner_group_by = cv["inner_cv"]["group_by"]
     outer_groups = train_y[outer_group_by]
     inner_groups = train_y[inner_group_by]
+    # Suppose that the scaling is done using the inner groups
     train_x["group"] = inner_groups
 
     if not is_regression:
         train_y["rating"] = (
             train_y["rating"] > experiment["classification_threshold"]
         )
-
     nested_score = cross_validate(
         clf,
         X=train_x[metrics_list + ["group"]],
