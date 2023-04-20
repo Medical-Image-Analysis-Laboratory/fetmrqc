@@ -5,7 +5,12 @@ from fetal_brain_utils import get_cropped_stack_based_on_mask
 
 
 def crop_input(
-    file_path, mask_path, dir_cropped, mask_image=True, save_mask=True
+    file_path,
+    mask_path,
+    dir_cropped,
+    mask_image=True,
+    save_mask=True,
+    boundary_mm=15,
 ):
     """Crops input image and mask, optionally masks it and
     saves the files to dir_cropped.
@@ -16,7 +21,6 @@ def crop_input(
 
     im, m = ni.load(file_path), ni.load(mask_path)
 
-    boundary_mm = 15
     imc = get_cropped_stack_based_on_mask(
         im,
         m,
@@ -34,10 +38,10 @@ def crop_input(
     )
     if mask_image:
         imc = ni.Nifti1Image(
-            imc.get_fdata() * maskc.get_fdata(), im.affine, im.header
+            imc.get_fdata() * maskc.get_fdata(), imc.affine, imc.header
         )
     else:  # Masking
-        imc = ni.Nifti1Image(imc.get_fdata(), im.affine, im.header)
+        imc = ni.Nifti1Image(imc.get_fdata(), imc.affine, imc.header)
 
     ni.save(imc, output)
     if save_mask:

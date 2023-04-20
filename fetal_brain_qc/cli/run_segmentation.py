@@ -146,7 +146,9 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
     # other cases strings. So we're making everything strings and giving it a consistent naming.
     # This will fail when we have subjects where the subject is actually named sub-1 and not sub-001.
     df["sub"] = df["sub"].apply(
-        lambda x: x if isinstance(x, str) else f"{x:03d}"
+        lambda x: x
+        if isinstance(x, str) and not x.isdigit()
+        else f"{int(x):03d}"
     )
 
     # Check if the dataframe has a seg column

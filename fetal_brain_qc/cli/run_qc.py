@@ -88,6 +88,15 @@ def main(argv=None):
         ),
     )
 
+    p.add_argument(
+        "--use_prob_seg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Whether to use the probability segmentation or the binary segmentation."
+        ),
+    )
+
     args = p.parse_args(argv)
     bids_list = csv_to_list(args.bids_csv)
     print_title("Running QC evaluation")
@@ -124,6 +133,10 @@ def main(argv=None):
             k: {k2: v2 for k2, v2 in v.items() if k2 not in df_base.columns}
             for k, v in metrics_dict.items()
         }
+    if args.use_prob_seg:
+        seg_key = "seg_proba"
+    else:
+        seg_key = "seg"
     for run in bids_list:
         # Loading data
         name = Path(run["im"]).name
@@ -131,11 +144,9 @@ def main(argv=None):
             print(f"Subject {name} found in metrics.csv.")
             continue
 
-        if "seg_proba" not in run.keys():
-            run["seg_proba"] = None
         print(f"Processing subject {name}")
         metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
-            run["im"], run["mask"], run["seg_proba"]
+            run["im"], run["mask"], run[seg_key]
         )
         df = pd.DataFrame.from_dict(metrics_dict, orient="index")
         df = pd.concat([df_base, df], axis=1, join="inner")

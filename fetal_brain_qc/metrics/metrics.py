@@ -701,6 +701,7 @@ class LRStackMetrics:
         """Evaluate a metric and update the results dictionary."""
         if is_valid_mask:
             out = self.metrics_func[metric](**args_dict)
+            # Checking once more that if the metric is nan, we replace it with 0
         else:
             out = self.get_default_output(metric)
         if isinstance(out, dict):
@@ -709,6 +710,8 @@ class LRStackMetrics:
                 results[metric + "_" + k] = v if not np.isnan(v) else 0.0
                 results[metric + "_" + k + "_nan"] = np.isnan(v)
         else:
+            if np.isnan(out[0]):
+                out = (0, True)
             results[metric], results[metric + "_nan"] = out
         return results
 
@@ -733,6 +736,11 @@ class LRStackMetrics:
             "mask_path": mask_path,
             "seg_path": seg_path,
         }
+        if any(["seg_" in m for m in self._metrics]):
+            assert seg_path is not None, (
+                "Segmentation path should be provided "
+                "when evaluating segmentation metrics."
+            )
         results = {}
         is_valid_mask = self._valid_mask(mask_path)
         if not is_valid_mask:
@@ -960,7 +968,6 @@ class LRStackMetrics:
 
     def load_and_format_seg(self, seg_path):
         """Load segmentation and format it to be used by the metrics"""
-
         if seg_path.endswith(".nii.gz"):
             seg_ni = ni.load(seg_path)
             seg = squeeze_dim(seg_ni.get_fdata(), -1).transpose(2, 1, 0)
@@ -972,9 +979,9 @@ class LRStackMetrics:
             seg_dict = {
                 k: (seg == l).astype(np.uint8) for k, l in SEGM.items()
             }
-            raise NotImplementedError(
-                "The nifti segmentation file has not been tested yet."
-            )
+            # raise NotImplementedError(
+            #    "The nifti segmentation file has not been tested yet."
+            # )
         elif seg_path.endswith(".npz"):
             seg = np.load(seg_path)["probabilities"]
             if seg.shape[0] > 4:
@@ -986,7 +993,7 @@ class LRStackMetrics:
             seg_dict = {k: seg[l] for k, l in SEGM.items()}
         else:
             raise ValueError("Unknown file format for segmentation file")
-
+        # We cannot return a nifti object as seg_path might be .npz
         return seg_dict
 
     def _load_and_prep_nifti(
@@ -998,38 +1005,61 @@ class LRStackMetrics:
         crop_image=True,
         central_third=True,
     ):
-        """TODO"""
+        """Load and prepare the nifti files for the metrics computation.
+
+        Args:
+            lr_path (str): Path to the low-resolution stack
+            mask_path (str): Path to the mask
+            seg_path (str, optional): Path to the segmentation. Defaults to None.
+            crop_image (bool, optional): Whether to crop the image based on the mask. Defaults to True.
+            central_third (bool, optional): Whether to only consider the central third of the stack. Defaults to True.
+
+        Returns:
+            image (np.ndarray): The low-resolution stack
+            mask (np.ndarray): The mask
+            seg (np.ndarray): The segmentation
+        """
+
         image_ni = ni.load(lr_path)
         image = squeeze_dim(image_ni.get_fdata(), -1).transpose(2, 1, 0)
         mask_ni = ni.load(mask_path)
         mask = squeeze_dim(mask_ni.get_fdata(), -1).transpose(2, 1, 0)
-        if seg_path is not None:
-            image2 = get_cropped_stack_based_on_mask(
-                image_ni, mask_ni, boundary_i=15, boundary_j=15, boundary_k=15
+        if seg_path is not None and not crop_image:
+            raise ValueError(
+                "If seg_path is not None, crop_image must be True"
             )
-            seg_dict_ni = {
-                k: ni.Nifti1Image(v, image2.affine, image2.header)
-                for k, v in self.load_and_format_seg(seg_path).items()
-            }
         if mask.sum() == 0.0:
             return None, None
 
         if crop_image:
-            image = get_cropped_stack_based_on_mask(image_ni, mask_ni)
-            maskc = get_cropped_stack_based_on_mask(mask_ni, mask_ni)
+            # Recent change: put a margin of 15mm around the image in for segmentation.
+            # This is needed for segmentation.
+            margin = 15 if seg_path is not None else 0
 
+            def crop_stack(x, y):
+                return get_cropped_stack_based_on_mask(
+                    x,
+                    y,
+                    boundary_i=margin,
+                    boundary_j=margin,
+                    boundary_k=margin,
+                )
+
+            imagec = crop_stack(image_ni, mask_ni)
+            maskc = crop_stack(mask_ni, mask_ni)
             if image is None or mask is None:
                 return None, None
-            image = squeeze_dim(image.get_fdata(), -1).transpose(2, 1, 0)
+            image = squeeze_dim(imagec.get_fdata(), -1).transpose(2, 1, 0)
             mask = squeeze_dim(maskc.get_fdata(), -1).transpose(2, 1, 0)
             if seg_path is not None:
                 # The segmentation map is computed on data cropped with margin 15mm
-                # As the mask that is used for cropping should be of smaller or equal
-                # size as the image, we used the cropped mask to compute this
                 seg_dict = {
-                    k: get_cropped_stack_based_on_mask(v, maskc)
-                    for k, v in seg_dict_ni.items()
+                    k: crop_stack(
+                        ni.Nifti1Image(v, imagec.affine, imagec.header), maskc
+                    )
+                    for k, v in self.load_and_format_seg(seg_path).items()
                 }
+
                 seg_dict = {
                     k: squeeze_dim(v.get_fdata(), -1).transpose(2, 1, 0)
                     for k, v in seg_dict.items()
@@ -1069,6 +1099,7 @@ class LRStackMetrics:
         self,
         lr_path,
         mask_path,
+        seg_path=None,
         central_third=True,
         crop_image=True,
         compute_on_mask=True,

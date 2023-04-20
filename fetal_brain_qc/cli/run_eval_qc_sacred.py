@@ -57,6 +57,7 @@ import inspect
 from fetal_brain_qc.qc_evaluation import (
     VALID_EXP,
     METRICS_BASE,
+    METRICS_SEG,
     # METRICS_BASE_CENTER,
     METRICS,
     SCALERS,
@@ -126,13 +127,23 @@ def check_entries(type, metrics, scoring):
 
 
 def get_metrics(metrics):
-    assert metrics in ["base", "base_center", "full"] + METRICS
+    assert (
+        metrics
+        in ["base", "base_center", "base_seg", "full", "full_seg", "seg"]
+        + METRICS
+    )
     if metrics == "base":
         return METRICS_BASE
     # elif metrics == "base_center":
     #    return METRICS_BASE_CENTER
     elif metrics == "full":
         return METRICS
+    elif metrics == "base_seg":
+        return METRICS_BASE + METRICS_SEG
+    elif metrics == "seg":
+        return METRICS_SEG
+    elif metrics == "full_seg":
+        return METRICS + METRICS_SEG
     elif metrics in METRICS:
         return [metrics]
     else:

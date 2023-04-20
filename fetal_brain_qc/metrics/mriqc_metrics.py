@@ -67,7 +67,6 @@ def summary_stats(data, pvms, airmask=None, erode=True):
             "mad": float(mad(thresholded, center=median)),
             "n": float(nvox),
         }
-
     return output
 
 
