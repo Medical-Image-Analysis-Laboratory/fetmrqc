@@ -1,7 +1,7 @@
 def main():
-    import json
     import argparse
     from fetal_brain_qc.report import generate_report
+    from fetal_brain_utils import csv_to_list, print_title
 
     p = argparse.ArgumentParser()
 
@@ -16,6 +16,13 @@ def main():
     )
 
     p.add_argument(
+        "--sr",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether the reports to be generated are for SR data.",
+    )
+
+    p.add_argument(
         "--add-js",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -24,12 +31,8 @@ def main():
 
     args = p.parse_args()
 
-    import csv
-
-    bids_list = []
-    reader = csv.DictReader(open(args.bids_csv))
-    for i, line in enumerate(reader):
-        bids_list.append(line)
+    bids_list = csv_to_list(args.bids_csv)
+    print_title("Generating reports")
     generate_report(
         bids_list,
         out_folder=args.out_path,
@@ -41,7 +44,10 @@ def main():
         annotate=False,
         cmap="Greys_r",
         do_index=args.add_js,
+        is_sr=args.sr,
     )
+
+    return 0
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ setup(
     description="Quality control for fetal brain MRI",
     author="Thomas Sanchez",
     author_email="thomas.sanchez@unil.ch",
-    install_requires=["beautifulsoup4", "pybids"],
     entry_points={
         "console_scripts": [
             "qc_generate_index = fetal_brain_qc.cli.generate_index:main",
@@ -15,6 +14,17 @@ setup(
             "qc_generate_reports = fetal_brain_qc.cli.generate_reports:main",
             "qc_list_bids_csv = fetal_brain_qc.cli.run_list_and_anon_bids:main",
             "qc_run_pipeline = fetal_brain_qc.cli.run_pipeline:main",
+            "qc_brain_extraction = fetal_brain_qc.cli.run_brain_extraction:main",
+            "qc_preprocessing = fetal_brain_qc.cli.run_preprocessing:main",
+            "qc_fetal_iqa_mit = fetal_brain_qc.cli.run_iqa:main",
+            "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa:main",
+            "qc_compute_segmentation = fetal_brain_qc.cli.run_segmentation:main",
+            "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
+            "qc_compute_niftymic = fetal_brain_qc.cli.run_qc_niftymic:main",
+            "qc_compute_svrtk = fetal_brain_qc.cli.run_qc_svrtk:main",
+            "qc_ratings_to_csv = fetal_brain_qc.cli.ratings_to_csv:main",
+            "qc_evaluate_qc = fetal_brain_qc.cli.run_eval_qc:main",
+            "qc_summary_eval = fetal_brain_qc.cli.summarize_qc_eval.py:main",
         ],
     },
 )

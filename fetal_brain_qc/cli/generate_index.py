@@ -1,6 +1,9 @@
 def main():
     import argparse
     from fetal_brain_qc.index import generate_index
+    from fetal_brain_utils import print_title
+    import numpy as np
+    import random
 
     p = argparse.ArgumentParser()
     p.add_argument(
@@ -32,13 +35,26 @@ def main():
             "This is disabled for rating, to force user to process reports sequentially."
         ),
     )
+
+    p.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed to control the randomization (to be used with randomize=True).",
+    )
+
     args = p.parse_args()
+    print_title("Generating index")
+    np.random.seed(args.seed)
+    random.seed(args.seed)
     generate_index(
         args.reports_path,
         args.add_script_to_reports,
         args.use_ordering_file,
         args.navigation,
     )
+
+    return 0
 
 
 if __name__ == "__main__":

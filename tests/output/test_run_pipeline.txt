@@ -1,0 +1,13 @@
+bids.csv
+masks/sub-simu005/ses-01/anat/sub-simu005_ses-01_run-2_T2w_mask.nii.gz
+masks/sub-simu005/ses-01/anat/sub-simu005_ses-01_run-6_T2w_mask.nii.gz
+masks/sub-simu009/ses-01/anat/sub-simu009_ses-01_run-7_T2w_mask.nii.gz
+masks/sub-simu038/ses-01/anat/sub-simu038_ses-01_run-2_T2w_mask.nii.gz
+metrics.csv
+raw_reports/index.html
+raw_reports/sub-NBACG_report.html
+raw_reports/sub-VXRCS_report.html
+split_1/index.html
+split_1/ordering.csv
+split_1/sub-NBACG_report.html
+split_1/sub-VXRCS_report.html

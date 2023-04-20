@@ -3,38 +3,38 @@ from pathlib import Path
 import numpy as np
 import nibabel as ni
 import copy
-from pathlib import Path
-
 import csv
 import os
+import operator
+from collections import defaultdict
+from functools import reduce
+import json
+import random
 
 
-def iter_bids(
-    bids_layout,
-    extension="nii.gz",
-    datatype="anat",
-    suffix="T2w",
-    target=None,
-    return_type="filename",
-):
-    """Return a single iterator over the BIDSLayout obtained from
-    pybids - flexibly handles cases with and without a session date.
-    """
-    for sub in sorted(bids_layout.get_subjects()):
-        for ses in [None] + sorted(bids_layout.get_sessions(subject=sub)):
-            for run in sorted(bids_layout.get_runs(subject=sub, session=ses)):
-                out = bids_layout.get(
-                    subject=sub,
-                    session=ses,
-                    run=run,
-                    extension=extension,
-                    datatype=datatype,
-                    suffix=suffix,
-                    target=target,
-                    return_type=return_type,
-                )
-                if len(out) > 0:
-                    yield (sub, ses, run, out[0])
+def squeeze_dim(arr, dim):
+    if arr.shape[dim] == 1 and len(arr.shape) > 3:
+        return np.squeeze(arr, axis=dim)
+    return arr
+
+
+def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
+
+    query = bids_layout.get(subject=sub, session=ses, run=run)[0]
+    acquisition = (
+        query.entities["acquisition"]
+        if "acquisition" in query.entities
+        else None
+    )
+    ents = {
+        "subject": sub,
+        "session": ses,
+        "run": run,
+        "datatype": "anat",
+        "acquisition": acquisition,
+        "suffix": suffix,
+    }
+    return bids_layout.build_path(ents, pattern, validate=False)
 
 
 def get_html_index(folder, use_ordering_file=False):
@@ -42,12 +42,18 @@ def get_html_index(folder, use_ordering_file=False):
     if `use_ordering_file=True`, loads the ordering from
     `folder`/ordering.csv
     """
-    index_list = [
-        f
-        for f in Path(folder).iterdir()
-        if f.is_file() and f.suffix == ".html" and "index" not in f.name
-    ]
-    if use_ordering_file and len(index_list) > 0:
+    folder = Path(folder)
+    index_list = sorted(
+        [
+            f
+            for f in Path(folder).iterdir()
+            if f.is_file() and f.suffix == ".html" and "index" not in f.name
+        ]
+    )
+    # raw_reports will not be ordered
+    if "raw_reports" not in folder.name and (
+        use_ordering_file and len(index_list) > 0
+    ):
         ordering_file = Path(folder) / "ordering.csv"
         if not os.path.isfile(ordering_file):
             raise Exception(
@@ -63,6 +69,7 @@ def get_html_index(folder, use_ordering_file=False):
                 f"\tWARNING: ordering.csv was found but not used in {folder}.\n"
                 f"\tDid you mean to run with --use-ordering-file?"
             )
+    random.shuffle(index_list)
     return index_list
 
 
@@ -88,164 +95,27 @@ def add_message_to_reports(index_list):
             f_output.write(str(soup))
 
 
-def get_cropped_stack_based_on_mask(
-    image_ni, mask_ni, boundary_i=0, boundary_j=0, boundary_k=0, unit="mm"
-):
+def validate_inputs(args):
+    """Check the validity of the arguments given
+    in run_pipeline.py
     """
-    Crops the input image to the field of view given by the bounding box
-    around its mask.
-    Original code by Michael Ebner:
-    https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/base/stack.py
-
-    Input
-    -----
-    image_ni:
-        Nifti image
-    mask_ni:
-        Corresponding nifti mask
-    boundary_i:
-    boundary_j:
-    boundary_k:
-    unit:
-        The unit defining the dimension size in nifti
-
-    Output
-    ------
-    image_cropped:
-        Image cropped to the bounding box of mask_ni
-    mask_cropped
-        Mask cropped to its bounding box
-    """
-
-    image_ni = copy.deepcopy(image_ni)
-    image = image_ni.get_fdata().squeeze()
-    mask = mask_ni.get_fdata().squeeze()
-    # Get rectangular region surrounding the masked voxels
-    [x_range, y_range, z_range] = get_rectangular_masked_region(mask)
-
-    if np.array([x_range, y_range, z_range]).all() is None:
-        print("Cropping to bounding box of mask led to an empty image.")
-        return None
-
-    if unit == "mm":
-        spacing = image_ni.header.get_zooms()
-        boundary_i = np.round(boundary_i / float(spacing[0]))
-        boundary_j = np.round(boundary_j / float(spacing[1]))
-        boundary_k = np.round(boundary_k / float(spacing[2]))
-
-    shape = image.shape
-    x_range[0] = np.max([0, x_range[0] - boundary_i])
-    x_range[1] = np.min([shape[0], x_range[1] + boundary_i])
-
-    y_range[0] = np.max([0, y_range[0] - boundary_j])
-    y_range[1] = np.min([shape[1], y_range[1] + boundary_j])
-
-    z_range[0] = np.max([0, z_range[0] - boundary_k])
-    z_range[1] = np.min([shape[2], z_range[1] + boundary_k])
-    # Crop to image region defined by rectangular mask
-
-    new_origin = list(
-        ni.affines.apply_affine(
-            mask_ni.affine, [x_range[0], y_range[0], z_range[0]]
+    if args.brain_extraction:
+        assert (
+            len(args.mask_patterns) == 1
+        ), "A single mask_pattern must be provided when brain_extraction is enabled"
+        assert args.mask_patterns_base is None, (
+            "`mask_patterns_base` must be None when brain_extraction is enabled, "
+            "as `out_path`/masks is used as the folder to store the outputs."
         )
-    ) + [1]
-    new_affine = image_ni.affine
-    new_affine[:, -1] = new_origin
-    image_cropped = crop_image_to_region(image, x_range, y_range, z_range)
-    image_cropped = ni.Nifti1Image(image_cropped, new_affine)
-    return image_cropped
-
-
-def crop_image_to_region(
-    image: np.ndarray,
-    range_x: np.ndarray,
-    range_y: np.ndarray,
-    range_z: np.ndarray,
-) -> np.ndarray:
-    """
-    Crop given image to region defined by voxel space ranges
-    Original code by Michael Ebner:
-    https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/base/stack.py
-
-    Input
-    ------
-    image: np.array
-        image which will be cropped
-    range_x: (int, int)
-        pair defining x interval in voxel space for image cropping
-    range_y: (int, int)
-        pair defining y interval in voxel space for image cropping
-    range_z: (int, int)
-        pair defining z interval in voxel space for image cropping
-
-    Output
-    ------
-    image_cropped:
-        The image cropped to the given x-y-z region.
-    """
-    image_cropped = image[
-        range_x[0] : range_x[1],
-        range_y[0] : range_y[1],
-        range_z[0] : range_z[1],
-    ]
-    return image_cropped
-    # Return rectangular region surrounding masked region.
-    #  \param[in] mask_sitk sitk.Image representing the mask
-    #  \return range_x pair defining x interval of mask in voxel space
-    #  \return range_y pair defining y interval of mask in voxel space
-    #  \return range_z pair defining z interval of mask in voxel space
-
-
-def get_rectangular_masked_region(
-    mask: np.ndarray,
-) -> tuple:
-    """
-    Computes the bounding box around the given mask
-    Original code by Michael Ebner:
-    https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/base/stack.py
-
-    Input
-    -----
-    mask: np.ndarray
-        Input mask
-    range_x:
-        pair defining x interval of mask in voxel space
-    range_y:
-        pair defining y interval of mask in voxel space
-    range_z:
-        pair defining z interval of mask in voxel space
-    """
-    if np.sum(abs(mask)) == 0:
-        return None, None, None
-    shape = mask.shape
-    # Compute sum of pixels of each slice along specified directions
-    sum_xy = np.sum(mask, axis=(0, 1))  # sum within x-y-plane
-    sum_xz = np.sum(mask, axis=(0, 2))  # sum within x-z-plane
-    sum_yz = np.sum(mask, axis=(1, 2))  # sum within y-z-plane
-
-    # Find masked regions (non-zero sum!)
-    range_x = np.zeros(2)
-    range_y = np.zeros(2)
-    range_z = np.zeros(2)
-
-    # Non-zero elements of numpy array nda defining x_range
-    ran = np.nonzero(sum_yz)[0]
-    range_x[0] = np.max([0, ran[0]])
-    range_x[1] = np.min([shape[0], ran[-1] + 1])
-
-    # Non-zero elements of numpy array nda defining y_range
-    ran = np.nonzero(sum_xz)[0]
-    range_y[0] = np.max([0, ran[0]])
-    range_y[1] = np.min([shape[1], ran[-1] + 1])
-
-    # Non-zero elements of numpy array nda defining z_range
-    ran = np.nonzero(sum_xy)[0]
-    range_z[0] = np.max([0, ran[0]])
-    range_z[1] = np.min([shape[2], ran[-1] + 1])
-
-    # Numpy reads the array as z,y,x coordinates! So swap them accordingly
-    return (
-        range_x.astype(int),
-        range_y.astype(int),
-        range_z.astype(int),
-    )
+    if args.randomize:
+        raw_reports = Path(args.out_path) / "raw_reports/"
+        assert not os.path.exists(raw_reports), (
+            f"{args.out_path}/raw_reports path exists. Please define a different "
+            "`out_path` for the experiment."
+        )
+        for i in range(args.n_raters):
+            split = Path(args.out_path) / f"split_{i+1}/"
+            assert not os.path.exists(split), (
+                f"{split} path exists. Please define a different "
+                "`out_path` for the experiment."
+            )

@@ -27,7 +27,7 @@ def list_out_folders(out_folders):
     """Construct the list of all folders that need
     an index file. Two types of folders can be given as input:
     1. Folders with reports
-    2. Folders containing various splits of reports (contructed
+    2. Folders containing various splits of reports (constructed
         from the randomization step)
     The function returns a list of folders potentially containing reports.
     """
@@ -35,14 +35,7 @@ def list_out_folders(out_folders):
         out_folders = [out_folders]
     out_folder_list = []
     for folder in out_folders:
-        # Add all folders except
-        # `raw_reports` that contains
-        # raw reports
-        out_folder_list += [
-            Path(x[0])
-            for x in os.walk(folder)
-            if Path(x[0]).name != "raw_reports"
-        ]
+        out_folder_list += [Path(x[0]) for x in os.walk(folder)]
     return out_folder_list
 
 
