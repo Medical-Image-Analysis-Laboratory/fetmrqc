@@ -598,6 +598,7 @@ class LRStackMetrics:
             "seg_wm2max_full": self.process_metric(
                 self._seg_wm2max, type="seg", central_third=False
             ),
+            "im_size": self._metric_vx_size,
         }
 
         self._check_metrics()
@@ -1567,6 +1568,24 @@ class LRStackMetrics:
         filtered = filter(im)
         res = np.mean(abs(filtered - im))
         return res, np.isnan(res)
+
+    def _metric_vx_size(
+        self, lr_path: str, mask_path: str, seg_path: str = None
+    ):
+        """Given a path to a LR image and its corresponding image,
+        loads the LR image and return the voxel size.
+        """
+        im = ni.load(lr_path)
+
+        x, y, z = im.header.get_zooms()
+        out_dict = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "vx_size": x * y * z,
+            "ip_size": x * y,
+        }
+        return out_dict
 
 
 class SubjectMetrics:

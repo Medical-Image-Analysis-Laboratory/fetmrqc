@@ -104,6 +104,11 @@ METRICS = [
     "std_full",
     "variation",
     "variation_full",
+    "im_size_x",
+    "im_size_y",
+    "im_size_z",
+    "im_size_vx_size",
+    "im_size_ip_size",
 ]
 
 METRICS += [m + "_nan" for m in METRICS]
