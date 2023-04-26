@@ -74,6 +74,7 @@ from fetal_brain_qc.qc_evaluation.sacred_helpers import (
 )
 from pathlib import Path
 import pandas as pd
+import ast
 
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
@@ -93,6 +94,7 @@ def config():
         "classification_threshold": None,
         "metrics": "base",
         "scoring": "neg_mae",
+        "normalization_feature": None,
     }
 
     cv = {
@@ -208,27 +210,61 @@ def run_experiment(dataset, experiment, cv, parameters):
     dataframe = dataframe.astype(types)
     train_x = dataframe[dataframe.columns[xy_index:]].copy()
     train_y = dataframe[dataframe.columns[:xy_index]].copy()
+    norm_feature = (
+        None
+        if experiment["normalization_feature"] is None
+        or experiment["normalization_feature"].lower() == "none"
+        else experiment["normalization_feature"]
+    )
+    feature = dataframe[norm_feature] if norm_feature is not None else None
+
+    if norm_feature == "im_size_vx_size":
+        feature = (feature > 3).astype(int)
     del dataframe
     metrics_list = get_metrics(metrics=experiment["metrics"])
+
+    o_cv = get_cv(cv["outer_cv"])
+    i_cv = get_cv(cv["inner_cv"])
+    outer_group_by = cv["outer_cv"]["group_by"]
+    inner_group_by = cv["inner_cv"]["group_by"]
+    outer_groups = train_y[outer_group_by]
+    inner_groups = train_y[inner_group_by]
+
+    if norm_feature is not None:
+        train_x[norm_feature] = feature
+        groupby = norm_feature
+        print(f"Group is {norm_feature}")
+    else:
+        train_x[inner_group_by] = inner_groups
+        groupby = inner_group_by
 
     pipeline = Pipeline(
         steps=[
             (
                 "drop_correlated",
                 DropCorrelatedFeatures(
-                    ignore="group",
+                    ignore=groupby,
                 ),
             ),
-            ("scaler", pp.GroupScalerSelector(group="group")),
+            ("scaler", pp.GroupScalerSelector(group=groupby)),
             ("noise_feature", pp.NoiseWinnowFeatSelect()),
             ("pca", PCA(n_components=10)),
             ("model", GradientBoostingRegressor()),
         ]
     )
     params = read_parameter_grid(experiment, parameters)
+    if norm_feature is not None:
+        if not any(
+            [
+                isinstance(p, (GroupStandardScaler, GroupRobustScaler))
+                for p in params["scaler__scaler"]
+            ]
+        ):
+            print(
+                "WARNING: normalization_feature is set but no Group based scaler is selected. Ignoring normalization_feature"
+            )
     scores = REGRESSION_SCORING if is_regression else CLASSIFICATION_SCORING
-    o_cv = get_cv(cv["outer_cv"])
-    i_cv = get_cv(cv["inner_cv"])
+
     print(
         f"Experiment: {experiment['type']} - scoring: {experiment['scoring']}".upper()
         + f" - metrics: {experiment['metrics']}  - outer_group_by: {cv['outer_cv']['group_by']}".upper()
@@ -247,20 +283,19 @@ def run_experiment(dataset, experiment, cv, parameters):
         refit=experiment["scoring"],
         error_score="raise",
     )
-    outer_group_by = cv["outer_cv"]["group_by"]
-    inner_group_by = cv["inner_cv"]["group_by"]
-    outer_groups = train_y[outer_group_by]
-    inner_groups = train_y[inner_group_by]
-    # Suppose that the scaling is done using the inner groups
-    train_x["group"] = inner_groups
 
     if not is_regression:
         train_y["rating"] = (
             train_y["rating"] > experiment["classification_threshold"]
         )
+    m = (
+        metrics_list + [groupby]
+        if groupby not in metrics_list
+        else metrics_list
+    )
     nested_score = cross_validate(
         clf,
-        X=train_x[metrics_list + ["group"]],
+        X=train_x[m],
         y=train_y["rating"],
         cv=o_cv,
         scoring=scores,
