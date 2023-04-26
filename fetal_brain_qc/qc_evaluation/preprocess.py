@@ -123,13 +123,13 @@ class PrintColumns(BaseEstimator, TransformerMixin):
 class GroupRobustScaler(RobustScaler):
     def __init__(
         self,
+        groupby=None,
         *,
         with_centering=True,
         with_scaling=True,
         quantile_range=(25.0, 75.0),
         copy=True,
         unit_variance=False,
-        groupby="site",
     ):
         self.groupby = groupby
         self.with_centering = with_centering
@@ -198,11 +198,11 @@ class GroupRobustScaler(RobustScaler):
 class GroupStandardScaler(StandardScaler):
     def __init__(
         self,
+        groupby=None,
         *,
         copy=True,
         with_mean=True,
         with_std=True,
-        groupby="site",
     ):
         self.groupby = groupby
         self.with_mean = with_mean
@@ -441,10 +441,28 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
         super().__init__()
         self.scaler = scaler if scaler is not None else PassThroughScaler()
         self.group = group
+
+    def _check_scaler_group(self):
+        """Checking whether the group in GroupScalerSelector and in self.scaler are consistent.
+        This accepts:
+            - GroupScalerSelector and self.scaler.groupby=None
+            - GroupScalerSelecter and self.scaler with the same specified group
+            - GroupScalerSelector with a group and self.scaler.groupby=None
+        This raises an error:
+            - GroupScalerSelector with a group and self.scaler with a different group
+        """
         if isinstance(self.scaler, (GroupRobustScaler, GroupStandardScaler)):
-            assert (
-                self.group == self.scaler.groupby
-            ), f"ERROR: Grouping inconsistent between group={group} and scaler.groupby={self.scaler.groupby}"
+            if self.scaler.groupby == self.group:
+                pass
+            elif (
+                self.scaler.groupby != self.group
+                and self.scaler.groupby is None
+            ):
+                self.scaler.groupby = self.group
+            else:
+                raise RuntimeError(
+                    f"Inconsistent group in GroupScalerSelector (group={self.group}) and {self.scaler} (group={self.scaler.groupby})"
+                )
 
     def drop_group(self, X):
         """If group is in the feature matrix X, drops it."""
@@ -457,6 +475,9 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
         Checks that the group is present in the feature dataframe X and that no entries
         in the dataframe have non number values, as this would make the fitting fail.
         """
+
+        self._check_scaler_group()
+
         isobject = [
             o
             for o in X.columns[X.dtypes == object].tolist()
@@ -484,9 +505,13 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         X = self.check_group(X)
-        scaled = self.scaler.transform(X)
+        # GroupScalers need to have the dataframe passed, not just its content
+        if isinstance(self.scaler, (GroupRobustScaler, GroupStandardScaler)):
+            X = self.scaler.transform(X)
+        else:
+            X[X.columns] = self.scaler.transform(X[X.columns])
 
-        return self.drop_group(scaled)
+        return self.drop_group(X)
 
 
 class DropCorrelatedFeatures(_FeatureSelection):
