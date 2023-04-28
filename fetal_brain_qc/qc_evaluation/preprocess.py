@@ -527,7 +527,10 @@ class DropCorrelatedFeatures(_FeatureSelection):
         self.ignore = ignore
         self.drop_cst = drop_cst
         self.threshold = threshold
+
         self.drop = []
+        self.dropped_cst = []
+        self.dropped_corr = []
 
     def fit(self, X, y=None):
         """Fit the model with X.
@@ -545,16 +548,20 @@ class DropCorrelatedFeatures(_FeatureSelection):
         nfeatures = X.shape[1]
         if self.ignore is not None:
             X = X.drop(self.ignore, axis=1)
-        Xvar = X.var()
-        self.drop = [col for col in X.columns[Xvar == 0.0]]
-        X = X[X.columns[Xvar > 0.0]]
-        corr = X.corr()
+
+        if self.drop_cst:
+            Xvar = X.var()
+            self.dropped_cst = [col for col in X.columns[Xvar == 0.0]]
+            self.drop += self.dropped_cst
+            X = X[X.columns[Xvar > 0.0]]
+        corr = X.corr(numeric_only=False)
         upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
         # Find features with correlation greater than threshold
-        self.drop += [
+        self.dropped_corr = [
             column
             for column in upper.columns
             if any(abs(upper[column]) > self.threshold)
         ]
+        self.drop += self.dropped_corr
         self.n_retained = nfeatures - len(self.drop)
         return self

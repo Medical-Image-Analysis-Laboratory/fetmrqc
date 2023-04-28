@@ -20,7 +20,7 @@ def print_dict(d, indent=0):
             print(f"{sp}{k}: {v}")
 
 
-def get_cv(cv_dict):
+def get_cv(cv_dict, rng=None):
     """From a dictionary of attributed of cross validation, get a cross validation object
     The dictionary must have `{"cv": cv_type, "cv_param1":val1, ...}` and the evaluation will be
     `cv_type(cv_param1=val1, ...)`
@@ -49,6 +49,11 @@ def get_cv(cv_dict):
             raise RuntimeError(
                 f"Invalid key in {cv_dict}. {k} is not a key from {cv_func} "
             )
+    if rng is not None and cv in [
+        "GroupShuffleSplit",
+        "CustomStratifiedGroupKFold",
+    ]:
+        cv_copy["random_state"] = rng
     cv_model = cv_func(**cv_copy)
     return cv_model
 

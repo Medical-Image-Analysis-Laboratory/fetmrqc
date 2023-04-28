@@ -20,6 +20,7 @@ from sklearn.linear_model import (
     LogisticRegression,
     RidgeClassifier,
 )
+from xgboost import XGBRegressor
 from scipy.stats import spearmanr
 from sklearn.utils.validation import (
     check_consistent_length,
@@ -193,6 +194,7 @@ REGRESSION_MODELS = [
     AdaBoostRegressor(),
     HistGradientBoostingRegressor(),
     RandomForestRegressor(),
+    XGBRegressor(),
 ]
 
 

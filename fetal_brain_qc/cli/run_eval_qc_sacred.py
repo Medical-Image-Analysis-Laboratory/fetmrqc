@@ -35,6 +35,7 @@ from sklearn.ensemble import (
     GradientBoostingClassifier,
     AdaBoostClassifier,
 )
+from xgboost import XGBRegressor
 from sklearn.svm import LinearSVR, LinearSVC
 from sklearn.linear_model import (
     LinearRegression,
@@ -153,7 +154,7 @@ def get_metrics(metrics):
 
 
 @ex.capture
-def read_parameter_grid(experiment, parameters):
+def read_parameter_grid(experiment, parameters, rng=None):
     exp_type = experiment["type"]
     MODELS = (
         REGRESSION_MODELS
@@ -185,11 +186,19 @@ def read_parameter_grid(experiment, parameters):
                         f"ERROR: function {v_str} from {k} in parameter_grid is not supported. "
                         f"Please choose among the following options: {keys_to_eval[k]}"
                     )
+                    if k == "model" and rng is not None:
+                        # RNG control: Adding the random state to the model
+                        # for reproducibility
+                        v = v.split(")")[0]
+                        v += ", " if v[-1] != "(" else " "
+                        v += "random_state=rng)"
                     out_grid[k][i] = eval(v)
+                print("Reading parameters.")
     return out_grid
 
 
-def run_experiment(dataset, experiment, cv, parameters):
+def run_experiment(dataset, experiment, cv, parameters, seed):
+    rng = np.random.RandomState(seed)
     is_regression = experiment["type"] == "regression"
 
     if dataset["dataset_path"].endswith(".tsv"):
@@ -223,8 +232,8 @@ def run_experiment(dataset, experiment, cv, parameters):
     del dataframe
     metrics_list = get_metrics(metrics=experiment["metrics"])
 
-    o_cv = get_cv(cv["outer_cv"])
-    i_cv = get_cv(cv["inner_cv"])
+    o_cv = get_cv(cv["outer_cv"], rng=rng)
+    i_cv = get_cv(cv["inner_cv"], rng=rng)
     outer_group_by = cv["outer_cv"]["group_by"]
     inner_group_by = cv["inner_cv"]["group_by"]
     outer_groups = train_y[outer_group_by]
@@ -235,24 +244,47 @@ def run_experiment(dataset, experiment, cv, parameters):
         groupby = norm_feature
         print(f"Group is {norm_feature}")
     else:
-        train_x[inner_group_by] = inner_groups
-        groupby = inner_group_by
+        # train_x[inner_group_by] = inner_groups
+        groupby = None  # inner_group_by
 
     pipeline = Pipeline(
         steps=[
+            ("scaler", pp.GroupScalerSelector(group=groupby)),
             (
                 "drop_correlated",
                 DropCorrelatedFeatures(
-                    ignore=groupby,
+                    ignore=None,
                 ),
             ),
-            ("scaler", pp.GroupScalerSelector(group=groupby)),
             ("noise_feature", pp.NoiseWinnowFeatSelect()),
             ("pca", PCA(n_components=10)),
             ("model", GradientBoostingRegressor()),
         ]
     )
-    params = read_parameter_grid(experiment, parameters)
+    params = read_parameter_grid(experiment, parameters, rng)
+    # params.update(
+    #    {'model__bootstrap': [True, False],
+    #     'model__max_depth': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, None],
+    #     'model__max_features': ['log2', 'sqrt'],
+    #     'model__min_samples_leaf': [1, 2, 4],
+    #     'model__min_samples_split': [2, 5, 10],
+    #     'model__n_estimators': [200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000]}
+    # )
+    params.update(
+        {
+            "model__n_estimators": [0],
+            "model__alpha": [1e-08, 1e-4, 1e0, 100.0],
+            "model__colsample_bylevel": [0.5, 0.75, 1.0],
+            "model__colsample_bytree": [0.5, 0.75, 1.0],
+            "model__gamma": [1e-8, 1e-3, 1e-1, 100],
+            "model__lambda": [1e-8, 1e-3, 1e-1, 100],
+            "model__learning_rate": [1e-5, 1e-3, 1e-1, 100],
+            "model__max_depth": [3, 5, 7, 10],
+            "model__min_child_weight": [1e-8, 1e-2, 1e2, 1e5],
+            "model__subsample": [0.5, 0.75, 1.0],
+        }
+    )
+
     if norm_feature is not None:
         if not any(
             [
@@ -274,27 +306,36 @@ def run_experiment(dataset, experiment, cv, parameters):
     print()
 
     print(f"CROSS-VALIDATION:\n\tOuter CV: {o_cv}\n\tInner CV: {i_cv}\n")
+    # inner_cv_opt = GridSearchCV(
+    #    estimator=pipeline,
+    #    param_grid=params,
+    #    scoring=scores,
+    #    cv=i_cv,
+    #    refit=experiment["scoring"],
+    #    error_score="raise",
+    # )
+    from sklearn.model_selection import RandomizedSearchCV
 
-    clf = GridSearchCV(
+    inner_cv_opt = RandomizedSearchCV(
         estimator=pipeline,
-        param_grid=params,
-        scoring=scores,
+        param_distributions=params,
+        n_iter=50,
         cv=i_cv,
-        refit=experiment["scoring"],
-        error_score="raise",
+        verbose=2,
+        random_state=rng,
+        n_jobs=-1,
     )
-
     if not is_regression:
         train_y["rating"] = (
             train_y["rating"] > experiment["classification_threshold"]
         )
     m = (
         metrics_list + [groupby]
-        if groupby not in metrics_list
+        if groupby is not None and groupby not in metrics_list
         else metrics_list
     )
     nested_score = cross_validate(
-        clf,
+        inner_cv_opt,
         X=train_x[m],
         y=train_y["rating"],
         cv=o_cv,
@@ -319,7 +360,7 @@ def run(
 ):
 
     nested_score, metrics_list = run_experiment(
-        dataset, experiment, cv, parameters
+        dataset, experiment, cv, parameters, _config["seed"]
     )
     print("FINAL RESULTS")
     for k, v in nested_score.items():
