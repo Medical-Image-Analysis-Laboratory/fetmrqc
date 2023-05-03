@@ -71,6 +71,15 @@ class IndividualTemplate(Template):
         )
 
 
+class IndividualSRTemplate(Template):
+    """Specific template for the individual report. From MRIQC"""
+
+    def __init__(self):
+        super(IndividualSRTemplate, self).__init__(
+            pkgrf("fetal_brain_qc", "data/reports/report_SR.html")
+        )
+
+
 class IndexTemplate(Template):
     """Specific template for the index file of the reports."""
 

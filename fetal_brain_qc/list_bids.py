@@ -15,7 +15,7 @@ def list_bids(bids_dir, mask_pattern_list, bids_csv):
     More details about how mask_pattern_list is formatted is given in
     `run_list_and_anon_bids.py` and an example can be found in `definitions.py`.
     """
-    bids_layout = BIDSLayout(bids_dir)
+    bids_layout = BIDSLayout(bids_dir, validate=False)
 
     file_list = list_masks(bids_layout, mask_pattern_list)
 
@@ -36,7 +36,6 @@ def list_masks(bids_layout, mask_pattern_list):
 
     file_list = []
     for sub, ses, run, out in iter_bids(bids_layout):
-
         paths = [
             fill_pattern(bids_layout, sub, ses, run, p)
             for p in mask_pattern_list
@@ -57,6 +56,31 @@ def list_masks(bids_layout, mask_pattern_list):
                 break
             if i == len(paths) - 1:
                 print(
-                    f"WARNING: No mask found for sub-{sub}, ses-{ses}, run-{run}"
+                    f"Failed to match the pattern for sub-{sub}, ses-{ses}, run-{run}: Trying one more time with the get function... ",
+                    end="",
                 )
+                out_m = bids_layout.get(
+                    subject=sub,
+                    session=ses,
+                    run=run,
+                    suffix="mask",
+                    return_type="filename",
+                )
+
+                out_m = out_m[0] if len(out) > 0 else []
+                if len(out_m) > 0:
+                    print("Success!")
+                    fname = Path(out).name.replace(".nii.gz", "")
+                    file_list.append(
+                        {
+                            "name": fname,
+                            "sub": sub,
+                            "ses": ses,
+                            "run": run,
+                            "im": out,
+                            "mask": out_m,
+                        }
+                    )
+                else:
+                    print("FAILED!")
     return file_list

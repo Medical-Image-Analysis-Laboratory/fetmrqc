@@ -5,15 +5,13 @@ import nibabel as ni
 from .plotting import plot_mosaic, plot_mosaic_sr
 from pathlib import Path
 import matplotlib.pyplot as plt
-from .data import IndividualTemplate
+from .data import IndividualTemplate, IndividualSRTemplate
 import random
 import secrets
 import string
-import json
 import shutil
 import csv
 import re
-from pathlib import Path
 
 import os
 import time
@@ -46,7 +44,9 @@ def get_image_info(im_path):
     if os.path.isfile(im_json_path):
         with open(im_json_path, "r") as f:
             config = json.load(f)
-        im_info["field_strength"] = config["MagneticFieldStrength"]
+        im_info["field_strength"] = config.get(
+            "MagneticFieldStrength", "Unknown"
+        )
     else:
         im_info["field_strength"] = "Unknown"
 
@@ -56,7 +56,6 @@ def get_image_info(im_path):
 def read_report_snippet(in_file):
     """Add a snippet into the report. From MRIQC"""
     import os.path as op
-    import re
     from io import open  # pylint: disable=W0622
 
     is_svg = op.splitext(op.basename(in_file))[1] == ".svg"
@@ -118,7 +117,7 @@ def individual_html(
         "do_index": do_index,
     }
 
-    tpl = IndividualTemplate()
+    tpl = IndividualTemplate() if not sr else IndividualSRTemplate()
     tpl.generate_conf(_config, out_path)
 
 
@@ -157,7 +156,7 @@ def generate_report(
             out_plots = plot_mosaic_sr(
                 im_path,
                 mask_path,
-                boundary=boundary,
+                boundary=0,
                 ncols=ncols_ip,
                 annotate=annotate,
                 cmap=cmap,

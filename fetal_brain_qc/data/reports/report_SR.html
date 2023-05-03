@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="generator" content="LRQC" />
+    <title>Low-resolution scan report</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+    <script>
+        var timestamp = Date.now()
+
+        function addZero(n) {
+            return (n < 10 ? '0' : '') + n;
+        }
+
+        function read_form() {
+            var ds = "{{ dataset or 'unknown' }}";
+            var sub = "{{ bids_name }}";
+
+            var artifacts = [];
+            $('#artifacts-group input:checked').each(function () {
+                artifacts.push($(this).attr('name'));
+            });
+
+            // Parse the id of selected image in the form of axes_<n>
+            // Return <n> - 1 to have the slice number aligned with the
+            // displayed number
+            var selected_axial = $(".selected_img-axial").map(function () {
+                return parseInt(this.id.substr(5)) - 1
+            }).get().join(',');
+
+            var selected_sagittal = $(".selected_img-sagittal").map(function () {
+                return parseInt(this.id.substr(5)) - 1
+            }).get().join(',');
+
+            var selected_coronal = $(".selected_img-coronal").map(function () {
+                return parseInt(this.id.substr(5)) - 1
+            }).get().join(',');
+
+            var rating = $('#qcslider').val();
+            //var orientation = $('#orientation').val();
+            var intensity = $('#intensity').val();
+            var bias_field = $('#biasslider').val();
+            var date = new Date(timestamp);
+            var day = addZero(date.getDate());
+            var month = addZero(date.getMonth() + 1); //Months are zero based
+            var year = addZero(date.getFullYear());
+            var hour = addZero(date.getHours());
+            var min = addZero(date.getMinutes());
+            var sec = addZero(date.getSeconds());
+
+            var formattedTime = year + "-" + month + "-" + day + " " + hour + ':' + min + ':' + sec;
+            var payload = {
+                'dataset': ds,
+                'subject': sub,
+                'rating': rating,
+                //'orientation': orientation,
+                'artifacts': artifacts,
+                'intensity': intensity,
+                //'bias_field': bias_field,
+                'time_sec': (Date.now() - timestamp) / 1000,
+                'timestamp': formattedTime,
+                // 'confidence': $('#confidence').val(),
+                'comments': $('#widget-comments').val(),
+                'selected_axial': selected_axial,
+                'selected_sagittal': selected_sagittal,
+                'selected_coronal': selected_coronal
+            };
+
+            var file = new Blob([JSON.stringify(payload)], { type: 'text/json' });
+            $('#btn-download').attr('href', URL.createObjectURL(file));
+            var out_time = year + month + day + "_" + hour + min + sec;
+            $('#btn-download').attr('download', payload['dataset'] + "_" + payload['subject'] + "_" + out_time + ".json");
+            return payload
+        };
+
+        function toggle_rating() {
+            if ($('#rating-menu').hasClass('d-none')) {
+                $('#rating-menu').removeClass('d-none');
+                $('#rating-toggler').prop('checked', true);
+            } else {
+                $('#rating-menu').addClass('d-none');
+                $('#rating-toggler').prop('checked', false);
+            }
+        };
+
+        $(window).on('load', function () {
+            var authorization = $('#btn-post').val()
+            if (authorization.includes("secret_token")) {
+                $('#btn-post').addClass('d-none');
+            };
+            timestamp = Date.now();
+        });
+    </script>
+    <style type="text/css">
+        body {
+            font-family: helvetica;
+            padding: 50px 10px 10px;
+        }
+
+        div.warning p.admonition-title,
+        .code .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        span.problematic {
+            color: red;
+            font-weight: bold;
+        }
+
+        p.label {
+            white-space: nowrap
+        }
+
+        span.section-subtitle {
+            /* font-size relative to parent (h1..h6 element) */
+            font-size: 80%
+        }
+
+        div.embeded-report {
+            width: 100%;
+            page-break-before: always;
+            padding-top: 20px;
+        }
+
+        div.embeded-report svg {
+            width: 100%;
+        }
+
+        span.qa-fail {
+            color: white;
+            font-weight: bold;
+            background-color: #FF6347;
+        }
+
+        span.qa-pass {
+            color: white;
+            font-weight: bold;
+            background-color: #32CD32;
+        }
+
+        div#accordionOther {
+            margin: 0 20px;
+        }
+
+        .add-padding {
+            padding-top: 15px;
+        }
+
+        #report-qi2-fitting {
+            max-width: 450px;
+        }
+
+        /* The slider itself */
+        .slider {
+            -webkit-appearance: none;
+            /* Override default CSS styles */
+            appearance: none;
+            margin-bottom: 8px;
+            margin-left: 10%;
+            width: 80%;
+            height: 5px;
+            /* Specified height */
+            background: #d3d3d3;
+            /* Grey background */
+            outline: none;
+            /* Remove outline */
+            opacity: 0.7;
+            /* Set transparency (for mouse-over effects on hover) */
+            -webkit-transition: .2s;
+            /* 0.2 seconds transition on hover */
+            transition: opacity .2s;
+        }
+
+        /* Mouse-over effects */
+        .slider:hover {
+            opacity: 1;
+            /* Fully shown on mouse-over */
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border: 0;
+            background: url('https://raw.githubusercontent.com/nipreps/nireports/main/assets/slider-handle.png');
+            cursor: pointer;
+            z-index: 2000 !important;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border: 0;
+            background: url('https://raw.githubusercontent.com/nipreps/nireports/main/assets/slider-handle.png');
+            cursor: pointer;
+            z-index: 2000 !important;
+        }
+
+        g.selected_img-axial {
+            outline: solid 3px red;
+            outline-offset: -3px;
+        }
+
+        g.selected_img-sagittal {
+            outline: solid 3px red;
+            outline-offset: -3px;
+        }
+
+        g.selected_img-coronal {
+            outline: solid 3px red;
+            outline-offset: -3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="document">
+
+        <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="#summary">Summary</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#visuals">Visual reports</a></li>
+                </ul>
+            </div>
+            <div class="form-check form-switch" style="margin-right: 10px">
+                <input class="form-check-input" type="checkbox" id="rating-toggler"></input>
+                <label class="form-check-label" for="rating-toggler">Rating widget</label>
+        </nav>
+        <noscript>
+            <h1 class="text-danger"> The navigation menu uses Javascript. Without it this report might not work as
+                expected </h1>
+        </noscript>
+
+        <h1 class="mt-5 mb-5">Low-resolution scan report</h1>
+
+        <div class="card mt-3" style="width: 480pt;">
+            <h2 id="summary" class="card-header">Summary</h2>
+            <div class="card-body">
+                <ul class="simple">
+                    <li>BIDS filename: {{ bids_name }}.</li>
+                    <!-- <li>Date and time: {{ timestamp }}.</li> -->
+                    <li>Image resolution: {{ im_info["dim"][0] }} x {{ im_info["dim"][1] }} x {{ im_info["dim"][2] }}.
+                    </li>
+                    <li>Voxel size: {{ im_info["resolution"][0] }} x {{ im_info["resolution"][1] }} x {{
+                        im_info["resolution"][2] }} mm^3.</li>
+                    <li>Field strength: {{ im_info["field_strength"] }} T.</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
+        <div>Select the slices that contain heavy artifacts in the in-plane view by clicking on them.</div>
+        {% for title, svg_id, svg in svg_files %}
+        <div class="card mt-2">
+            <div class="card-header">{{ title }}</div>
+            <div id="report-{{ svg_id }}" class="card-body">
+                {{ svg }}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div id="rating-menu" class="card position-fixed d-none" style="width: 30%; top: 100px; left: 65%;">
+            <div class="card-header m-0">Rate Image
+                <button type="button" class="btn-close position-absolute top-0 end-0" aria-label="Close"
+                    id="close-rating-menu" onclick="toggle_rating()" style="margin: 10px 10px 0 0"></button>
+            </div>
+            <div class="card-body">
+                <div class="accordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="qcslider-head">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#qcslider-collapse" aria-expanded="true"
+                                aria-controls="qcslider-collapse">
+                                Overall Quality Rating
+                            </button>
+                        </h2>
+                        <div id="qcslider-collapse" class="accordion-collapse collapse show"
+                            aria-labelledby="qcslider-head">
+                            <div class="accordion-body">
+                                <input type="range" min="0.0" max="4.0" step="0.05" value="2." id="qcslider"
+                                    class="slider" style="width:100%; margin-left:0%">
+                                <ul class=" list-group list-group-horizontal slider-labels" style="width:100%">
+                                    <li class="list-group-item list-group-item-danger"
+                                        style="width: 25%; text-align:center">Exclude</button>
+                                    <li class="list-group-item list-group-item-warning"
+                                        style="width: 25%; text-align:center">Poor</button>
+                                    <li class="list-group-item list-group-item-primary"
+                                        style="width: 25%; text-align:center">Acceptable</button>
+                                    <li class="list-group-item list-group-item-success"
+                                        style="width: 25%; text-align:center">Excellent</button>
+                                </ul>
+                                <!-- <label for="orientation">Brain orientation:</label>
+                                <select name="orientation" id="orientation">
+                                    <option value="">--Choose an orientation--</option>
+                                    <option value="axial">Axial</option>
+                                    <option value="coronal">Coronal</option>
+                                    <option value="sagittal">Sagittal</option>
+                                    <option value="oblique">Oblique</option>
+                                </select> -->
+                            </div>
+                            <!-- <div class="accordion-body">
+                                <fieldset id="artifacts-group" class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="potential-reference"
+                                            id="ref1">
+                                        <label class="form-check-label" for="ref1">Usable as reference</label>
+                                    </div>
+                                </fieldset>
+                            </div> -->
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="qcartifacts-head">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#qcartifacts-collapse" aria-expanded="false"
+                                aria-controls="qcartifacts-collapse">
+                                Record specific artifacts
+                            </button>
+                        </h2>
+                        <div class="accordion-collapse collapse collapsed" id="qcartifacts-collapse"
+                            aria-labelledby="qcartifacts-head">
+                            <div class="accordion-body">
+                                <label for="intensity">Tissue contrast (intensity):</label>
+                                <div id="intensity-collapse">
+                                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity"
+                                        class="slider">
+                                    <ul class="list-group list-group-horizontal slider-labels"
+                                        style="width:80%;margin-left:10%">
+                                        <li class="list-group-item list-group-item-success"
+                                            style="width: 33.3%; text-align:center">Poor</button>
+                                        <li class="list-group-item list-group-item-warning"
+                                            style="width: 33.3%; text-align:center">Okay</button>
+                                        <li class="list-group-item list-group-item-danger"
+                                            style="width: 33.3%; text-align:center">Excellent</button>
+                                    </ul>
+                                </div>
+                                <!-- <label for="biasslider">Bias field:</label> -->
+                                <!-- <div id="biasslider-collapse">
+                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="biasslider"
+                                        class="slider">
+                                    <ul class="list-group list-group-horizontal slider-labels"
+                                        style="width:80%;margin-left:10%">
+                                        <li class="list-group-item list-group-item-success"
+                                            style="width: 33.3%; text-align:center">Low</button>
+                                        <li class="list-group-item list-group-item-warning"
+                                            style="width: 33.3%; text-align:center">Moderate</button>
+                                        <li class="list-group-item list-group-item-danger"
+                                            style="width: 33.3%; text-align:center">High</button>
+                                    </ul>
+                                </div> -->
+                                <fieldset id="artifacts-group" class="form-group">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="misaligned" id="art0">
+                                        <label class="form-check-label" for="art0">Misaligned image</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="blurriness" id="art1">
+                                        <label class="form-check-label" for="art1">Blurriness</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="bias" id="art2">
+                                        <label class="form-check-label" for="art2">Biased images</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="incomplete-fov" id="art3">
+                                        <label class="form-check-label" for="art3">Incomplete field of view</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="noise" id="art4">
+                                        <label class="form-check-label" for="art4">High noise</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="uncategorized" id="art5">
+                                        <label class="form-check-label" for="art5">Uncategorized artifact</label>
+                                    </div>
+                                </fieldset>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="widget-misc-head">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#widget-misc-collapse" aria-expanded="false"
+                                aria-controls="widget-misc-collapse">
+                                Extra details
+                            </button>
+                        </h2>
+                        <div id="widget-misc-collapse" class="accordion-collapse collapse"
+                            aria-labelledby="widget-misc-head">
+                            <div class="accordion-body">
+                                <div class="input-group">
+                                    <span class="input-group-text">Comments</span>
+                                    <textarea class="form-control" aria-label="Comments"
+                                        id="widget-comments"></textarea>
+                                </div>
+
+                                <!-- <p style="margin-top: 20px; font-weight: bold">Rater confidence:</p>
+                                <input type="range" min="0.0" max="4.0" step="0.05" value="3.0" id="confidence"
+                                    class="slider" style="margin-left: 22%;width: 56%;">
+                                <ul class="list-group list-group-horizontal slider-labels" style="width: 100%">
+                                    <li class="list-group-item list-group-item-warning"
+                                        style="width: 50%; text-align:center">Doubtful</button>
+                                    <li class="list-group-item list-group-item-success bg-success text-white"
+                                        style="width: 50%; text-align:center">Confident</button>
+                                </ul> -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px">
+                    <a class="btn btn-primary disabled" id="btn-download" href="">Download</a>
+                    <button class="btn btn-primary" id="btn-post" value="<secret_token>" disabled>Post to
+                        WebAPI</button>
+                </div>
+                <script type="text/javascript">
+
+                    var time_threshold = 1000
+                    $('#qcslider').on('input', function () {
+
+                        if ((Date.now() - timestamp) / time_threshold > 10) {
+                            $('#btn-download').removeClass('disabled');
+                            $('#btn-download').removeAttr('aria-disabled');
+                            $('#btn-post').removeAttr('disabled');
+                        };
+
+                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
+                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+                        });
+                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
+                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+                        });
+
+                        if ($(this).val() < 1.) {
+                            $('#qcslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                        } else if ($(this).val() > 3.) {
+                            $('#qcslider-collapse .list-group-item-success').addClass('bg-success text-white');
+                        } else if ($(this).val() < 2.) {
+                            $('#qcslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                        } else {
+                            $('#qcslider-collapse .list-group-item-primary').addClass('bg-primary text-white');
+                        };
+
+                        var payload = read_form();
+                    });
+
+                    $('#intensity').on('input', function () {
+
+                        if ((Date.now() - timestamp) / time_threshold > 10) {
+                            $('#btn-download').removeClass('disabled');
+                            $('#next-report').removeClass('disabled');
+                            $('#btn-download').removeAttr('aria-disabled');
+                        };
+
+                        $('#intensity-collapse .list-group-item').removeClass(function (index, classname) {
+                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+                        });
+                        $('#intensity-collapse .list-group-item').removeClass(function (index, classname) {
+                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+                        });
+
+                        if ($(this).val() < 1.) {
+                            $('#intensity-collapse .list-group-item-success').addClass('bg-success text-white');
+                        } else if ($(this).val() > 2.) {
+                            $('#intensity-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                        } else {
+                            $('#intensity-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                        };
+
+                        var payload = read_form();
+                    });
+
+                    // $('#biasslider').on('input', function () {
+                    //     if ((Date.now() - timestamp) / time_threshold > 10) {
+                    //         $('#btn-download').removeClass('disabled');
+                    //         $('#next-report').removeClass('disabled');
+                    //         $('#btn-download').removeAttr('aria-disabled');
+                    //     };
+
+                    //     $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
+                    //         return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+                    //     });
+                    //     $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
+                    //         return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+                    //     });
+
+                    //     if ($(this).val() < 1.) {
+                    //         $('#biasslider-collapse .list-group-item-success').addClass('bg-success text-white');
+                    //     } else if ($(this).val() > 2.) {
+                    //         $('#biasslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                    //     } else {
+                    //         $('#biasslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                    //     };
+                    //     var payload = read_form();
+
+                    // });
+                    // $('#confidence').on('input', function () {
+                    //     if ((Date.now() - timestamp) / 1000 > 10) {
+                    //         $('#btn-download').removeClass('disabled');
+                    //         $('#btn-download').removeAttr('aria-disabled');
+                    //         $('#btn-post').removeAttr('disabled');
+                    //     };
+
+                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
+                    //         return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+                    //     });
+                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
+                    //         return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+                    //     });
+
+                    //     if ($(this).val() < 2.0) {
+                    //         $('#widget-misc-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                    //     } else {
+                    //         $('#widget-misc-collapse .list-group-item-success').addClass('bg-success text-white');
+                    //     };
+
+                    //     var payload = read_form();
+                    // });
+
+
+                    $('#widget-comments').bind('input propertychange', function () {
+                        if ((Date.now() - timestamp) / time_threshold > 10) {
+                            $('#btn-download').removeClass('disabled');
+                            $('#btn-download').removeAttr('aria-disabled');
+                            $('#btn-post').removeAttr('disabled');
+                        };
+                        var payload = read_form();
+                    });
+
+                    // $('#orientation').bind('input propertychange', function () {
+                    //     if ((Date.now() - timestamp) / time_threshold > 10) {
+                    //         $('#btn-download').removeClass('disabled');
+                    //         $('#btn-download').removeAttr('aria-disabled');
+                    //         $('#btn-post').removeAttr('disabled');
+                    //     };
+                    //     var payload = read_form();
+                    // });
+
+                    $('#btn-post').click(function () {
+                        var payload = read_form();
+                        var md5sum = "{{ md5sum }}";
+                        var params = {
+                            'rating': payload['rating'],
+                            'md5sum': md5sum,
+                            'name': "",
+                            'comment': JSON.stringify(payload['artifacts'])
+                        };
+
+                        // disable developement releases
+                        var authorization = $(this).val();
+                        var ratingReq = new XMLHttpRequest();
+                        ratingReq.open("POST", "{{ webapi_url }}/rating");
+                        ratingReq.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                        ratingReq.setRequestHeader("Authorization", authorization);
+                        ratingReq.onload = function () {
+                            status = ratingReq.status;
+                            $('#btn-post').removeClass('btn-primary');
+                            $('#btn-post').attr('disabled', true);
+                            $('#btn-post').attr('aria-disabled', true);
+                            $('#btn-post').prop('disabled');
+                            $('#btn-post').addClass('disabled');
+                            $('#btn-post').removeClass('active');
+                            if (status === "201") {
+                                $('#btn-post').addClass('btn-success');
+                                $('#btn-post').html('Posted!');
+                            } else {
+                                $('#btn-post').addClass('btn-danger');
+                                $('#btn-post').html('Failed');
+                            };
+                        };
+                        ratingReq.send(JSON.stringify(params));
+                    });
+
+                    $('body').on('click', '#artifacts-group input', function (e) {
+                        if ((Date.now() - timestamp) / time_thresold > 10) {
+                            $('#btn-download').removeClass('disabled');
+                            $('#btn-download').removeAttr('aria-disabled');
+                            $('#btn-post').removeAttr('disabled');
+                        };
+
+                        var payload = read_form();
+                    });
+
+                    $('body').on('click', '#rating-toggler', function (e) {
+                        toggle_rating();
+                    });
+                    {% if do_index %}
+                    $('#btn-download').click(function () {
+                        window.parent.postMessage({ 'message': 'rating done' }, '*');
+                    });
+                    {% endif %}
+
+                    {% for _, svg_id, _ in svg_files %}
+                    {% if svg_id not in ("tp1", "tp2") %}
+                    $('#report-{{ svg_id }} g[id^="axes_"]').on('click', function (e) {
+                        if ($(this).prop('clicked')) {
+                            $(this).prop('clicked', false);
+                            $(this).removeClass('selected_img-{{ svg_id }}');
+                        } else {
+                            $(this).prop('clicked', true);
+                            $(this).addClass('selected_img-{{ svg_id }}');
+                        }
+                        var payload = read_form();
+                    });
+                    {% endif %}
+                    {% endfor %}
+
+
+
+                </script>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

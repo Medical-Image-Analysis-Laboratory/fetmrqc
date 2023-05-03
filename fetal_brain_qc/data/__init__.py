@@ -32,6 +32,16 @@
 
 
 """MRIQC resources."""
-from .config import IndexTemplate, IndividualTemplate, Template
+from .config import (
+    IndexTemplate,
+    IndividualTemplate,
+    IndividualSRTemplate,
+    Template,
+)
 
-__all__ = ["Template", "IndexTemplate", "IndividualTemplate"]
+__all__ = [
+    "Template",
+    "IndexTemplate",
+    "IndividualTemplate",
+    "IndividualSRTemplate",
+]
