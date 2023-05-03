@@ -3,6 +3,8 @@ import os
 import inspect
 import pandas as pd
 from pdb import set_trace
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.compose import TransformedTargetRegressor
 
 
 def print_dict(d, indent=0):
@@ -59,6 +61,8 @@ def get_cv(cv_dict, rng=None):
 
 
 def get_feature_importance(estimator, metrics):
+    """Get feature importance from an estimator"""
+
     drop_correlated = estimator["drop_correlated"]
     pca = estimator["pca"]
     drop_noise = estimator["noise_feature"]
@@ -70,6 +74,8 @@ def get_feature_importance(estimator, metrics):
         dropped += drop_noise.drop
     retained_features = [f for f in metrics if f not in dropped]
     model = estimator["model"]
+    if isinstance(model, TransformedTargetRegressor):
+        model = model.regressor_
 
     if hasattr(model, "coef_"):
         feature_imp = model.coef_.flatten()
@@ -105,7 +111,13 @@ def save_inner_scores(exp, config_, nested_score):
     out_path = "scores_inner.csv"
     out_path_agg = "scores_inner_agg.csv"
     out_path_agg_2 = "scores_inner_agg_more.csv"
-    params = list(nested_score["estimator"][0].param_grid.keys())
+    if isinstance(nested_score["estimator"][0], GridSearchCV):
+        params = list(nested_score["estimator"][0].param_grid.keys())
+    elif isinstance(nested_score["estimator"][0], RandomizedSearchCV):
+        params = list(nested_score["estimator"][0].param_distributions.keys())
+    else:
+        raise RuntimeError("Unknown estimator")
+
     scores = list(nested_score["estimator"][0].scoring.keys())
     scores = [f"{m}_test_{k}" for k in scores for m in ["mean", "std"]]
     config = format_config(copy.deepcopy(config_))
@@ -154,9 +166,15 @@ def save_outer_scores(exp, config_, nested_score, metrics_list):
     """This function extracts and aggregates the results of the outer
     cross validation loop.
     """
+
     out_path_outer = "scores_outer.csv"
     out_path_outer_2 = "scores_outer_agg.csv"
-    params = list(nested_score["estimator"][0].param_grid.keys())
+    if isinstance(nested_score["estimator"][0], GridSearchCV):
+        params = list(nested_score["estimator"][0].param_grid.keys())
+    elif isinstance(nested_score["estimator"][0], RandomizedSearchCV):
+        params = list(nested_score["estimator"][0].param_distributions.keys())
+    else:
+        raise RuntimeError("Unknown estimator")
     scores = list(nested_score["estimator"][0].scoring.keys())
     scores = [f"test_{k}" for k in scores]
     config = format_config(copy.deepcopy(config_))

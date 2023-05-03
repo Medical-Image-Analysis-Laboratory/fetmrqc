@@ -31,7 +31,7 @@ from sklearn.preprocessing import (
     OneHotEncoder,
     LabelBinarizer,
 )
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator, TransformerMixin, _OneToOneFeatureMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import GradientBoostingRegressor, AdaBoostRegressor
@@ -42,6 +42,8 @@ from sklearn.model_selection import (
     cross_val_score,
     GroupShuffleSplit,
 )
+from abc import ABC, abstractmethod
+from sklearn.preprocessing import QuantileTransformer
 
 LOG = logging.getLogger("mriqc_learn")
 rng = np.random.default_rng()
@@ -74,8 +76,7 @@ class _FeatureSelection(BaseEstimator, TransformerMixin):
         """
         if self.disable or not self.drop:
             return X
-
-        return X.drop(
+        X = X.drop(
             [
                 field
                 for field in self.drop
@@ -83,19 +84,13 @@ class _FeatureSelection(BaseEstimator, TransformerMixin):
             ],
             axis=1,
         )
+        return X
 
 
 class DropColumns(_FeatureSelection):
     """
     Wraps a data transformation to run only in specific
     columns [`source <https://stackoverflow.com/a/41461843/6820620>`_].
-
-    Example
-    -------
-
-        >>> from mriqc_learn.models.preproces import DropColumns
-        >>> tfm = DropColumns(columns=['duration', 'num_operations'])
-        >>> # scaled = tfm.fit_transform(churn_d)
 
     """
 
@@ -120,7 +115,196 @@ class PrintColumns(BaseEstimator, TransformerMixin):
         return X
 
 
-class GroupRobustScaler(RobustScaler):
+class GroupScaler(ABC, _OneToOneFeatureMixin, TransformerMixin, BaseEstimator):
+    """Base class for scaling features by group.
+
+    Parameters
+    ----------
+    groupby : str, optional
+        Column name to group by. If None, it performs like the default scaler (not the group one).
+    """
+
+    def __init__(
+        self,
+        groupby=None,
+    ):
+        self.groupby = groupby
+
+    @abstractmethod
+    def _get_scaler(self):
+        pass
+
+    def fit(self, X, y=None):
+        if self.groupby is None:
+            self.scalers_ = self._get_scaler().fit(X)
+        else:
+            sites = X[[self.groupby]].values.squeeze()
+            X_input = X.drop([self.groupby], axis=1)
+            self.scalers_ = {}
+            for group in set(sites):
+                self.scalers_[group] = self._get_scaler().fit(
+                    X_input[sites == group]
+                )
+        return self
+
+    def transform(self, X, y=None):
+        if not self.scalers_:
+            self.fit(X)
+
+        if self.copy:
+            X = X.copy()
+        if self.groupby is None:
+            X[X.columns] = self.scalers_.transform(X)
+            return X
+        else:
+            sites = X[[self.groupby]].values.squeeze()
+            X_input = X.drop([self.groupby], axis=1)
+
+            for group in set(sites):
+                if group not in self.scalers_:
+                    # Yet unseen group
+                    self.scalers_[group] = self._get_scaler().fit(
+                        X_input[sites == group]
+                    )
+
+                # Apply scaling
+                X_input[sites == group] = self.scalers_[group].transform(
+                    X_input[sites == group]
+                )
+
+            # Get sites back
+            X_input[self.groupby] = sites
+            return X_input
+
+
+class GroupRobustScaler(GroupScaler):
+    """Scale features using statistics that are robust to outliers in each group.
+
+    Parameters
+    ----------
+    groupby : str, optional
+        Column name to group by. If None, it performs like sklearn's RobustScaler.
+    with_centering : bool, default=True
+        If True, center the data before scaling.
+    with_scaling : bool, default=True
+        If True, scale the data to unit variance (or equivalently, unit standard deviation).
+    quantile_range : tuple (q_min, q_max), 0.0 < q_min < q_max < 100.0, default=(25.0, 75.0)
+        Quantile range used to calculate scale_.
+    copy : bool, default=True
+        Set to False to perform inplace scaling and avoid a copy (if the input is already a
+        numpy array).
+    unit_variance : bool, default=False
+        If True, scale data so that normally distributed features have a variance of 1. This
+        is achieved by dividing the data by the standard deviation of the features, after
+        centering them. It does not shift/center the data, and thus does not destroy any
+        sparsity.
+
+    """
+
+    def __init__(
+        self,
+        groupby=None,
+        *,
+        with_centering=True,
+        with_scaling=True,
+        quantile_range=(25.0, 75.0),
+        copy=True,
+        unit_variance=False,
+    ):
+        self.with_centering = with_centering
+        self.with_scaling = with_scaling
+        self.quantile_range = quantile_range
+        self.copy = copy
+        self.unit_variance = unit_variance
+
+        super().__init__(
+            groupby=groupby,
+        )
+
+    def _get_scaler(self):
+        return RobustScaler(
+            with_centering=self.with_centering,
+            with_scaling=self.with_scaling,
+            quantile_range=self.quantile_range,
+            copy=self.copy,
+            unit_variance=self.unit_variance,
+        )
+
+
+class GroupStandardScaler(GroupScaler):
+    """Standardize features by removing the mean and scaling to unit variance in each group.
+
+    Parameters
+    ----------
+    groupby : str, optional
+        Column name to group by.
+    with_mean : bool, default=True
+        If True, center the data before scaling.
+    with_std : bool, default=True
+        If True, scale the data to unit variance (or equivalently, unit standard deviation).
+    copy : bool, default=True
+        Set to False to perform inplace row normalization and avoid a copy (if the input is already a numpy array).
+    """
+
+    def __init__(
+        self,
+        groupby=None,
+        *,
+        with_mean=True,
+        with_std=True,
+        copy=True,
+    ):
+        self.with_mean = with_mean
+        self.with_std = with_std
+        self.copy = copy
+
+        super().__init__(
+            groupby=groupby,
+        )
+
+    def _get_scaler(self):
+        return StandardScaler(
+            with_mean=self.with_mean,
+            with_std=self.with_std,
+            copy=self.copy,
+        )
+
+
+class GroupQuantileTransformer(GroupScaler):
+    """Transform features using quantiles information in each group.
+
+    Parameters
+    ----------
+    groupby : str, optional
+        Column name to group by.
+    n_quantiles : int, default=250
+        Number of quantiles to be computed. It corresponds to the number of landmarks used to discretize the cumulative distribution function. If n_quantiles is larger than the number of samples, n_quantiles is set to the number of samples as a larger number of quantiles does not give a better approximation of the cumulative distribution function estimator.
+    output_distribution : {'uniform', 'normal'}, default='uniform'
+        Marginal distribution for the transformed data. The choices are 'uniform' (default) or 'normal'.
+    """
+
+    def __init__(
+        self,
+        groupby=None,
+        *,
+        n_quantiles=250,
+        output_distribution="uniform",
+    ):
+        self.n_quantiles = n_quantiles
+        self.output_distribution = output_distribution
+
+        super().__init__(
+            groupby=groupby,
+        )
+
+    def _get_scaler(self):
+        return QuantileTransformer(
+            n_quantiles=self.n_quantiles,
+            output_distribution=self.output_distribution,
+        )
+
+
+class GroupRobustScaler_old(RobustScaler):
     def __init__(
         self,
         groupby=None,
@@ -195,7 +379,7 @@ class GroupRobustScaler(RobustScaler):
             return X_input
 
 
-class GroupStandardScaler(StandardScaler):
+class GroupStandardScaler_old(StandardScaler):
     def __init__(
         self,
         groupby=None,
@@ -441,6 +625,11 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
         super().__init__()
         self.scaler = scaler if scaler is not None else PassThroughScaler()
         self.group = group
+        self.group_scalers = (
+            GroupRobustScaler,
+            GroupStandardScaler,
+            GroupQuantileTransformer,
+        )
 
     def _check_scaler_group(self):
         """Checking whether the group in GroupScalerSelector and in self.scaler are consistent.
@@ -451,7 +640,7 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
         This raises an error:
             - GroupScalerSelector with a group and self.scaler with a different group
         """
-        if isinstance(self.scaler, (GroupRobustScaler, GroupStandardScaler)):
+        if isinstance(self.scaler, self.group_scalers):
             if self.scaler.groupby == self.group:
                 pass
             elif (
@@ -483,14 +672,11 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
             for o in X.columns[X.dtypes == object].tolist()
             if o != self.group
         ]
-
         if self.group is not None:
             assert (
                 self.group in X.columns
             ), f"Group {self.group} not found in the dataframe."
-            if not isinstance(
-                self.scaler, (GroupRobustScaler, GroupStandardScaler)
-            ):
+            if not isinstance(self.scaler, self.group_scalers):
                 return self.drop_group(X)
 
         assert (
@@ -505,13 +691,17 @@ class GroupScalerSelector(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         X = self.check_group(X)
+        dtypes = X.dtypes
         # GroupScalers need to have the dataframe passed, not just its content
-        if isinstance(self.scaler, (GroupRobustScaler, GroupStandardScaler)):
+        if isinstance(self.scaler, self.group_scalers):
             X = self.scaler.transform(X)
         else:
             X[X.columns] = self.scaler.transform(X[X.columns])
+        # Restore dtypes. It's not clear to me why they were changed in the first place
+        X = X.astype(dtypes)
+        X = self.drop_group(X)
 
-        return self.drop_group(X)
+        return X
 
 
 class DropCorrelatedFeatures(_FeatureSelection):

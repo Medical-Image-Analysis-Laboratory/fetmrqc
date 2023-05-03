@@ -1,6 +1,6 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.decomposition import PCA
-from sklearn.compose import ColumnTransformer
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.pipeline import Pipeline
 from fetal_brain_qc.qc_evaluation.qc_evaluation import (
     REGRESSION_SCORING,
@@ -14,7 +14,6 @@ from sklearn.model_selection import (
     GroupShuffleSplit,
 )
 from fetal_brain_qc.qc_evaluation.load_dataset import load_dataset
-
 from sklearn.model_selection import cross_validate, GroupKFold
 import numpy as np
 from fetal_brain_qc.qc_evaluation import preprocess as pp
@@ -25,6 +24,7 @@ from fetal_brain_qc.qc_evaluation.preprocess import (
     PassThroughScaler,
     NoiseWinnowFeatSelect,
     DropCorrelatedFeatures,
+    GroupQuantileTransformer,
 )
 from sklearn.ensemble import (
     GradientBoostingRegressor,
@@ -66,7 +66,11 @@ from fetal_brain_qc.qc_evaluation import (
     PCA_FEATURES,
 )
 from pdb import set_trace
-from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.preprocessing import (
+    StandardScaler,
+    RobustScaler,
+    QuantileTransformer,
+)
 import os
 from fetal_brain_qc.qc_evaluation.sacred_helpers import (
     print_dict,
@@ -76,6 +80,7 @@ from fetal_brain_qc.qc_evaluation.sacred_helpers import (
 from pathlib import Path
 import pandas as pd
 import ast
+from sklearn.model_selection import RandomizedSearchCV
 
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
@@ -96,6 +101,10 @@ def config():
         "metrics": "base",
         "scoring": "neg_mae",
         "normalization_feature": None,
+        "randomized_inner_cv": False,
+        "n_randomized": 50,
+        "transform_target": False,
+        "tt_dist": "uniform",
     }
 
     cv = {
@@ -153,6 +162,13 @@ def get_metrics(metrics):
         return NotImplementedError
 
 
+def add_to_param(param, input):
+    param = param.split(")")[0]
+    param += ", " if param[-1] != "(" else " "
+    param += f"{input})"
+    return param
+
+
 @ex.capture
 def read_parameter_grid(experiment, parameters, rng=None):
     exp_type = experiment["type"]
@@ -167,12 +183,14 @@ def read_parameter_grid(experiment, parameters, rng=None):
         "noise_feature": NOISE_FEATURES,
         "pca": PCA_FEATURES,
     }
-
+    print(parameters)
     out_grid = copy.deepcopy(parameters)
     for k, values in parameters.items():
         if k in ["pca", "noise_feature", "scaler__scaler", "model"]:
             for i, v in enumerate(values):
+                print(v)
                 v_str = v.split("(")[0]
+                print(v_str)
                 if v_str in keys_to_eval[k]:
                     assert v == "passthrough"
                     out_grid[k][i] = v
@@ -186,12 +204,14 @@ def read_parameter_grid(experiment, parameters, rng=None):
                         f"ERROR: function {v_str} from {k} in parameter_grid is not supported. "
                         f"Please choose among the following options: {keys_to_eval[k]}"
                     )
-                    if k == "model" and rng is not None:
+                    if (
+                        k == "model"
+                        and rng is not None
+                        and hasattr(eval(v), "random_state")
+                    ):
                         # RNG control: Adding the random state to the model
                         # for reproducibility
-                        v = v.split(")")[0]
-                        v += ", " if v[-1] != "(" else " "
-                        v += "random_state=rng)"
+                        v = add_to_param(v, "random_state=rng")
                     out_grid[k][i] = eval(v)
                 print("Reading parameters.")
     return out_grid
@@ -270,20 +290,25 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
     #     'model__min_samples_split': [2, 5, 10],
     #     'model__n_estimators': [200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000]}
     # )
-    params.update(
-        {
-            "model__n_estimators": [0],
-            "model__alpha": [1e-08, 1e-4, 1e0, 100.0],
-            "model__colsample_bylevel": [0.5, 0.75, 1.0],
-            "model__colsample_bytree": [0.5, 0.75, 1.0],
-            "model__gamma": [1e-8, 1e-3, 1e-1, 100],
-            "model__lambda": [1e-8, 1e-3, 1e-1, 100],
-            "model__learning_rate": [1e-5, 1e-3, 1e-1, 100],
-            "model__max_depth": [3, 5, 7, 10],
-            "model__min_child_weight": [1e-8, 1e-2, 1e2, 1e5],
-            "model__subsample": [0.5, 0.75, 1.0],
+
+    # Transforming the target: using the quantile transformer
+    # to transform the target to a uniform or random distribution
+    if experiment["transform_target"]:
+        params = {
+            "model__regressor__" + k.split("model__")[1]
+            if "model__" in k
+            else k: v
+            for k, v in params.items()
         }
-    )
+        params["model"] = [
+            TransformedTargetRegressor(
+                p,
+                transformer=QuantileTransformer(
+                    output_distribution=experiment["tt_dist"], n_quantiles=250
+                ),
+            )
+            for p in params["model"]
+        ]
 
     if norm_feature is not None:
         if not any(
@@ -306,33 +331,46 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
     print()
 
     print(f"CROSS-VALIDATION:\n\tOuter CV: {o_cv}\n\tInner CV: {i_cv}\n")
-    # inner_cv_opt = GridSearchCV(
-    #    estimator=pipeline,
-    #    param_grid=params,
-    #    scoring=scores,
-    #    cv=i_cv,
-    #    refit=experiment["scoring"],
-    #    error_score="raise",
-    # )
-    from sklearn.model_selection import RandomizedSearchCV
 
-    inner_cv_opt = RandomizedSearchCV(
-        estimator=pipeline,
-        param_distributions=params,
-        n_iter=50,
-        cv=i_cv,
-        verbose=2,
-        random_state=rng,
-        n_jobs=-1,
-    )
+    # Inner CV: either full grid search or randomized search
+    if experiment["randomized_inner_cv"]:
+        inner_cv_opt = RandomizedSearchCV(
+            estimator=pipeline,
+            param_distributions=params,
+            scoring=scores,
+            n_iter=experiment["n_randomized"],
+            cv=i_cv,
+            random_state=rng,
+            refit=experiment["scoring"],
+        )
+    else:
+        inner_cv_opt = GridSearchCV(
+            estimator=pipeline,
+            param_grid=params,
+            scoring=scores,
+            cv=i_cv,
+            refit=experiment["scoring"],
+            error_score="raise",
+        )
+
     if not is_regression:
         train_y["rating"] = (
             train_y["rating"] > experiment["classification_threshold"]
         )
+
     m = (
         metrics_list + [groupby]
         if groupby is not None and groupby not in metrics_list
         else metrics_list
+    )
+
+    ### Convert all the column which have a dtype of object to bool, keep the ones that are float as float
+    train_x = train_x.astype(
+        {
+            col: bool
+            for col in train_x.columns
+            if train_x[col].dtype == "object"
+        }
     )
     nested_score = cross_validate(
         inner_cv_opt,
@@ -341,7 +379,7 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
         cv=o_cv,
         scoring=scores,
         groups=outer_groups,
-        n_jobs=16,
+        n_jobs=5,
         fit_params={"groups": inner_groups},
         return_train_score=True,
         return_estimator=True,
