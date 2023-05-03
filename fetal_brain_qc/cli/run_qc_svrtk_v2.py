@@ -82,7 +82,6 @@ def crop_input(sub_ses_output, img_list, mask_list):
 
 def is_run_included(run_curr, path, excluded):
     if os.path.isfile(path):
-        pdb.set_trace()
         with open(path) as f:
             lines = f.readlines()
         out = lines[0].split(" ")
