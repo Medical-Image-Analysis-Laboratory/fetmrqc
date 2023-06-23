@@ -338,11 +338,11 @@
                                         class="slider">
                                     <ul class="list-group list-group-horizontal slider-labels"
                                         style="width:80%;margin-left:10%">
-                                        <li class="list-group-item list-group-item-success"
+                                        <li class="list-group-item list-group-item-danger"
                                             style="width: 33.3%; text-align:center">Poor</button>
                                         <li class="list-group-item list-group-item-warning"
                                             style="width: 33.3%; text-align:center">Okay</button>
-                                        <li class="list-group-item list-group-item-danger"
+                                        <li class="list-group-item list-group-item-success"
                                             style="width: 33.3%; text-align:center">Excellent</button>
                                     </ul>
                                 </div>
@@ -382,8 +382,12 @@
                                         <label class="form-check-label" for="art4">High noise</label>
                                     </div>
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="uncategorized" id="art5">
-                                        <label class="form-check-label" for="art5">Uncategorized artifact</label>
+                                        <input class="form-check-input" type="checkbox" name="failed" id="art5">
+                                        <label class="form-check-label" for="art5">Failed reconstruction</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="uncategorized" id="art6">
+                                        <label class="form-check-label" for="art6">Uncategorized artifact</label>
                                     </div>
                                 </fieldset>
                             </div>
@@ -471,9 +475,9 @@
                         });
 
                         if ($(this).val() < 1.) {
-                            $('#intensity-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() > 2.) {
                             $('#intensity-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                        } else if ($(this).val() > 2.) {
+                            $('#intensity-collapse .list-group-item-success').addClass('bg-success text-white');
                         } else {
                             $('#intensity-collapse .list-group-item-warning').addClass('bg-warning text-dark');
                         };
