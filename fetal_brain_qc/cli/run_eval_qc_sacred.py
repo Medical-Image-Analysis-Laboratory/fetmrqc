@@ -89,7 +89,6 @@ ex.observers.append(MongoObserver())
 
 @ex.config
 def config():
-
     dataset = {  # noqa: F841
         "dataset_path": "/home/tsanchez/Documents/mial/repositories/mriqc-learn/mriqc_learn/datasets/chuv_bcn.tsv",
         "first_iqm": "centroid",
@@ -139,6 +138,25 @@ def check_entries(type, metrics, scoring):
 
 
 def get_metrics(metrics):
+    """
+    Returns a list of metrics based on the input string.
+
+    Args:
+        metrics (str): A string indicating the type of metrics to return. Valid options are:
+            - 'base': returns the base metrics.
+            - 'base_center': returns the base center metrics (currently not implemented).
+            - 'full': returns all metrics.
+            - 'base_seg': returns the base metrics and the segmentation metrics.
+            - 'seg': returns only the segmentation metrics.
+            - 'full_seg': returns all metrics and the segmentation metrics.
+            - any metric name: returns a list with the specified metric only.
+
+    Returns:
+        list: A list of metric names.
+
+    Raises:
+        AssertionError: If the input string is not a valid option.
+    """
     assert (
         metrics
         in ["base", "base_center", "base_seg", "full", "full_seg", "seg"]
@@ -222,7 +240,6 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
     is_regression = experiment["type"] == "regression"
 
     if dataset["dataset_path"].endswith(".tsv"):
-
         dataframe = pd.read_csv(
             Path(dataset["dataset_path"]), index_col=None, delimiter=r"\s+"
         )
@@ -385,6 +402,15 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
         return_estimator=True,
         error_score="raise",
     )
+
+    outer_groups_list = []
+    for i, (train_index, test_index) in enumerate(
+        o_cv.split(train_x[m], train_y["rating"], outer_groups)
+    ):
+        group = np.unique(outer_groups[test_index].to_numpy()).tolist()
+        outer_groups_list.append(group)
+    nested_score["test_outer_groups"] = outer_groups_list
+    # nested_score["inner_groups"] = inner_groups
     return nested_score, metrics_list
 
 
@@ -396,13 +422,15 @@ def run(
     parameters,
     _config,
 ):
-
     nested_score, metrics_list = run_experiment(
         dataset, experiment, cv, parameters, _config["seed"]
     )
+
+    print(nested_score.keys(), nested_score["test_outer_groups"])
+
     print("FINAL RESULTS")
     for k, v in nested_score.items():
-        if "test" in k:
+        if "test" in k and "groups" not in k:
             ex.log_scalar(f"{k}_mean", v.mean())
             ex.log_scalar(f"{k}_std", v.std())
             print(f"\t{k:20} = {v.mean():6.3f} +- {v.std():5.3f}")
