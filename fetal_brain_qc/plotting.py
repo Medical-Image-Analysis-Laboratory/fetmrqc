@@ -331,6 +331,10 @@ def plot_mosaic_sr(
     affine_axes = affine_axes[1]
     # Flip axes
     im_data = np.flip(im_data, axis=flip_axis)
+
+    # This is mysterious to me. This is needed to that I have the axial plane in the Right-Left direction
+    # This is only needed for NeSVoR also, not for NiftyMIC. This isn't clear to me why.
+    # im_data = im_data[:, :, ::-1]
     # Swap axes
     im_data = im_data.transpose(affine_axes)
 
@@ -379,7 +383,9 @@ def plot_mosaic_sr(
         return fig
 
     fig = plot_axis(im_data, 2, vmin, vmax, cmap, zooms, annotate)
-    fig2 = plot_axis(im_data, 0, vmin, vmax, cmap, zooms, annotate)
+    # I don't know why we have to swap the axes on the sagittal axis ...
+    # This is mysterious to me. This is needed to that I have the sagittal plane in the Anterior-Posterior direction
+    fig2 = plot_axis(im_data[:, ::-1, :], 0, vmin, vmax, cmap, zooms, annotate)
     fig3 = plot_axis(im_data, 1, vmin, vmax, cmap, zooms, annotate)
 
     os.makedirs(report_dir, exist_ok=True)

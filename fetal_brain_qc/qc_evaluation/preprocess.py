@@ -127,8 +127,10 @@ class GroupScaler(ABC, _OneToOneFeatureMixin, TransformerMixin, BaseEstimator):
     def __init__(
         self,
         groupby=None,
+        copy=True,
     ):
         self.groupby = groupby
+        self.copy = copy
 
     @abstractmethod
     def _get_scaler(self):
