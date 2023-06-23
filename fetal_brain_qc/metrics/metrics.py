@@ -35,6 +35,9 @@ from .mriqc_metrics import (
     wm2max,
 )
 
+import sys
+
+
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
     "centroid",
@@ -84,6 +87,7 @@ class LRStackMetrics:
         ckpt_stack_iqa=None,
         ckpt_slice_iqa=None,
         device=None,
+        verbose=False,
     ):
         default_params = dict(
             central_third=True,
@@ -94,6 +98,7 @@ class LRStackMetrics:
         )
         self._metrics = self.get_default_metrics() if not metrics else metrics
         self.stack_iqa_enabled = True if ckpt_stack_iqa else False
+        self.verbose = verbose
         if ckpt_stack_iqa:
             import os
 
@@ -107,14 +112,13 @@ class LRStackMetrics:
             import torch
 
             self.device = device
-            self.slice_model = resnet34(pretrained=False, num_classes=3)
+            self.slice_model = resnet34(num_classes=3)
             self.slice_model = torch.nn.DataParallel(self.slice_model).to(
                 device
             )
             checkpoint = torch.load(ckpt_slice_iqa, map_location=device)
             self.slice_model.load_state_dict(checkpoint["ema_state_dict"])
             self.slice_model.eval()
-
         self.metrics_func = {
             "centroid": freeze(self._metric_mask_centroid, central_third=True),
             "centroid_full": freeze(
@@ -701,7 +705,10 @@ class LRStackMetrics:
     ):
         """Evaluate a metric and update the results dictionary."""
         if is_valid_mask:
-            out = self.metrics_func[metric](**args_dict)
+            try:
+                out = self.metrics_func[metric](**args_dict)
+            except Exception:
+                out = [np.nan]
             # Checking once more that if the metric is nan, we replace it with 0
         else:
             out = self.get_default_output(metric)
@@ -747,7 +754,8 @@ class LRStackMetrics:
         if not is_valid_mask:
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
-            print("\tRunning", m)
+            if True:
+                print("\tRunning", m)
             results = self.eval_metrics_and_update_results(
                 results, m, args_dict, is_valid_mask
             )
@@ -1169,7 +1177,6 @@ class LRStackMetrics:
             self._sstats = summary_stats(image, segmentation)
         snr_dict = {}
         for tlabel in segmentation.keys():
-
             snr_dict[tlabel] = snr(
                 self._sstats[tlabel]["median"],
                 self._sstats[tlabel]["stdv"],
@@ -1227,7 +1234,6 @@ class LRStackMetrics:
         window_size=3,
         use_datarange=False,
     ):
-
         VALID_REDUCTIONS = ["mean", "median"]
         assert reduction in VALID_REDUCTIONS, (
             f"Unknown reduction function {reduction}."

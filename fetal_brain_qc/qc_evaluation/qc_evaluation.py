@@ -20,6 +20,7 @@ from sklearn.linear_model import (
     LogisticRegression,
     RidgeClassifier,
 )
+from xgboost import XGBRegressor
 from scipy.stats import spearmanr
 from sklearn.utils.validation import (
     check_consistent_length,
@@ -159,22 +160,39 @@ def spearman_correlation(y_true, y_pred):
 
 def tp(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
+    if cm.shape[0] == 1:
+        print(y_true, y_pred)
+        return sum(y_true)
     return cm[1, 1]
 
 
 def fp(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
+    if cm.shape[0] == 1:
+        return 0
     return cm[0, 1]
 
 
 def fn(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
+    if cm.shape[0] == 1:
+        return 0
     return cm[1, 0]
 
 
 def tn(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
+    if cm.shape[0] == 1:
+        print(y_true, y_pred)
+        return 1 - sum(y_true)
     return cm[0, 0]
+
+
+def nan_roc_auc(y_true, y_pred):
+    if len(np.unique(y_true)) == 1:
+        return np.nan
+    else:
+        return roc_auc_score(y_true, y_pred)
 
 
 ##
@@ -193,6 +211,7 @@ REGRESSION_MODELS = [
     AdaBoostRegressor(),
     HistGradientBoostingRegressor(),
     RandomForestRegressor(),
+    XGBRegressor(),
 ]
 
 
@@ -204,6 +223,8 @@ def binarize_metric_input(metric, threshold=1):
     def binarized_metric(y_true, y_pred):
         y_true = y_true > threshold
         y_pred = y_pred > threshold
+        if len(np.unique(y_true)) == 1:
+            return np.nan
         return metric(y_true, y_pred)
 
     return binarized_metric
@@ -213,7 +234,7 @@ acc = binarize_metric_input(accuracy_score)
 prec = binarize_metric_input(precision_score)
 rec = binarize_metric_input(recall_score)
 f1 = binarize_metric_input(f1_score)
-roc_auc = binarize_metric_input(roc_auc_score)
+roc_auc = binarize_metric_input(nan_roc_auc)
 tp_ = binarize_metric_input(tp)
 fp_ = binarize_metric_input(fp)
 fn_ = binarize_metric_input(fn)
@@ -255,5 +276,5 @@ CLASSIFICATION_SCORING = {
     "fp": make_scorer(fp),
     "fn": make_scorer(fn),
     "tn": make_scorer(tn),
-    "roc_auc": "roc_auc",
+    "roc_auc": make_scorer(nan_roc_auc),
 }

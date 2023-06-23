@@ -1,5 +1,9 @@
 from fetal_brain_qc.qc_evaluation import preprocess as pp
-from sklearn.preprocessing import StandardScaler, RobustScaler
+from sklearn.preprocessing import (
+    StandardScaler,
+    RobustScaler,
+    QuantileTransformer,
+)
 from sklearn.decomposition import PCA, SparsePCA
 
 VALID_EXP = ["regression", "classification"]
@@ -210,6 +214,8 @@ SCALERS = [
     pp.PassThroughScaler(),
     pp.GroupRobustScaler(),
     pp.GroupStandardScaler(),
+    QuantileTransformer(),
+    pp.GroupQuantileTransformer(),
 ]
 NOISE_FEATURES = ["passthrough", pp.NoiseWinnowFeatSelect()]
 PCA_FEATURES = ["passthrough", PCA(), SparsePCA()]

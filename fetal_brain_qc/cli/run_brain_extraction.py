@@ -49,7 +49,7 @@ def main():
 
     args = p.parse_args()
     print_title("Running Brain extraction")
-    bids_layout = BIDSLayout(args.bids_dir)
+    bids_layout = BIDSLayout(args.bids_dir, validate=False)
 
     # Create the output directory
     os.makedirs(args.masks_dir, exist_ok=True)

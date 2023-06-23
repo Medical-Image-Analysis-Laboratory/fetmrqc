@@ -36,11 +36,18 @@ def crop_input(
         boundary_j=boundary_mm,
         boundary_k=boundary_mm,
     )
+    # If the cropping yields an empty image, return None.
+    if imc is None or imc.get_fdata().shape != maskc.get_fdata().shape:
+        if save_mask:
+            return None, None
+        else:
+            return None
+
     if mask_image:
         imc = ni.Nifti1Image(
             imc.get_fdata() * maskc.get_fdata(), imc.affine, imc.header
         )
-    else:  # Masking
+    else:
         imc = ni.Nifti1Image(imc.get_fdata(), imc.affine, imc.header)
 
     ni.save(imc, output)
