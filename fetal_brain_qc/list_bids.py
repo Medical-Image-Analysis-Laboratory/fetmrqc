@@ -2,7 +2,33 @@ import os
 from pathlib import Path
 from fetal_brain_utils import iter_bids
 from bids import BIDSLayout
+from fetal_brain_qc.definitions import MASK_PATTERN
 import csv
+import nibabel as ni
+
+
+def create_sr_masks(bids_dir, mask_folder):
+    """In some cases, the reconstructed images do not
+    always have an associated brain mask (e.g. NeSVoR). It is then
+    created simply by thresholding the image.
+    """
+    from fetal_brain_qc.utils import fill_pattern
+
+    bids_layout = BIDSLayout(bids_dir, validate=False)
+    out_pattern = os.path.join(mask_folder, MASK_PATTERN)
+    for sub, ses, run, out in iter_bids(bids_layout):
+        if "slice" in out:
+            # Ignore slice folder.
+            print("Ignoring slice folder")
+            continue
+        mask_out = fill_pattern(bids_layout, sub, ses, run, out_pattern)
+        if not os.path.exists(os.path.dirname(mask_out)):
+            os.makedirs(os.path.dirname(mask_out))
+        im = ni.load(out)
+        mask = im.get_fdata() > 0.0
+        ni.save(
+            ni.Nifti1Image(mask, affine=im.affine, header=im.header), mask_out
+        )
 
 
 def list_bids(bids_dir, mask_pattern_list, bids_csv):
@@ -35,6 +61,7 @@ def list_masks(bids_layout, mask_pattern_list):
     from fetal_brain_qc.utils import fill_pattern
 
     file_list = []
+    print(bids_layout)
     for sub, ses, run, out in iter_bids(bids_layout):
         paths = [
             fill_pattern(bids_layout, sub, ses, run, p)
@@ -54,6 +81,7 @@ def list_masks(bids_layout, mask_pattern_list):
                     }
                 )
                 break
+
             if i == len(paths) - 1:
                 print(
                     f"Failed to match the pattern for sub-{sub}, ses-{ses}, run-{run}: Trying one more time with the get function... ",
@@ -67,7 +95,7 @@ def list_masks(bids_layout, mask_pattern_list):
                     return_type="filename",
                 )
 
-                out_m = out_m[0] if len(out) > 0 else []
+                out_m = out_m[0] if len(out_m) > 0 else []
                 if len(out_m) > 0:
                     print("Success!")
                     fname = Path(out).name.replace(".nii.gz", "")
