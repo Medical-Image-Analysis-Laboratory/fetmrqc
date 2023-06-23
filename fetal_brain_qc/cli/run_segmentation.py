@@ -13,6 +13,7 @@ from joblib import Parallel, delayed
 import time
 import SimpleITK as sitk
 
+
 PATTERN = (
     "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}"
     "[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz"
@@ -35,6 +36,7 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
         bids_df (pd.DataFrame): DataFrame containing the paths to the images, masks and segmentations.
     """
     # Check that model is nnUNet
+
     if model == "nnUNet":
         if ckpt_path is not None:
             print(
@@ -43,16 +45,19 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
 
         def mask_im(im, mask):
             """Crop the image and mask, save them to out_path and rename them for processing with nnUNet."""
-            cropped = Path(
-                crop_input(
-                    im, mask, out_path, mask_image=True, save_mask=False
+            cropped = crop_input(
+                im, mask, out_path, mask_image=True, save_mask=False
+            )
+            if cropped is not None:
+                cropped = Path(cropped)
+                # Rename the cropped images to the nnUNet format
+                renamed = cropped.parent / (
+                    cropped.stem.split(".")[0] + "_0000.nii.gz"
                 )
-            )
-            # Rename the cropped images to the nnUNet format
-            renamed = cropped.parent / (
-                cropped.stem.split(".")[0] + "_0000.nii.gz"
-            )
-            os.rename(cropped, renamed)
+                os.rename(cropped, renamed)
+            else:
+                # Print a warning if the image could not be cropped
+                print(f"WARNING: {im} could not be cropped.")
 
         print("Cropping images ...", end="")
         Parallel(n_jobs=4)(
@@ -72,7 +77,9 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
 
         for file in list(out_path.glob("*_T2w.nii.gz")):
             ents = parse_file_entities(file)
-            sub, ses, run = ents["subject"], ents["session"], ents["run"]
+            sub = ents.get("subject", None)
+            ses = ents.get("session", None)
+            run = ents.get("run", None)
             sub = sub if isinstance(sub, str) else f"{sub:03d}"
             seg_path = out_path / build_path(ents, PATTERN)
             os.makedirs(seg_path.parent, exist_ok=True)
@@ -112,7 +119,9 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
         )
 
     # Merge the new dataframe with the bids_df and reorder the columns
-    df[["ses", "run"]] = df[["ses", "run"]].astype(int)
+    df[["ses", "run"]] = df[["ses", "run"]].applymap(
+        lambda x: int(x) if x is not None else None
+    )
     bids_df = pd.merge(bids_df, df, on=["sub", "ses", "run"])
     new_columns = [
         col for col in bids_df.columns if col != "seg" and col != "seg_proba"
@@ -149,6 +158,9 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
         lambda x: x
         if isinstance(x, str) and not x.isdigit()
         else f"{int(x):03d}"
+    )
+    df[["ses", "run"]] = df[["ses", "run"]].applymap(
+        lambda x: int(x) if pd.notnull(x) else None
     )
 
     # Check if the dataframe has a seg column
