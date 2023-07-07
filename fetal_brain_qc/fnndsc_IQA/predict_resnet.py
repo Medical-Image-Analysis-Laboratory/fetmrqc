@@ -1,4 +1,4 @@
-""" Image quality assessment based on FNNDSC's implementation. 
+""" Image quality assessment based on FNNDSC's implementation.
 
 Based on the code from Ivan Legorreta at
 https://github.com/FNNDSC/pl-fetal-brain-assessment/blob/main/fetal_brain_assessment/predict_resnet.py
@@ -19,9 +19,11 @@ from .resnet_architecture import (
     model_architecture as create_model_architecture,
 )
 
-gpus = tf.config.experimental.list_physical_devices("GPU")
-for gpu in gpus:
-    tf.config.experimental.set_memory_growth(gpu, True)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# gpus = tf.config.experimental.list_physical_devices("GPU")
+# for gpu in gpus:
+#    tf.config.experimental.set_memory_growth(gpu, True)
 
 logger = logging.getLogger(__name__)
 

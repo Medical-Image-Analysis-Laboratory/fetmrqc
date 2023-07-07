@@ -152,12 +152,19 @@ def main():
             run["ses"],
             int(run["run"]),
         )
-        ses_str = f"{int(ses):02d}"
-        sub_ses_output = (
-            Path(args.out_path).resolve()
-            / "cropped_input"
-            / f"sub-{sub}/ses-{ses_str}/anat"
-        )
+        if ses == "":
+            sub_ses_output = (
+                Path(args.out_path).resolve()
+                / "cropped_input"
+                / f"sub-{sub}/anat"
+            )
+        else:
+            ses_str = f"{int(ses):02d}"
+            sub_ses_output = (
+                Path(args.out_path).resolve()
+                / "cropped_input"
+                / f"sub-{sub}/ses-{ses_str}/anat"
+            )
         os.makedirs(sub_ses_output, exist_ok=True)
 
         if run["name"] in metrics_dict.keys():

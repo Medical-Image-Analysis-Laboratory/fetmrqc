@@ -161,7 +161,6 @@ def spearman_correlation(y_true, y_pred):
 def tp(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
     if cm.shape[0] == 1:
-        print(y_true, y_pred)
         return sum(y_true)
     return cm[1, 1]
 
@@ -183,7 +182,6 @@ def fn(y_true, y_pred):
 def tn(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
     if cm.shape[0] == 1:
-        print(y_true, y_pred)
         return 1 - sum(y_true)
     return cm[0, 0]
 
