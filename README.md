@@ -34,13 +34,28 @@ Download the checkpoint `pytorch.ckpt` from [fetal-IQA](https://github.com/david
 ### pl-fetal-brain-assessment [6]
 Download a checkpoint from [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) from [this link](https://fnndsc.childrens.harvard.edu/mri_pipeline/ivan/quality_assessment/). Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`.
 
-### Final Step
+### Install FetMRQC
 Finally, move back to the `fetal_brain_qc` repository and install `fetal_brain_qc` using `python -m pip install -e .`
+
+### Final step: nnUNet [7] - Tricky part
+Create a **new** environment for nnUNet (exit the current one by doing `conda deactivate`), using `conda env create -n nnunet` and activate it. Then, following the [nnUNet installation instructions](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/installation_instructions.md), install pytorch:
+> Install PyTorch as described on their website (conda/pip). Please install the latest version with support for your hardware (cuda, mps, cpu). DO NOT JUST pip install nnunetv2 WITHOUT PROPERLY INSTALLING PYTORCH FIRST. For maximum speed, consider compiling pytorch yourself (experienced users only!).
+
+After that, clone the repository from [nnUNet V2](https://github.com/MIC-DKFZ/nnUNet) ([v2.0](https://github.com/MIC-DKFZ/nnUNet/releases/tag/v2.0)) using `git clone https://github.com/MIC-DKFZ/nnUNet.git`. Go into the repository and install it using `python -m pip install -e .` If the installation is successful, you should be able to call from the command line `nnUNetv2_predict`.
+
+**Note.** You do *not* need to set the paths as told in the nnUNet installation
+
+Then, download the [checkpoint folder](https://drive.switch.ch/index.php/s/wpepw8DS71IRsW9), unzip it and put it into `fetal_brain_qc/models`. 
+
+You can now exit the new environment and re-activate `fetal_brain_qc`. 
+
+**Note.** This installation is done in order to be able to run `qc_compute_segmentation` (more on it below), in which you need to provide `nnunet_env_path`, the path to the nnUNet python environment that you can obtain using `conda env list`
+
 
 ## Usage
 *Fetal brain QC* starts from a [BIDS](https://bids.neuroimaging.io/) dataset (containing `NIfTI` formatted images), as well as an additional folder containing *brain masks*. 
 
-The recommended workflow is to use `qc_run_pipeline`
+The recommended workflow is to use `qc_run_pipeline` (CURRENTLY OUTDATED -- see below for the recommended path)
 ```
 usage: qc_run_pipeline [-h] [--mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--bids-csv BIDS_CSV] [--anonymize-name | --no-anonymize-name] [--randomize | --no-randomize] [--seed SEED]
                        [--n-reports N_REPORTS] [--n-raters N_RATERS]
@@ -78,6 +93,11 @@ optional arguments:
 
 ```
 **Remark.** This script runs the whole pipeline of *fetal brain QC*, i.e. listing of BIDS directory and masks -> (anonymization of data) -> report generation (-> randomization of reports) -> index file generation
+
+The typical pipeline paths are the following:
+- Image quality metric computation: `qc_list_bids_csv` -> `qc_brain_extraction` -> `qc_compute_segmentation` -> `qc_compute_metrics`
+- Report generation: `qc_list_bids_csv` -> `qc_brain_extraction` -> `qc_generate_reports` -> `qc_generate_index`
+
 
 Each part of the pipeline can also be called individually, as shown below.
 
@@ -154,6 +174,81 @@ options:
                         (default: False)
 
 ```
+
+- `qc_brain_extraction`
+```
+usage: qc_brain_extraction [-h] [--ckpt_path CKPT_PATH] [--mask-pattern MASK_PATTERN] bids_dir masks_dir
+
+Given a `bids_dir`, lists the LR series in the directory and computes the brain masks using MONAIfbs (https://github.com/gift-surg/MONAIfbs/tree/main). Save the masks into the `masks_dir` folder,
+follwing the same hierarchy as the `bids_dir`
+
+positional arguments:
+  bids_dir              BIDS directory containing the LR series.
+  masks_dir             Root of the BIDS directory where brain masks will be stored.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ckpt_path CKPT_PATH
+                        Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
+  --mask-pattern MASK_PATTERN
+                        Pattern according to which the masks will be stored. By default, masks will be stored in
+                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
+                        substituted based on the structure of bids_dir. (default:
+                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+
+```
+
+- `qc_compute_segmentation`
+```
+usage: qc_compute_segmentation [-h] --bids_csv BIDS_CSV [--out_path OUT_PATH] [--ckpt_path_model CKPT_PATH_MODEL] [--nnunet_res_path NNUNET_RES_PATH] [--nnunet_env_path NNUNET_ENV_PATH]
+
+Compute segmentation on low resolution clinical acquisitions.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bids_csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
+  --out_path OUT_PATH   Path where the segmentations will be stored. (if not specified in bids_csv) (default: None)
+  --ckpt_path_model CKPT_PATH_MODEL
+                        Path to the checkpoint to be used. (default: None)
+  --nnunet_res_path NNUNET_RES_PATH
+                        Path to the nnunet folder containing the checkpoint. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/nnUNet)
+  --nnunet_env_path NNUNET_ENV_PATH
+                        Path to the nnunet folder containing the checkpoint (from `conda env list`). (default: /home/tsanchez/anaconda3/envs/nnunet)
+```
+
+- `qc_compute_metrics`
+
+**Note.** If you want to run the metrics computation using segmentation-based metrics, you need to run `qc_compute_segmentation` prior to calling this script.
+```
+usage: qc_compute_metrics [-h] --out-csv OUT_CSV [--metrics METRICS [METRICS ...]] [--use_all_metrics | --no-use_all_metrics] [--normalization {None,sub_ses,site,run}] --bids-csv BIDS_CSV
+                          [--ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA] [--ckpt_path_stack_iqa CKPT_PATH_STACK_IQA] [--device DEVICE] [--continue-run | --no-continue-run]
+                          [--use_prob_seg | --no-use_prob_seg]
+
+Computes quality metrics from given images.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out-csv OUT_CSV     Path where the IQA results will be stored. (default: None)
+  --metrics METRICS [METRICS ...]
+                        Metrics to be evaluated. (default: ['centroid', 'dl_slice_iqa_full', 'dl_stack_iqa_full', 'rank_error', 'mask_volume', 'ncc', 'nmi'])
+  --use_all_metrics, --no-use_all_metrics
+                        Whether all metrics should be evaluated (default: False)
+  --normalization {None,sub_ses,site,run}
+                        Whether input data should be normalized (default: None)
+  --bids-csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
+  --ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA
+                        Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT). (default:
+                        /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/fetal_IQA_pytorch.ckpt)
+  --ckpt_path_stack_iqa CKPT_PATH_STACK_IQA
+                        Path to the checkpoint of the fetal IQA tensorflow model (by Ivan Legorreta FNNDSC). (default:
+                        /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/FNNDSC_qcnet_ckpt.hdf5)
+  --device DEVICE       Device to be used for the deep learning model. (default: cuda:0)
+  --continue-run, --no-continue-run
+                        Whether QC run should re-use existing results if a metrics.csv file at `out_path`/metrics.csv. (default: True)
+  --use_prob_seg, --no-use_prob_seg
+                        Whether to use the probability segmentation or the binary segmentation. (default: True)
+
+```
 ## License
 Part of this work is based on MRIQC, which is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
 
@@ -170,3 +265,5 @@ Unless required by applicable law or agreed to in writing, software distributed 
 [5] Lala, Sayeri, et al. "A deep learning approach for image quality assessment of fetal brain MRI." Proceedings of the 27th Annual Meeting of ISMRM, Montréal, Québec, Canada. 2019.
 
 [6] https://github.com/FNNDSC/pl-fetal-brain-assessment
+
+[7] Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
