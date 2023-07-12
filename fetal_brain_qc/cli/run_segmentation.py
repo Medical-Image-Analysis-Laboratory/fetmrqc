@@ -10,119 +10,124 @@ from fetal_brain_qc.preprocess import crop_input
 from bids.layout.utils import parse_file_entities
 from bids.layout.writing import build_path
 from joblib import Parallel, delayed
-import time
-import SimpleITK as sitk
-
+import numpy as np
+from fetal_brain_qc.definitions import NNUNET_CKPT
 
 PATTERN = (
     "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}"
     "[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz"
 )
 
-MODELS = ["nnUNet"]
 
-
-def compute_segmentations(bids_df, out_path, model, ckpt_path):
-    """Compute segmentation on low resolution clinical acquisitions.
-    For model="nnUNet", the segmentation is crops the images, saves them to out_path
+def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path):
+    """Compute segmentation on low resolution clinical acquisitions, using nnUNet
+    The segmentation is crops the images, saves them to out_path
     and then runs the nnUNet inference and updates the DataFrame with the segmentation paths.
 
     Args:
         bids_df (pd.DataFrame): DataFrame containing the paths to the images and masks.
         out_path (str): Path to the output folder.
-        model (str): Model to use for the segmentation (Currently, only nnUNet works).
-        ckpt_path (str): Path to the model checkpoint.
+        nnunet_res_path (str): Path to the nnunet folder containing the model checkpoint.
+        nnunet_env_path (str): Path to the environment in which nnunet was installed (from `conda env list`)
     Returns:
         bids_df (pd.DataFrame): DataFrame containing the paths to the images, masks and segmentations.
     """
     # Check that model is nnUNet
 
-    if model == "nnUNet":
-        if ckpt_path is not None:
-            print(
-                "WARNING: ckpt_path is specified but will be ignored in nnUNet."
-            )
-
-        def mask_im(im, mask):
-            """Crop the image and mask, save them to out_path and rename them for processing with nnUNet."""
-            cropped = crop_input(
-                im, mask, out_path, mask_image=True, save_mask=False
-            )
-            if cropped is not None:
-                cropped = Path(cropped)
-                # Rename the cropped images to the nnUNet format
-                renamed = cropped.parent / (
-                    cropped.stem.split(".")[0] + "_0000.nii.gz"
-                )
-                os.rename(cropped, renamed)
-            else:
-                # Print a warning if the image could not be cropped
-                print(f"WARNING: {im} could not be cropped.")
-
-        print("Cropping images ...", end="")
-        Parallel(n_jobs=4)(
-            delayed(mask_im)(im, mask)
-            for im, mask in zip(bids_df["im"], bids_df["mask"])
+    def mask_im(im, mask):
+        """Crop the image and mask, save them to out_path and rename them for processing with nnUNet."""
+        cropped = crop_input(
+            im, mask, out_path, mask_image=True, save_mask=False
         )
-        print(" done.")
+        if cropped is not None:
+            cropped = Path(cropped)
+            # Rename the cropped images to the nnUNet format
+            renamed = cropped.parent / (
+                cropped.stem.split(".")[0] + "_0000.nii.gz"
+            )
+            os.rename(cropped, renamed)
+        else:
+            # Print a warning if the image could not be cropped
+            print(f"WARNING: {im} could not be cropped.")
 
-        # Run nnUNet inference
-        os.system(
-            f"nnUNetv2_predict -d 4 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities"
+    print("Cropping images ...", end="")
+    Parallel(n_jobs=4)(
+        delayed(mask_im)(im, mask)
+        for im, mask in zip(bids_df["im"], bids_df["mask"])
+    )
+    print(" done.")
+
+    # Run nnUNet inference
+    # /home/tsanchez/anaconda3/envs/nnunet/bin/
+
+    cmd_path = os.path.join(nnunet_env_path, "bin", "nnUNetv2_predict")
+    os.system(
+        f"nnUNet_results={nnunet_res_path}  nnUNet_raw='' nnUNet_preprocessed='' {cmd_path} -d 1 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities"
+    )
+
+    # Move the outputs to the corresponding BIDS folder which will contain
+    # 1. The cropped images, 2. The segmentations 3. The probability maps 4. the pkl files.
+    df = pd.DataFrame(columns=["sub", "ses", "run", "seg", "seg_proba"])
+
+    for file in list(out_path.glob("*_T2w.nii.gz")):
+        ents = parse_file_entities(file)
+        sub = ents.get("subject", None)
+        ses = ents.get("session", None)
+        run = ents.get("run", None)
+        sub = sub if isinstance(sub, str) else f"{sub:03d}"
+        seg_path = out_path / build_path(ents, PATTERN)
+        os.makedirs(seg_path.parent, exist_ok=True)
+        file, seg_path = str(file), str(seg_path)
+        seg_out = seg_path.replace("_T2w.nii.gz", "_seg.nii.gz")
+        seg_proba = seg_path.replace("_T2w.nii.gz", "desc-proba_seg.npz")
+        os.rename(file, seg_out)
+        os.rename(
+            file.replace("_T2w.nii.gz", "_T2w.pkl"),
+            seg_path.replace("_T2w.nii.gz", "_T2w.pkl"),
         )
-
-        # Move the outputs to the corresponding BIDS folder which will contain
-        # 1. The cropped images, 2. The segmentations 3. The probability maps 4. the pkl files.
-        df = pd.DataFrame(columns=["sub", "ses", "run", "seg", "seg_proba"])
-
-        for file in list(out_path.glob("*_T2w.nii.gz")):
-            ents = parse_file_entities(file)
-            sub = ents.get("subject", None)
-            ses = ents.get("session", None)
-            run = ents.get("run", None)
-            sub = sub if isinstance(sub, str) else f"{sub:03d}"
-            seg_path = out_path / build_path(ents, PATTERN)
-            os.makedirs(seg_path.parent, exist_ok=True)
-            file, seg_path = str(file), str(seg_path)
-            seg_out = seg_path.replace("_T2w.nii.gz", "_seg.nii.gz")
-            seg_proba = seg_path.replace("_T2w.nii.gz", "desc-proba_seg.npz")
-            os.rename(file, seg_out)
-            os.rename(
-                file.replace("_T2w.nii.gz", "_T2w.pkl"),
-                seg_path.replace("_T2w.nii.gz", "_T2w.pkl"),
-            )
-            os.rename(file.replace("_T2w.nii.gz", "_T2w.npz"), seg_proba)
-            os.rename(
-                file.replace("_T2w.nii.gz", "_T2w_0000.nii.gz"),
-                seg_path.replace("_T2w.nii.gz", "_desc-cropped_T2w.nii.gz"),
-            )
-            df = pd.concat(
-                [
-                    df,
-                    pd.DataFrame(
-                        {
-                            "sub": str(sub),
-                            "ses": ses,
-                            "run": run,
-                            "seg": seg_out,
-                            "seg_proba": seg_proba,
-                        },
-                        index=[0],
-                    ),
-                ],
-                ignore_index=True,
-            )
-
-    else:
-        raise ValueError(
-            f"Model {model} not supported. Please choose among {MODELS}"
+        os.rename(file.replace("_T2w.nii.gz", "_T2w.npz"), seg_proba)
+        os.rename(
+            file.replace("_T2w.nii.gz", "_T2w_0000.nii.gz"),
+            seg_path.replace("_T2w.nii.gz", "_desc-cropped_T2w.nii.gz"),
+        )
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    {
+                        "sub": str(sub),
+                        "ses": ses,
+                        "run": run,
+                        "seg": seg_out,
+                        "seg_proba": seg_proba,
+                    },
+                    index=[0],
+                ),
+            ],
+            ignore_index=True,
         )
 
     # Merge the new dataframe with the bids_df and reorder the columns
     df[["ses", "run"]] = df[["ses", "run"]].applymap(
         lambda x: int(x) if x is not None else None
     )
-    bids_df = pd.merge(bids_df, df, on=["sub", "ses", "run"])
+
+    # Keep track of all the subjects for which the segmentation was not successful
+    names = df[["sub", "ses", "run"]].apply(
+        lambda x: "-".join([str(y) for y in x]), axis=1
+    )
+    not_included = bids_df[
+        ~bids_df[["sub", "ses", "run"]]
+        .apply(lambda x: "-".join([str(y) for y in x]), axis=1)
+        .isin(names)
+    ]["name"]
+    if len(not_included) > 0:
+        print(
+            "Segmentation was not successful for the following images:"
+            + str(" ".join(not_included))
+        )
+
+    bids_df = pd.merge(bids_df, df, on=["sub", "ses", "run"], how="left")
     new_columns = [
         col for col in bids_df.columns if col != "seg" and col != "seg_proba"
     ]
@@ -133,7 +138,9 @@ def compute_segmentations(bids_df, out_path, model, ckpt_path):
     return bids_df
 
 
-def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
+def load_and_run_segmentation(
+    bids_csv, out_path, nnunet_res_path, nnunet_env_path
+):
     """
     Loads the data from bids_csv, checks whether the segmentation has already been computed
     and if not, computes the segmentation, saves it to the <out_path> folder and updates the
@@ -142,8 +149,8 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
     Args:
         bids_csv (str): Path to the bids_csv file.
         out_path (str): Path to the output folder.
-        model (str): Model to use for the segmentation (Currently, only nnUNet works).
-        ckpt_path (str): Path to the model checkpoint.
+        nnunet_res_path (str): Path to the nnunet folder containing the model checkpoint.
+        nnunet_env_path (str): Path to the environment in which nnunet was installed (from `conda env list`)
     """
     if bids_csv.endswith(".csv"):
         df = pd.read_csv(bids_csv)
@@ -166,7 +173,12 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
     # Check if the dataframe has a seg column
     if "seg" in df.columns:
         # Iterate through the entries of the seg column and check that the path exit
-        for seg in df["seg"]:
+        for _, row in df.iterrows():
+            name, seg = row["name"], row["seg"]
+            if np.isnan(seg):
+                raise NotImplementedError(
+                    f"Segmentation path for {name} is None. The segmentation should be rerun but this is currently not implemented."
+                )
             if not os.path.exists(seg):
                 raise ValueError(
                     f"'Seg' column found in {bids_csv}, but the file {seg} was not found."
@@ -179,7 +191,10 @@ def load_and_run_segmentation(bids_csv, out_path, model, ckpt_path):
             "Segmentation already computed. All segmentations were found locally. Terminating."
         )
     else:
-        df = compute_segmentations(df, out_path, model, ckpt_path)
+        df = compute_segmentations(
+            df, out_path, nnunet_res_path, nnunet_env_path
+        )
+
         # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
         if bids_csv.endswith(".csv"):
             df.to_csv(bids_csv, index=False)
@@ -216,22 +231,29 @@ def main():
     )
 
     p.add_argument(
-        "--model",
-        help="Model to be used for the evaluation.",
-        default="nnUNet",
-        choices=MODELS,
-    )
-    p.add_argument(
         "--ckpt_path_model",
         help="Path to the checkpoint to be used.",
         default=None,
     )
 
+    p.add_argument(
+        "--nnunet_res_path",
+        help="Path to the nnunet folder containing the checkpoint.",
+        default=NNUNET_CKPT,
+    )
+
+    p.add_argument(
+        "--nnunet_env_path",
+        help="Path to the nnunet folder containing the checkpoint (from `conda env list`).",
+        default="/home/tsanchez/anaconda3/envs/nnunet",
+    )
+
     args = p.parse_args()
     print_title("Running segmentation on the low-resolution images")
     out_path = Path(args.out_path).absolute()
+    print(args.nnunet_res_path)
     load_and_run_segmentation(
-        args.bids_csv, out_path, args.model, args.ckpt_path_model
+        args.bids_csv, out_path, args.nnunet_res_path, args.nnunet_env_path
     )
     return 0
 
