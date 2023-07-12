@@ -175,7 +175,8 @@ def load_and_run_segmentation(
         # Iterate through the entries of the seg column and check that the path exit
         for _, row in df.iterrows():
             name, seg = row["name"], row["seg"]
-            if np.isnan(seg):
+
+            if not isinstance(seg, str) and np.isnan(seg):
                 raise NotImplementedError(
                     f"Segmentation path for {name} is None. The segmentation should be rerun but this is currently not implemented."
                 )
