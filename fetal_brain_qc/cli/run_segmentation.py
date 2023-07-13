@@ -19,7 +19,9 @@ PATTERN = (
 )
 
 
-def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path):
+def compute_segmentations(
+    bids_df, out_path, nnunet_res_path, nnunet_env_path, device
+):
     """Compute segmentation on low resolution clinical acquisitions, using nnUNet
     The segmentation is crops the images, saves them to out_path
     and then runs the nnUNet inference and updates the DataFrame with the segmentation paths.
@@ -29,6 +31,7 @@ def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path):
         out_path (str): Path to the output folder.
         nnunet_res_path (str): Path to the nnunet folder containing the model checkpoint.
         nnunet_env_path (str): Path to the environment in which nnunet was installed (from `conda env list`)
+        device (str): Device on which to run the inference (e.g. "cuda:0")
     Returns:
         bids_df (pd.DataFrame): DataFrame containing the paths to the images, masks and segmentations.
     """
@@ -62,7 +65,9 @@ def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path):
 
     cmd_path = os.path.join(nnunet_env_path, "bin", "nnUNetv2_predict")
     os.system(
-        f"nnUNet_results={nnunet_res_path}  nnUNet_raw='' nnUNet_preprocessed='' {cmd_path} -d 1 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities"
+        f"nnUNet_results={nnunet_res_path}  nnUNet_raw='' nnUNet_preprocessed='' {cmd_path} "
+        f"-d 1 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities "
+        f"-device {device}"
     )
 
     # Move the outputs to the corresponding BIDS folder which will contain
@@ -139,7 +144,7 @@ def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path):
 
 
 def load_and_run_segmentation(
-    bids_csv, out_path, nnunet_res_path, nnunet_env_path
+    bids_csv, out_path, nnunet_res_path, nnunet_env_path, device
 ):
     """
     Loads the data from bids_csv, checks whether the segmentation has already been computed
@@ -193,7 +198,7 @@ def load_and_run_segmentation(
         )
     else:
         df = compute_segmentations(
-            df, out_path, nnunet_res_path, nnunet_env_path
+            df, out_path, nnunet_res_path, nnunet_env_path, device
         )
 
         # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
@@ -249,12 +254,23 @@ def main():
         default="/home/tsanchez/anaconda3/envs/nnunet",
     )
 
+    p.add_argument(
+        "--device",
+        help="Device to use for the nnUNet inference.",
+        default="cuda",
+        choices=["cuda", "cpu"],
+    )
+
     args = p.parse_args()
     print_title("Running segmentation on the low-resolution images")
     out_path = Path(args.out_path).absolute()
     print(args.nnunet_res_path)
     load_and_run_segmentation(
-        args.bids_csv, out_path, args.nnunet_res_path, args.nnunet_env_path
+        args.bids_csv,
+        out_path,
+        args.nnunet_res_path,
+        args.nnunet_env_path,
+        args.device,
     )
     return 0
 
