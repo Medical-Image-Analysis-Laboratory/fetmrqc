@@ -707,7 +707,9 @@ class LRStackMetrics:
         if is_valid_mask:
             try:
                 out = self.metrics_func[metric](**args_dict)
-            except Exception:
+            except Exception as e:
+                if self.verbose:
+                    print(f"EXCEPTION: {e}")
                 out = [np.nan]
             # Checking once more that if the metric is nan, we replace it with 0
         else:

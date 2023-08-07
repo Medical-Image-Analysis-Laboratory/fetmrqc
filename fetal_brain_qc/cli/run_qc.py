@@ -97,6 +97,13 @@ def main(argv=None):
         ),
     )
 
+    p.add_argument(
+        "--verbose",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=("Enable verbose."),
+    )
+
     args = p.parse_args(argv)
     bids_list = csv_to_list(args.bids_csv)
     print_title("Running QC evaluation")
@@ -105,6 +112,7 @@ def main(argv=None):
         ckpt_stack_iqa=args.ckpt_path_stack_iqa,
         ckpt_slice_iqa=args.ckpt_path_slice_iqa,
         device=args.device,
+        verbose=args.verbose,
     )
 
     if args.use_all_metrics:
