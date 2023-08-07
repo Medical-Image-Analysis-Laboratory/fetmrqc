@@ -979,7 +979,7 @@ class LRStackMetrics:
 
     def load_and_format_seg(self, seg_path):
         """Load segmentation and format it to be used by the metrics"""
-        if seg_path.endswith(".nii.gz"):
+        if str(seg_path).endswith(".nii.gz"):
             seg_ni = ni.load(seg_path)
             seg = squeeze_dim(seg_ni.get_fdata(), -1).transpose(2, 1, 0)
             if seg.max() > 3:
@@ -993,7 +993,7 @@ class LRStackMetrics:
             # raise NotImplementedError(
             #    "The nifti segmentation file has not been tested yet."
             # )
-        elif seg_path.endswith(".npz"):
+        elif str(seg_path).endswith(".npz"):
             seg = np.load(seg_path)["probabilities"]
             if seg.shape[0] > 4:
                 seg[1] += seg[4]
@@ -1003,7 +1003,9 @@ class LRStackMetrics:
             seg = seg.transpose(0, 3, 2, 1)
             seg_dict = {k: seg[l] for k, l in SEGM.items()}
         else:
-            raise ValueError("Unknown file format for segmentation file")
+            raise ValueError(
+                f"Unknown file format for segmentation file {seg_path}"
+            )
         # We cannot return a nifti object as seg_path might be .npz
         return seg_dict
 
