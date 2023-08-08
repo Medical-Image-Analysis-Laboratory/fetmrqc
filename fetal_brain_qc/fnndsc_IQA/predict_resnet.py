@@ -8,18 +8,21 @@ https://github.com/FNNDSC/pl-fetal-brain-assessment/blob/main/fetal_brain_assess
     http://childrenshospital.org/FNNDSC/
     dev@babyMRI.org
 """
-import os
+
+
 import logging
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.losses import Huber
-from tensorflow.keras.optimizers import Adam
-from .resnet_architecture import (
-    model_architecture as create_model_architecture,
-)
+import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import tensorflow as tf  # noqa: E402
+from tensorflow.keras.losses import Huber  # noqa: E402
+from tensorflow.keras.optimizers import Adam  # noqa: E402
+from .resnet_architecture import (  # noqa: E402
+    model_architecture as create_model_architecture,
+)
 
 # gpus = tf.config.experimental.list_physical_devices("GPU")
 # for gpu in gpus:
@@ -33,7 +36,6 @@ class Predictor:
         self,
         weights="/usr/local/share/fetal_brain_assessment/weights_resnet.hdf5",
     ):
-
         logger.debug("Creating model")
         self.model = create_model_architecture()
         logger.debug("Model created")

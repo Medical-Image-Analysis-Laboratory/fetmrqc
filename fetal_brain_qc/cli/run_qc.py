@@ -149,7 +149,7 @@ def main(argv=None):
         # Loading data
         name = Path(run["im"]).name
         if run["name"] in metrics_dict.keys():
-            print(f"Subject {name} found in metrics.csv.")
+            print(f"Subject {name} found in {args.out_csv}.")
             continue
 
         print(f"Processing subject {name}")

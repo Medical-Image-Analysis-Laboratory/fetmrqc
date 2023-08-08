@@ -1,7 +1,7 @@
+import os
 import numpy as np
 import nibabel as ni
 import skimage
-import os
 from .utils import (
     allow_kwargs,
     freeze,
@@ -34,9 +34,9 @@ from .mriqc_metrics import (
     cjv,
     wm2max,
 )
-
 import sys
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
@@ -979,7 +979,9 @@ class LRStackMetrics:
 
     def load_and_format_seg(self, seg_path):
         """Load segmentation and format it to be used by the metrics"""
-        if str(seg_path).endswith(".nii.gz"):
+
+        seg_path = str(seg_path).strip()
+        if seg_path.endswith(".nii.gz"):
             seg_ni = ni.load(seg_path)
             seg = squeeze_dim(seg_ni.get_fdata(), -1).transpose(2, 1, 0)
             if seg.max() > 3:
@@ -993,7 +995,7 @@ class LRStackMetrics:
             # raise NotImplementedError(
             #    "The nifti segmentation file has not been tested yet."
             # )
-        elif str(seg_path).endswith(".npz"):
+        elif seg_path.endswith(".npz"):
             seg = np.load(seg_path)["probabilities"]
             if seg.shape[0] > 4:
                 seg[1] += seg[4]
