@@ -36,8 +36,6 @@ from .mriqc_metrics import (
 )
 import sys
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
     "centroid",
