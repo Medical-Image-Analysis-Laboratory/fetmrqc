@@ -27,4 +27,8 @@ FETAL_STACK_IQA_CKPT = os.path.join(
     os.path.dirname(fbqc.__file__), "models/FNNDSC_qcnet_ckpt.hdf5"
 )
 
+FETAL_FETMRQC_CLF_CKPT = os.path.join(
+    os.path.dirname(fbqc.__file__), "models/fetmrqc_classification.joblib"
+)
+
 NNUNET_CKPT = os.path.join(os.path.dirname(fbqc.__file__), "models/nnUNet")
