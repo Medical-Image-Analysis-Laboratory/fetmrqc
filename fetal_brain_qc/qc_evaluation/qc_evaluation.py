@@ -247,7 +247,7 @@ REGRESSION_SCORING = {
     "prec": make_scorer(prec),
     "rec": make_scorer(rec),
     "f1": make_scorer(f1),
-    "roc_auc": make_scorer(roc_auc),
+    # "roc_auc": make_scorer(roc_auc),
     "tp": make_scorer(tp_),
     "fp": make_scorer(fp_),
     "fn": make_scorer(fn_),
@@ -267,12 +267,17 @@ CLASSIFICATION_MODELS = [
 
 CLASSIFICATION_SCORING = {
     "acc": "accuracy",
+    "bacc": "balanced_accuracy",
     "prec": "precision",
     "rec": "recall",
     "f1": "f1",
+    "f1w": "f1_weighted",
     "tp": make_scorer(tp),
     "fp": make_scorer(fp),
     "fn": make_scorer(fn),
     "tn": make_scorer(tn),
-    "roc_auc": make_scorer(nan_roc_auc),
+    "roc_auc": make_scorer(
+        nan_roc_auc, greater_is_better=True, needs_threshold=True
+    ),
+    "roc_auc_old": make_scorer(nan_roc_auc),
 }

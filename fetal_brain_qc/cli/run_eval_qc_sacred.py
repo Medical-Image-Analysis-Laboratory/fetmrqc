@@ -81,6 +81,7 @@ from pathlib import Path
 import pandas as pd
 import ast
 from sklearn.model_selection import RandomizedSearchCV
+import json
 
 SETTINGS["CAPTURE_MODE"] = "sys"
 ex = Experiment("Running nested cross validation on the IQM prediction")
@@ -187,6 +188,20 @@ def add_to_param(param, input):
     return param
 
 
+def get_group(df_ref, group):
+    """Returns the `group` column from `df_ref` depending
+    on the choice.
+    """
+    if group == "vx_size":
+        return df_ref["vx_size"] > 3.0
+    elif group in ["sub_ses", "site_field", "site", "model", "site_scanner"]:
+        return df_ref[group]
+    elif group is None or group.lower() == "none":
+        return [None for i in range(df_ref.shape[0])]
+    else:
+        raise NotImplementedError
+
+
 @ex.capture
 def read_parameter_grid(experiment, parameters, rng=None):
     exp_type = experiment["type"]
@@ -235,6 +250,26 @@ def read_parameter_grid(experiment, parameters, rng=None):
     return out_grid
 
 
+def get_field_strength(im_str):
+    """Take the metadata of the json file for a given image
+    and extract the magnetic field strength, the model name,
+    the TR and TE. and return it as a tuple of 4 values.
+    """
+
+    json_str = im_str.replace(".nii.gz", ".json")
+    if os.path.isfile(json_str):
+        with open(json_str, "r") as f:
+            metadata = json.load(f)
+        field = metadata["MagneticFieldStrength"]
+        model = metadata["ManufacturersModelName"].replace("_", " ")
+        TR = int(metadata["RepetitionTime"] * 1000)
+        TE = int(metadata["EchoTime"] * 1000)
+        return field, model, TR, TE
+    else:
+        print(im_str, "NO FILE FOUND")
+        return None, None, None, None
+
+
 def run_experiment(dataset, experiment, cv, parameters, seed):
     rng = np.random.RandomState(seed)
     is_regression = experiment["type"] == "regression"
@@ -248,13 +283,35 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
     else:
         raise ValueError("Dataset should be a csv or tsv file")
 
+    dataframe["field"] = dataframe[["im"]].applymap(get_field_strength)
+    (
+        dataframe["field"],
+        dataframe["model"],
+        dataframe["TR"],
+        dataframe["TE"],
+    ) = zip(*dataframe.field)
+    # dataframe["im_size_x_n"], dataframe["im_size_z_n"]
+    dataframe["site_field"] = dataframe.apply(
+        lambda x: f"{x['site']} - {x['field']:.1f}", axis=1
+    )
+    dataframe["site_scanner"] = dataframe.apply(
+        lambda x: f"{x['site']} - {x['model']}", axis=1
+    )
+    dataframe["vx_size"] = dataframe["im_size_vx_size"]
+
     # Return the position of the first IQM in the list
+    cols = dataframe.columns.tolist()
+    xy_index = cols.index(dataset["first_iqm"])
+
+    dataframe = dataframe[cols[:xy_index] + cols[-7:] + cols[xy_index:-7]]
     xy_index = dataframe.columns.tolist().index(dataset["first_iqm"])
-    dataframe = dataframe.dropna(axis=0)
-    cols = dataframe.columns[xy_index:]
-    types = {col: float if "nan" not in col else bool for col in cols}
-    dataframe = dataframe.astype(types)
+    # dataframe = dataframe.dropna(axis=0)
+    # cols = dataframe.columns[xy_index:]
     train_x = dataframe[dataframe.columns[xy_index:]].copy()
+    types = {
+        col: float if "nan" not in col else bool for col in train_x.columns
+    }
+    train_x = train_x.astype(types)
     train_y = dataframe[dataframe.columns[:xy_index]].copy()
     norm_feature = (
         None
@@ -262,10 +319,10 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
         or experiment["normalization_feature"].lower() == "none"
         else experiment["normalization_feature"]
     )
-    feature = dataframe[norm_feature] if norm_feature is not None else None
-
-    if norm_feature == "im_size_vx_size":
-        feature = (feature > 3).astype(int)
+    # feature = dataframe[norm_feature] if norm_feature is not None else None
+    feature = get_group(dataframe, norm_feature)
+    # if norm_feature == "im_size_vx_size":
+    #    feature = (feature > 3).astype(int)
     del dataframe
     metrics_list = get_metrics(metrics=experiment["metrics"])
 
@@ -273,8 +330,8 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
     i_cv = get_cv(cv["inner_cv"], rng=rng)
     outer_group_by = cv["outer_cv"]["group_by"]
     inner_group_by = cv["inner_cv"]["group_by"]
-    outer_groups = train_y[outer_group_by]
-    inner_groups = train_y[inner_group_by]
+    outer_groups = get_group(train_y, outer_group_by)
+    inner_groups = get_group(train_y, inner_group_by)
 
     if norm_feature is not None:
         train_x[norm_feature] = feature
@@ -389,9 +446,25 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
             if train_x[col].dtype == "object"
         }
     )
+
+    m_eval = [met for met in m if met in train_x.columns]
+    if len(m_eval) != len(m):
+        not_found = [met for met in m if met not in train_x.columns]
+        print(
+            f"WARNING: Not all metrics were found in train_x: {not_found} were not found."
+        )
+
+    # from combat.pycombat import pycombat
+
+    # tr = train_x[m_eval].loc[:, (train_x != train_x.iloc[0]).any()].astype(float)
+    # train_x = pycombat(tr.T, train_y[norm_feature].T).T
+    # m_eval = [m for m in m_eval if m in train_x.columns]
+    # train_x[norm_feature] = feature
+    # m_eval += [norm_feature]
+
     nested_score = cross_validate(
         inner_cv_opt,
-        X=train_x[m],
+        X=train_x[m_eval],  # train_x_norm,  #
         y=train_y["rating"],
         cv=o_cv,
         scoring=scores,
@@ -405,9 +478,11 @@ def run_experiment(dataset, experiment, cv, parameters, seed):
 
     outer_groups_list = []
     for i, (train_index, test_index) in enumerate(
-        o_cv.split(train_x[m], train_y["rating"], outer_groups)
+        o_cv.split(train_x[m_eval], train_y["rating"], outer_groups)
     ):
-        group = np.unique(outer_groups[test_index].to_numpy()).tolist()
+        group = np.unique(
+            outer_groups.reset_index(drop=True).loc[test_index].to_numpy()
+        ).tolist()
         outer_groups_list.append(group)
     nested_score["test_outer_groups"] = outer_groups_list
     # nested_score["inner_groups"] = inner_groups
@@ -426,12 +501,11 @@ def run(
         dataset, experiment, cv, parameters, _config["seed"]
     )
 
-    print(nested_score.keys(), nested_score["test_outer_groups"])
-
     print("FINAL RESULTS")
     for k, v in nested_score.items():
         if "test" in k and "groups" not in k:
             ex.log_scalar(f"{k}_mean", v.mean())
+            ex.log_scalar(f"{k}_med", np.median(v))
             ex.log_scalar(f"{k}_std", v.std())
             print(f"\t{k:20} = {v.mean():6.3f} +- {v.std():5.3f}")
 

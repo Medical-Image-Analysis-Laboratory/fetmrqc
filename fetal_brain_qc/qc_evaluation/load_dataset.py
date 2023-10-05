@@ -27,6 +27,8 @@ from pkg_resources import resource_filename as pkgrf
 import numpy as np
 from numpy.random import default_rng
 import pandas as pd
+import os
+import json
 
 
 def load_dataset(
@@ -51,6 +53,26 @@ def load_dataset(
         first_iqm=first_iqm,
         drop_nan=drop_nan,
     )
+
+
+def get_field_strength(im_str):
+    """Take the metadata of the json file for a given image
+    and extract the magnetic field strength, the model name,
+    the TR and TE. and return it as a tuple of 4 values.
+    """
+
+    json_str = im_str.replace(".nii.gz", ".json")
+    if os.path.isfile(json_str):
+        with open(json_str, "r") as f:
+            metadata = json.load(f)
+        field = metadata["MagneticFieldStrength"]
+        model = metadata["ManufacturersModelName"].replace("_", " ")
+        TR = int(metadata["RepetitionTime"] * 1000)
+        TE = int(metadata["EchoTime"] * 1000)
+        return field, model, TR, TE
+    else:
+        print(im_str, "NO FILE FOUND")
+        return None, None, None, None
 
 
 def load_data(
@@ -98,8 +120,27 @@ def load_data(
 
     dataframe = pd.read_csv(path, index_col=None, delimiter=r"\s+")
 
+    dataframe["field"] = dataframe[["im"]].applymap(get_field_strength)
+    (
+        dataframe["field"],
+        dataframe["model"],
+        dataframe["TR"],
+        dataframe["TE"],
+    ) = zip(*dataframe.field)
+    # dataframe["im_size_x_n"], dataframe["im_size_z_n"]
+    dataframe["site_field"] = dataframe.apply(
+        lambda x: f"{x['site']} - {x['field']:.1f}", axis=1
+    )
+    dataframe["site_scanner"] = dataframe.apply(
+        lambda x: f"{x['site']} - {x['model']}", axis=1
+    )
+    dataframe["vx_size"] = dataframe["im_size_vx_size"]
     # Return the position of the first IQM in the list
-    xy_index = dataframe.columns.tolist().index(first_iqm)
+    cols = dataframe.columns.tolist()
+    xy_index = cols.index(first_iqm)
+
+    dataframe = dataframe[cols[:xy_index] + cols[-7:] + cols[xy_index:-7]]
+
     if drop_nan:
         dataframe = dataframe.dropna(axis=0)
         cols = dataframe.columns[xy_index:]

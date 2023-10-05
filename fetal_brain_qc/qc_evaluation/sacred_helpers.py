@@ -27,7 +27,11 @@ def get_cv(cv_dict, rng=None):
     The dictionary must have `{"cv": cv_type, "cv_param1":val1, ...}` and the evaluation will be
     `cv_type(cv_param1=val1, ...)`
     """
-    from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+    from sklearn.model_selection import (
+        GroupKFold,
+        GroupShuffleSplit,
+        LeaveOneGroupOut,
+    )
     from .model_selection import CustomStratifiedGroupKFold
 
     cv_copy = copy.deepcopy(cv_dict)
@@ -37,13 +41,15 @@ def get_cv(cv_dict, rng=None):
         "GroupKFold",
         "GroupShuffleSplit",
         "CustomStratifiedGroupKFold",
+        "LeaveOneGroupOut",
     ]
     assert cv in valid_cv, f"The only valid CV splitters are {valid_cv}"
     # Get class from globals and create an instance
     cv_func = locals()[cv]
     argspec = inspect.getfullargspec(cv_func)
     args = argspec.args
-    args.remove("self")
+    if "self" in args:
+        args.remove("self")
     if hasattr(argspec, "kwonlyargs"):
         args += argspec.kwonlyargs
     for k in cv_copy.keys():
@@ -185,9 +191,8 @@ def save_outer_scores(exp, config_, nested_score, metrics_list):
         columns=cols + ["features_dropped", "features_importance"]
     )
     for i in range(n_eval):
-
         cv_step = {k: v for k, v in config.items()}
-        est = nested_score["estimator"][0]
+        est = nested_score["estimator"][i]
         cv_step.update({k: str(v) for k, v in est.best_params_.items()})
         cv_step.update({s: nested_score[s][i] for s in scores})
 
