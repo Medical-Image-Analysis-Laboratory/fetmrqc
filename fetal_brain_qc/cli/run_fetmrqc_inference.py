@@ -7,20 +7,16 @@ FetMRQC inference script
 
 def main():
     import os
-    import torch
     import argparse
     import pandas as pd
     from pathlib import Path
     import joblib
-    from fetal_brain_utils import csv_to_list, print_title
-    from fetal_brain_qc.fetal_IQA import eval_model, resnet34
+    from fetal_brain_utils import print_title
     from fetal_brain_qc.definitions import (
         FETAL_IQA_CKPT,
         FETAL_FETMRQC_CLF_CKPT,
     )
     from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
-
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     parser = argparse.ArgumentParser(
         description=("Performs FetMRQC inference, given a pretrained model."),
