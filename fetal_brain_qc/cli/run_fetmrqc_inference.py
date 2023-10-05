@@ -68,7 +68,6 @@ def main():
 
     test_x = bids_df[METRICS + METRICS_SEG]
     test_y = model.predict(test_x)
-    import pdb
 
     im_loc = bids_df.columns.get_loc("im")
     bids_df.insert(im_loc - 1, "fetmrqc_qc_passed", test_y.astype(int))

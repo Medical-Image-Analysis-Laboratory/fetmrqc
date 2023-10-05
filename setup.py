@@ -26,6 +26,7 @@ setup(
             "qc_evaluate_qc = fetal_brain_qc.cli.run_eval_qc:main",
             "qc_summary_eval = fetal_brain_qc.cli.summarize_qc_eval.py:main",
             "qc_run_inference = fetal_brain_qc.cli.run_fetmrqc_inference:main",
+            "qc_to_sr_config = fetal_brain_qc.cli.qc_to_bids_config:main",
         ],
     },
 )
