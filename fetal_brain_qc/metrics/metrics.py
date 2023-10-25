@@ -21,7 +21,6 @@ from skimage.morphology import binary_dilation, binary_erosion
 from skimage.filters import sobel, laplace
 from inspect import getmembers, isfunction
 from fetal_brain_utils import get_cropped_stack_based_on_mask
-from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 from fetal_brain_qc.utils import squeeze_dim
 from scipy.stats import kurtosis, variation
 from functools import partial
@@ -50,7 +49,7 @@ SEGM = {"BG": 0, "CSF": 1, "GM": 2, "WM": 3}
 segm_names = list(SEGM.keys())
 
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
 class LRStackMetrics:
@@ -100,7 +99,7 @@ class LRStackMetrics:
         if ckpt_stack_iqa:
             import os
 
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
             from fetal_brain_qc.fnndsc_IQA import Predictor
 
             self.stack_predictor = Predictor(ckpt_stack_iqa)
@@ -644,7 +643,8 @@ class LRStackMetrics:
 
     def normalize_dataset(self, bids_list, normalization="sub_ses"):
         """Taking a `bids_list` obtained using csv_to_list,
-        computes the factor that should be used to scale the input to the LR method."""
+        computes the factor that should be used to scale the input to the LR method.
+        """
 
         assert normalization in ["sub_ses", "site", "run", None]
 
@@ -754,7 +754,7 @@ class LRStackMetrics:
         if not is_valid_mask:
             print(f"\tWARNING: Empty mask {mask_path}.")
         for m in self._metrics:
-            if True:
+            if self.verbose:
                 print("\tRunning", m)
             results = self.eval_metrics_and_update_results(
                 results, m, args_dict, is_valid_mask
@@ -1359,6 +1359,8 @@ class LRStackMetrics:
     @allow_kwargs
     def _metric_stack_iqa(self, image, mask, positive_only=None) -> np.ndarray:
         """ """
+        from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
+
         # Loading data
 
         # Input to fnndsc must be n_h x n_w x n_slices, not the other way around.

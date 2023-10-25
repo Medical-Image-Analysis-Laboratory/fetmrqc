@@ -1,4 +1,4 @@
-"""This code was written by Junshen Xu and is part of the fetal-IQA 
+"""This code was written by Junshen Xu and is part of the fetal-IQA
 repository at https://github.com/daviddmc/fetal-IQA
 """
 from torch import nn
@@ -31,7 +31,14 @@ class DualFC(nn.Module):
 class PretrainedModel(nn.Module):
     def __init__(self, model_name, num_classes, p=0):
         super().__init__()
-        self.model = getattr(torchvision.models, model_name)(pretrained=True)
+        if model_name == "resnet34":
+            self.model = torchvision.models.resnet34(
+                weights=torchvision.models.ResNet34_Weights.IMAGENET1K_V1
+            )
+        else:
+            self.model = getattr(torchvision.models, model_name)(
+                pretrained=True
+            )
         if model_name.startswith("vgg"):
             num_ftrs = self.model.classifier[6].in_features
             self.model.classifier[6] = DualFC(num_ftrs, num_classes, p)
