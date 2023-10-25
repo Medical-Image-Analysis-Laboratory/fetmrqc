@@ -1,4 +1,3 @@
-# Load the data first.
 import pandas as pd
 import os
 from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
@@ -6,6 +5,7 @@ from joblib import dump
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from datetime import datetime
 from fetal_brain_qc.definitions import FETMRQC20
+import json
 
 
 def load_dataset(dataset, first_iqm):
@@ -50,47 +50,46 @@ def main():
     # Parser version of the code below
     import argparse
 
-    p = argparse.ArgumentParser("Train a FetMRQC model.")
-    p.add_argument(
+    parser = argparse.ArgumentParser("Train a FetMRQC model.")
+    parser.add_argument(
         "--dataset",
         help="Path to the csv file dataset.",
         default=DATASET,
     )
-    p.add_argument(
+    parser.add_argument(
         "--first_iqm",
         help="First IQM in the csv of the dataset.",
         default="centroid",
     )
-    p.add_argument(
+    parser.add_argument(
         "--classification",
         help="Whether to perform classification or regression.",
         action="store_true",
         default=True,
     )
-    p.add_argument(
+    parser.add_argument(
         "--regression",
         help="Whether to perform classification or regression.",
         dest="classification",
         action="store_false",
     )
-    p.add_argument(
+    parser.add_argument(
         "--fetmrqc20",
         help="Whether to use FetMRQC20 IQMs.",
         action=argparse.BooleanOptionalAction,
         default=False,
     )
-    p.add_argument(
+    parser.add_argument(
         "--iqms_list",
         help="Custom list of IQMs to use. By default, all IQMs are used.",
         nargs="+",
         default=None,
     )
-    p.add_argument("--save_path", help="Where to save the model.", default=".")
-    args = p.parse_args()
+    parser.add_argument(
+        "--save_path", help="Where to save the model.", default="."
+    )
+    args = parser.parse_args()
 
-    import pdb
-
-    pdb.set_trace()
     if args.iqms_list is not None:
         iqms = args.iqms_list
         print(f"Using custom IQMs: {iqms}")
@@ -98,16 +97,13 @@ def main():
         iqms = FETMRQC20
     else:
         iqms = METRICS + METRICS_SEG
-    import pdb
 
-    pdb.set_trace()
     if not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
-    FIRST_IQM = "centroid"
     out_path = os.path.join(
         args.save_path, model_name(args.classification, iqms)
     )
-    train_x, train_y = load_dataset(DATASET, FIRST_IQM)
+    train_x, train_y = load_dataset(args.dataset, args.first_iqm)
 
     model = (
         RandomForestClassifier()
@@ -125,7 +121,6 @@ def main():
         "timestamp": curr_time,
         "iqms": iqms,
     }
-    import json
 
     with open(out_path.replace(".joblib", ".json"), "w") as f:
         json.dump(config, f)
