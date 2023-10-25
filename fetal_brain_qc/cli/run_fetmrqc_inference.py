@@ -13,8 +13,11 @@ def main():
     import joblib
     from fetal_brain_utils import print_title
     from fetal_brain_qc.definitions import (
-        FETAL_IQA_CKPT,
+        FETAL_FETMRQC_REG_CKPT,
         FETAL_FETMRQC_CLF_CKPT,
+        FETAL_FETMRQC20_REG_CKPT,
+        FETAL_FETMRQC20_CLF_CKPT,
+        FETMRQC20,
     )
     from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
 
@@ -42,35 +45,60 @@ def main():
     )
 
     parser.add_argument(
-        "--task",
-        help="Whether a discrete score (regression) or a binary score (classification) is returned.",
-        default="classification",
-        choices=["classification", "regression"],
+        "--classification",
+        help="Whether to perform classification or regression.",
+        action="store_true",
+        default=True,
+    )
+    parser.add_argument(
+        "--regression",
+        help="Whether to perform classification or regression.",
+        dest="classification",
+        action="store_false",
+    )
+
+    parser.add_argument(
+        "--fetmrqc20",
+        help="Whether to use FetMRQC20 IQMs.",
+        action=argparse.BooleanOptionalAction,
+        default=False,
     )
 
     args = parser.parse_args()
     bids_df = pd.read_csv(args.bids_csv)
 
-    task = args.task
+    task = "classification" if args.classification else "regression"
     ckpt_path = args.ckpt_path
 
     if ckpt_path is None:
         if task == "classification":
-            ckpt_path = FETAL_FETMRQC_CLF_CKPT
+            if not args.fetmrqc20:
+                ckpt_path = FETAL_FETMRQC_CLF_CKPT
+            else:
+                ckpt_path = FETAL_FETMRQC20_CLF_CKPT
         elif task == "regression":
-            ckpt_path = FETAL_IQA_CKPT
+            if not args.fetmrqc20:
+                ckpt_path = FETAL_FETMRQC_REG_CKPT
+            else:
+                ckpt_path = FETAL_FETMRQC20_REG_CKPT
 
     model = joblib.load(ckpt_path)
 
     print_title(f"Running FetMRQC inference ({task}).")
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
-
-    test_x = bids_df[METRICS + METRICS_SEG]
+    if not args.fetmrqc20:
+        iqms = METRICS + METRICS_SEG
+    else:
+        iqms = FETMRQC20
+    test_x = bids_df[iqms]
     test_y = model.predict(test_x)
 
-    im_loc = bids_df.columns.get_loc("im")
-    bids_df.insert(im_loc - 1, "fetmrqc_qc_passed", test_y.astype(int))
+    if task == "classification":
+        bids_df.insert(0, "fetmrqc", test_y.astype(int))
+    else:
+        bids_df.insert(0, "fetmrqc", test_y)
+
     bids_df.to_csv(out_path, index=False)
     return 0
 
