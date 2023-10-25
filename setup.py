@@ -19,7 +19,7 @@ setup(
             "qc_fetal_iqa_mit = fetal_brain_qc.cli.run_iqa:main",
             "qc_fetal_iqa_fnndsc = fetal_brain_qc.cli.run_stack_iqa:main",
             "qc_compute_segmentation = fetal_brain_qc.cli.run_segmentation:main",
-            "qc_compute_metrics = fetal_brain_qc.cli.run_qc:main",
+            "qc_compute_metrics = fetal_brain_qc.cli.run_iqms_extraction:main",
             "qc_compute_niftymic = fetal_brain_qc.cli.run_qc_niftymic:main",
             "qc_compute_svrtk = fetal_brain_qc.cli.run_qc_svrtk:main",
             "qc_ratings_to_csv = fetal_brain_qc.cli.ratings_to_csv:main",
@@ -27,6 +27,7 @@ setup(
             "qc_summary_eval = fetal_brain_qc.cli.summarize_qc_eval.py:main",
             "qc_run_inference = fetal_brain_qc.cli.run_fetmrqc_inference:main",
             "qc_to_sr_config = fetal_brain_qc.cli.qc_to_bids_config:main",
+            "qc_run_training = fetal_brain_qc.cli.run_training_fetmrqc:main",
         ],
     },
 )

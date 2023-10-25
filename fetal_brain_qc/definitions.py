@@ -28,7 +28,40 @@ FETAL_STACK_IQA_CKPT = os.path.join(
 )
 
 FETAL_FETMRQC_CLF_CKPT = os.path.join(
-    os.path.dirname(fbqc.__file__), "models/fetmrqc_classification.joblib"
+    os.path.dirname(fbqc.__file__), "models/fetmrqc_full_class.joblib"
 )
+FETAL_FETMRQC_REG_CKPT = os.path.join(
+    os.path.dirname(fbqc.__file__), "models/fetmrqc_full_regr.joblib"
+)
+FETAL_FETMRQC20_CLF_CKPT = os.path.join(
+    os.path.dirname(fbqc.__file__), "models/fetmrqc_20_class.joblib"
+)
+FETAL_FETMRQC20_REG_CKPT = os.path.join(
+    os.path.dirname(fbqc.__file__), "data/iqms_train.csv"
+)
+IQMs = "/media/tsanchez/tsanchez_data/data/maddalena/iqms_full_no_test_no_avanto.csv"
 
 NNUNET_CKPT = os.path.join(os.path.dirname(fbqc.__file__), "models/nnUNet")
+
+FETMRQC20 = [
+    "rank_error",
+    "dilate_erode_mask_full",
+    "mask_volume",
+    "filter_sobel_mask_full",
+    "nrmse_window",
+    "filter_laplace_mask",
+    "filter_laplace_mask_full",
+    "dilate_erode_mask",
+    "rank_error_center",
+    "seg_sstats_BG_n",
+    "centroid",
+    "rank_error_center_relative",
+    "seg_sstats_CSF_n",
+    "seg_sstats_GM_n",
+    "im_size_z",
+    "ncc_intersection",
+    "ncc_window",
+    "psnr_window",
+    "seg_snr_WM",
+    "seg_volume_GM",
+]

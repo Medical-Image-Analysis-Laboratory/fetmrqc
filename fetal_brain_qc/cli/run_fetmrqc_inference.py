@@ -7,14 +7,18 @@ FetMRQC inference script
 
 def main():
     import os
+    import json
     import argparse
     import pandas as pd
     from pathlib import Path
     import joblib
     from fetal_brain_utils import print_title
     from fetal_brain_qc.definitions import (
-        FETAL_IQA_CKPT,
+        FETAL_FETMRQC_REG_CKPT,
         FETAL_FETMRQC_CLF_CKPT,
+        FETAL_FETMRQC20_REG_CKPT,
+        FETAL_FETMRQC20_CLF_CKPT,
+        FETMRQC20,
     )
     from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
 
@@ -42,36 +46,87 @@ def main():
     )
 
     parser.add_argument(
-        "--task",
-        help="Whether a discrete score (regression) or a binary score (classification) is returned.",
-        default="classification",
-        choices=["classification", "regression"],
+        "--classification",
+        help="Whether to perform classification or regression.",
+        action="store_true",
+        default=True,
+    )
+    parser.add_argument(
+        "--regression",
+        help="Whether to perform classification or regression.",
+        dest="classification",
+        action="store_false",
+    )
+
+    parser.add_argument(
+        "--fetmrqc20",
+        help="Whether to use FetMRQC20 IQMs.",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
+    parser.add_argument(
+        "--custom_model",
+        help="Path to a custom model, trained using run_train_fetmrqc.py.",
+        default=None,
+        type=str,
     )
 
     args = parser.parse_args()
     bids_df = pd.read_csv(args.bids_csv)
 
-    task = args.task
-    ckpt_path = args.ckpt_path
+    if args.custom_model is not None:
+        ckpt_path = args.custom_model
+        json_path = args.custom_model.replace(".joblib", ".json")
 
-    if ckpt_path is None:
-        if task == "classification":
-            ckpt_path = FETAL_FETMRQC_CLF_CKPT
-        elif task == "regression":
-            ckpt_path = FETAL_IQA_CKPT
+        with open(json_path, "r") as f:
+            json_dict = json.load(f)
+        task = (
+            "classification" if json_dict["classification"] else "regression"
+        )
+        print_title(f"Running a custom FetMRQC inference ({task}).")
+        print(
+            f"Dataset: {json_dict['dataset']}\nIQMs: {json_dict['iqms']}\n"
+            f"Experiment done on: {json_dict['timestamp']}"
+        )
+        iqms = json_dict["iqms"]
+    else:
+        task = "classification" if args.classification else "regression"
+        ckpt_path = args.ckpt_path
+
+        if ckpt_path is None:
+            if task == "classification":
+                if not args.fetmrqc20:
+                    ckpt_path = FETAL_FETMRQC_CLF_CKPT
+                else:
+                    ckpt_path = FETAL_FETMRQC20_CLF_CKPT
+            elif task == "regression":
+                if not args.fetmrqc20:
+                    ckpt_path = FETAL_FETMRQC_REG_CKPT
+                else:
+                    ckpt_path = FETAL_FETMRQC20_REG_CKPT
+
+        is20 = "20" if args.fetmrqc20 else ""
+        print_title(f"Running FetMRQC{is20} inference ({task}).")
+        if not args.fetmrqc20:
+            iqms = METRICS + METRICS_SEG
+        else:
+            iqms = FETMRQC20
 
     model = joblib.load(ckpt_path)
-
-    print_title(f"Running FetMRQC inference ({task}).")
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
 
-    test_x = bids_df[METRICS + METRICS_SEG]
+    test_x = bids_df[iqms]
     test_y = model.predict(test_x)
 
-    im_loc = bids_df.columns.get_loc("im")
-    bids_df.insert(im_loc - 1, "fetmrqc_qc_passed", test_y.astype(int))
+    if task == "classification":
+        bids_df.insert(0, "fetmrqc", test_y.astype(int))
+    else:
+        bids_df.insert(0, "fetmrqc", test_y)
+
     bids_df.to_csv(out_path, index=False)
+    print(f"Model predictions saved at {out_path.absolute() }.")
     return 0
 
 
