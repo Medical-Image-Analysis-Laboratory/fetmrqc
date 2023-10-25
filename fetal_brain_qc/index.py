@@ -42,7 +42,7 @@ def list_out_folders(out_folders):
 def generate_index(
     out_folders, add_script_to_reports, use_ordering_file, navigate
 ):
-    """TODO"""
+    """Generate index.html files in the given folders."""
 
     out_folder_list = list_out_folders(out_folders)
     out_dict = {}

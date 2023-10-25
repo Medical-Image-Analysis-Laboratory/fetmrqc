@@ -6,13 +6,15 @@ def main():
     p = argparse.ArgumentParser()
 
     p.add_argument(
-        "out_path",
-        help="Path where the reports will be stored.",
+        "--bids_csv",
+        help="Path where the bids config csv file is stored.",
+        required=True,
     )
 
     p.add_argument(
-        "bids_csv",
-        help="Path where the bids config csv file is located.",
+        "--out_dir",
+        help="Path where the reports will be stored.",
+        required=True,
     )
 
     p.add_argument(
@@ -23,7 +25,7 @@ def main():
     )
 
     p.add_argument(
-        "--add-js",
+        "--add_js",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether some javascript should be added to the report for interaction with the index file.",
@@ -35,7 +37,7 @@ def main():
     print_title("Generating reports")
     generate_report(
         bids_list,
-        out_folder=args.out_path,
+        out_folder=args.out_dir,
         boundary=20,
         boundary_tp=20,
         ncols_ip=6,

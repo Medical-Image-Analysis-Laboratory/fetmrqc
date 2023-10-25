@@ -6,8 +6,11 @@ def main():
     from fetal_brain_qc.brain_extraction import (
         bidsify_monaifbs,
         run_brain_extraction,
+        mask_was_found,
     )
     from fetal_brain_utils import iter_bids, print_title
+    from fetal_brain_qc.utils import fill_pattern
+    from pathlib import Path
 
     p = argparse.ArgumentParser(
         description=(
@@ -20,13 +23,15 @@ def main():
     )
 
     p.add_argument(
-        "bids_dir",
+        "--bids_dir",
         help="BIDS directory containing the LR series.",
+        required=True,
     )
 
     p.add_argument(
-        "masks_dir",
+        "--masks_dir",
         help="Root of the BIDS directory where brain masks will be stored.",
+        required=True,
     )
 
     p.add_argument(
@@ -36,7 +41,7 @@ def main():
     )
 
     p.add_argument(
-        "--mask-pattern",
+        "--mask_pattern",
         help=(
             "Pattern according to which the masks will be stored.\n "
             'By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
@@ -57,13 +62,23 @@ def main():
     mask_pattern = os.path.join(
         os.path.abspath(args.masks_dir), args.mask_pattern
     )
-    # Listing all files
-    files_paths = [out for _, _, _, out in iter_bids(bids_layout)]
-    # Create a tmp directory for the output of monaifbs segmentation
-    masks_tmp = os.path.join(args.masks_dir, "tmp")
-    run_brain_extraction(files_paths, masks_tmp, brain_ckpt=args.ckpt_path)
-    # Move files to their definitive location
-    bidsify_monaifbs(bids_layout, mask_pattern, masks_tmp)
+
+    # Listing all files if there isn't already a mask for them.
+    files_filtered = [
+        (sub, ses, run, out)
+        for sub, ses, run, out in iter_bids(bids_layout)
+        if not mask_was_found(bids_layout, sub, ses, run, mask_pattern)
+    ]
+
+    if len(files_filtered) == 0:
+        print("All masks were already computed")
+    else:
+        # Create a tmp directory for the output of monaifbs segmentation
+        masks_tmp = os.path.join(args.masks_dir, "tmp")
+        files_paths = [o[3] for o in files_filtered]
+        run_brain_extraction(files_paths, masks_tmp, brain_ckpt=args.ckpt_path)
+        # Move files to their definitive location
+        bidsify_monaifbs(files_filtered, bids_layout, mask_pattern, masks_tmp)
 
     return 0
 

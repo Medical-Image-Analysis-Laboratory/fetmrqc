@@ -37,9 +37,9 @@ FETAL_FETMRQC20_CLF_CKPT = os.path.join(
     os.path.dirname(fbqc.__file__), "models/fetmrqc_20_class.joblib"
 )
 FETAL_FETMRQC20_REG_CKPT = os.path.join(
-    os.path.dirname(fbqc.__file__), "data/iqms_train.csv"
+    os.path.dirname(fbqc.__file__), "models/fetmrqc_20_regr.joblib"
 )
-IQMs = "/media/tsanchez/tsanchez_data/data/maddalena/iqms_full_no_test_no_avanto.csv"
+IQMs = os.path.join(os.path.dirname(fbqc.__file__), "data/iqms_train.csv")
 
 NNUNET_CKPT = os.path.join(os.path.dirname(fbqc.__file__), "models/nnUNet")
 
