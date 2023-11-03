@@ -1,4 +1,22 @@
-from fetal_brain_utils.cropping import crop_image_to_region
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# This code was originally written by Junshen Xu and is part of the fetal-IQA
+# repository at https://github.com/daviddmc/fetal-IQA (originally licensed under
+# an MIT license)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from copy import deepcopy
 import numpy as np
 import nibabel as ni
@@ -85,7 +103,9 @@ def crop_pad_img(data, xrange, yrange, zrange):
     """Utility function to apply the cropping around the brain,
     pad the image if it is too small and return a nifti file.
     """
-    data = crop_image_to_region(data, xrange, yrange, zrange)
+    data = data[
+        xrange[0] : xrange[1], yrange[0] : yrange[1], zrange[0] : zrange[1]
+    ]
     if any(x < 256 for x in data.shape[:2]):
         pad_to = (256, 256, data.shape[2])
         data = pad_image(data, pad_to)
@@ -106,7 +126,7 @@ def adjust_around_mask_to_256(image, mask):
     if len(coords[0]) == 0:
         raise ValueError("Empty mask.")
 
-    xmean, ymean, = (
+    (xmean, ymean,) = (
         int(coords[0].mean()),
         int(coords[1].mean()),
     )
@@ -115,6 +135,6 @@ def adjust_around_mask_to_256(image, mask):
     yrange = get_256_range(yshape, ymean)
     zrange = (min(coords[2]), max(coords[2] + 1))
 
-    crop_fct = lambda im: crop_pad_img(im, xrange, yrange, zrange)
-
-    return crop_fct(image), crop_fct(mask)
+    return crop_pad_img(image, xrange, yrange, zrange), crop_pad_img(
+        mask, xrange, yrange, zrange
+    )

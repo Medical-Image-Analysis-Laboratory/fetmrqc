@@ -1,3 +1,20 @@
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 def main():
     import argparse
     from fetal_brain_qc.list_bids import list_bids
@@ -6,7 +23,7 @@ def main():
     from fetal_brain_utils import print_title
     import os
 
-    p = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         description=(
             "Given a `bids_dir`, lists the LR series in "
             " the directory and tries to find corresponding masks given by "
@@ -16,13 +33,13 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    p.add_argument(
-        "bids_dir",
+    parser.add_argument(
+        "--bids_dir",
+        required=True,
         help="BIDS directory containing the LR series.",
     )
-
-    p.add_argument(
-        "--mask-patterns",
+    parser.add_argument(
+        "--mask_patterns",
         help=(
             "Pattern(s) to find the LR masks corresponding to the LR series.\n "
             'Patterns will be of the form "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
@@ -31,11 +48,10 @@ def main():
             "can be changed with `--mask-pattern-base`."
         ),
         nargs="+",
-        # default=[MASK_PATTERN],
     )
 
-    p.add_argument(
-        "--mask-patterns-base",
+    parser.add_argument(
+        "--mask_patterns_base",
         help=(
             "Base folder(s) from which the LR masks must be listed.\n "
             "The method will look for masks at `mask-pattern-base`/`mask-patterns`. "
@@ -45,29 +61,29 @@ def main():
         default=None,
     )
 
-    p.add_argument(
-        "--out-csv",
+    parser.add_argument(
+        "--out_csv",
         help="CSV file where the list of available LR series and masks is stored.",
         default="bids_csv.csv",
     )
 
-    p.add_argument(
-        "--anonymize-name",
+    parser.add_argument(
+        "--anonymize_name",
         help=(
-            "Whether an anonymized name must be stored along the paths in `out-csv`. "
+            "Whether an anonymized name must be stored along the paths in `out_csv`. "
             "This will determine whether the reports will be anonymous in the end."
         ),
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    p.add_argument(
+    parser.add_argument(
         "--seed",
         help="Seed for the random number generator.",
         type=int,
         default=None,
     )
 
-    args = p.parse_args()
+    args = parser.parse_args()
     print_title("Running list_bids")
     # Constructing patterns.
     if args.mask_patterns_base:

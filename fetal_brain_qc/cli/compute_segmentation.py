@@ -1,4 +1,21 @@
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """ Compute segmentation on low resolution clinical acquisitions.
+By default the segmentation is computed using a nnUNet-v2 model pretrained on FeTA data,
+but other methods can be used.
 """
 
 # Import libraries
@@ -17,6 +34,38 @@ PATTERN = (
     "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}"
     "[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz"
 )
+
+PATTERN_BASE = (
+    "sub-{subject}[/ses-{session}]/sub-{subject}"
+    "[_ses-{session}][_acq-{acquisition}][_run-{run}]"
+)
+PATTERN_CROPPED = PATTERN_BASE + "_desc-cropped_T2w.nii.gz"
+PATTERN_PROB_SEG = PATTERN_BASE + "_desc-proba_seg.npz"
+PATTERN_SEG = PATTERN_BASE + "_seg.nii.gz"
+PATTERN_PKL = PATTERN_BASE + "_T2w.pkl"
+
+
+def existing_seg(ents, out_path):
+    """Check whether the segmentation has already been computed."""
+    seg_path = out_path / build_path(ents, PATTERN_SEG)
+    seg_proba_path = out_path / build_path(ents, PATTERN_PROB_SEG)
+    seg_cropped_path = out_path / build_path(ents, PATTERN_CROPPED)
+    seg_pkl_path = out_path / build_path(ents, PATTERN_PKL)
+    if (
+        os.path.exists(seg_path)
+        and os.path.exists(seg_proba_path)
+        and os.path.exists(seg_cropped_path)
+        and os.path.exists(seg_pkl_path)
+    ):
+        return (
+            ents.get("subject", None),
+            ents.get("session", None),
+            ents.get("run", None),
+            seg_path,
+            seg_proba_path,
+        )
+    else:
+        return None
 
 
 def compute_segmentations(
@@ -39,6 +88,7 @@ def compute_segmentations(
 
     def mask_im(im, mask):
         """Crop the image and mask, save them to out_path and rename them for processing with nnUNet."""
+
         cropped = crop_input(
             im, mask, out_path, mask_image=True, save_mask=False
         )
@@ -54,25 +104,51 @@ def compute_segmentations(
             print(f"WARNING: {im} could not be cropped.")
 
     print("Cropping images ...", end="")
-    Parallel(n_jobs=4)(
-        delayed(mask_im)(im, mask)
-        for im, mask in zip(bids_df["im"], bids_df["mask"])
-    )
+    list_seg = []
+    list_done = []
+    for _, row in bids_df.iterrows():
+        out = existing_seg(parse_file_entities(row["im"]), out_path)
+        if out is None:
+            list_seg.append((row["im"], row["mask"]))
+        else:
+            list_done.append(out)
+    Parallel(n_jobs=4)(delayed(mask_im)(im, mask) for im, mask in list_seg)
+
     print(" done.")
 
     # Run nnUNet inference
     # /home/tsanchez/anaconda3/envs/nnunet/bin/
 
-    cmd_path = os.path.join(nnunet_env_path, "bin", "nnUNetv2_predict")
-    os.system(
-        f"nnUNet_results={nnunet_res_path}  nnUNet_raw='' nnUNet_preprocessed='' {cmd_path} "
-        f"-d 1 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities "
-        f"-device {device}"
-    )
+    if len(list_seg) > 0:
+        cmd_path = os.path.join(nnunet_env_path, "bin", "nnUNetv2_predict")
+        os.system(
+            f"nnUNet_results={nnunet_res_path}  nnUNet_raw='' nnUNet_preprocessed='' {cmd_path} "
+            f"-d 1 -i {out_path} -o {out_path} -c 2d -f 0 --save_probabilities "
+            f"-device {device}"
+        )
+    else:
+        print("All segmentations were already computed.")
 
     # Move the outputs to the corresponding BIDS folder which will contain
     # 1. The cropped images, 2. The segmentations 3. The probability maps 4. the pkl files.
     df = pd.DataFrame(columns=["sub", "ses", "run", "seg", "seg_proba"])
+    for sub, ses, run, seg, seg_proba in list_done:
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    {
+                        "sub": str(sub),
+                        "ses": ses,
+                        "run": run,
+                        "seg": seg,
+                        "seg_proba": seg_proba,
+                    },
+                    index=[0],
+                ),
+            ],
+            ignore_index=True,
+        )
 
     for file in list(out_path.glob("*_T2w.nii.gz")):
         ents = parse_file_entities(file)
@@ -84,7 +160,7 @@ def compute_segmentations(
         os.makedirs(seg_path.parent, exist_ok=True)
         file, seg_path = str(file), str(seg_path)
         seg_out = seg_path.replace("_T2w.nii.gz", "_seg.nii.gz")
-        seg_proba = seg_path.replace("_T2w.nii.gz", "desc-proba_seg.npz")
+        seg_proba = seg_path.replace("_T2w.nii.gz", "_desc-proba_seg.npz")
         os.rename(file, seg_out)
         os.rename(
             file.replace("_T2w.nii.gz", "_T2w.pkl"),
@@ -220,7 +296,8 @@ def main():
 
     p = argparse.ArgumentParser(
         description=(
-            "Compute segmentation on low resolution clinical acquisitions."
+            "Compute segmentation on low resolution clinical acquisitions, using a "
+            "pretrained deep learning model."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

@@ -1,3 +1,18 @@
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 FetMRQC inference script
 """
@@ -28,14 +43,14 @@ def main():
     )
 
     parser.add_argument(
-        "--bids-csv",
-        help="Path where the bids config csv file is located.",
+        "--iqms_csv",
+        help="Path where the IQMs csv file is located.",
         required=True,
     )
 
     parser.add_argument(
-        "--out-csv",
-        help="Path where the IQA results will be stored.",
+        "--out_csv",
+        help="CSV file where the predicted results will be stored.",
         required=True,
     )
 
@@ -73,7 +88,7 @@ def main():
     )
 
     args = parser.parse_args()
-    bids_df = pd.read_csv(args.bids_csv)
+    bids_df = pd.read_csv(args.iqms_csv)
 
     if args.custom_model is not None:
         ckpt_path = args.custom_model
@@ -116,7 +131,9 @@ def main():
     model = joblib.load(ckpt_path)
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
+    import pdb
 
+    pdb.set_trace()
     test_x = bids_df[iqms]
     test_y = model.predict(test_x)
 
