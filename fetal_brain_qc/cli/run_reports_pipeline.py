@@ -1,6 +1,22 @@
-# Reports generation pipeline script, calling successively the following steps:
-# 1. qc_brain_extraction 2. qc_list_bids_csv 3. qc_generate_reports 4. qc_generate_index
-# Given a BIDS dataset, generates a report for each subject/session/run.
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Reports generation pipeline script, calling successively the following steps:
+1. qc_brain_extraction 2. qc_list_bids_csv 3. qc_generate_reports 4. qc_generate_index
+Given a BIDS dataset, generates a report for each subject/session/run.
+"""
 
 import argparse
 import os
@@ -54,7 +70,7 @@ def main():
     )
     parser.add_argument(
         "--bids_csv",
-        help="CSV file where the list of available LR series and masks is stored.",
+        help="CSV file where the list of available LR series and masks will be stored.",
         default="bids_csv.csv",
     )
 
@@ -62,7 +78,7 @@ def main():
         "--seed",
         type=int,
         default=42,
-        help="Seed to control the randomization (to be used with randomize=True).",
+        help="Seed for the random number generator.",
     )
     args = parser.parse_args()
 

@@ -1,4 +1,21 @@
+# FetMRQC: Quality control for fetal brain MRI
+#
+# Copyright 2023 Medical Image Analysis Laboratory (MIAL)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """ Compute segmentation on low resolution clinical acquisitions.
+By default the segmentation is computed using a nnUNet-v2 model pretrained on FeTA data,
+but other methods can be used.
 """
 
 # Import libraries
@@ -279,7 +296,8 @@ def main():
 
     p = argparse.ArgumentParser(
         description=(
-            "Compute segmentation on low resolution clinical acquisitions."
+            "Compute segmentation on low resolution clinical acquisitions, using a "
+            "pretrained deep learning model."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

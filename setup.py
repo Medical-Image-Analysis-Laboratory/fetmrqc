@@ -19,6 +19,8 @@ setup(
             "qc_ratings_to_csv = fetal_brain_qc.cli.ratings_to_csv:main",
             "qc_inference = fetal_brain_qc.cli.inference:main",
             "qc_training = fetal_brain_qc.cli.training:main",
+            "qc_reports_pipeline = fetal_brain_qc.cli.run_reports_pipeline:main",
+            "qc_inference_pipeline = fetal_brain_qc.cli.run_inference_pipeline:main",
         ],
     },
 )

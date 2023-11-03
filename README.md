@@ -1,18 +1,17 @@
-# Fetal Brain Quality Control
+# FetMRQC
 ## About
-![fetal brain QC](img/fetal_brain_qc.png)
+[FetMRQC](https://arxiv.org/pdf/2304.05879.pdf) is a tool for quality assessment (QA) and quality control (QC) of T2-weighted (T2w) fetal brain MR images. It consists of two parts.
+1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
+2. A **QA/QC model** that can predict the quality of given T2w scans. It works on [BIDS](https://bids.neuroimaging.io/)-formatted datasets.
 
-*Fetal brain QC* is a tool to facilitate quality annotations of T2w fetal brain MRI images, by creating interactive html-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
+![fetal brain QC](img/fetmrqc.png)
 
-The code is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
-
-**Note.** The current version of *Fetal brain QC* only works on low-resolution T2w images.
+The code of the rating interface is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
 
 **Disclaimer.** Fetal brain QC is not intended for clinical use.
 
-
-## Installation
-fetal_brain_qc was developed in Ubuntu 22.04 and tested for python 3.9.15
+## Local installation
+*FetMRQC* (`fetal_brain_qc`) was developed in Ubuntu 22.04 and tested for python 3.9.15
 
 To install this repository, first clone it via
 ```
@@ -53,156 +52,159 @@ You can now exit the new environment and re-activate `fetal_brain_qc`.
 
 
 ## Usage
-*Fetal brain QC* starts from a [BIDS](https://bids.neuroimaging.io/) dataset (containing `NIfTI` formatted images), as well as an additional folder containing *brain masks*. 
+*FetMRQC* starts from a [BIDS](https://bids.neuroimaging.io/) dataset (containing `NIfTI` formatted images).  
 
-The recommended workflow is to use `qc_run_pipeline` (CURRENTLY OUTDATED -- see below for the recommended path)
+For **reports** generation, the recommended workflow is to use `qc_reports_pipeline`.
+
 ```
-usage: qc_run_pipeline [-h] [--mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--bids-csv BIDS_CSV] [--anonymize-name | --no-anonymize-name] [--randomize | --no-randomize] [--seed SEED]
-                       [--n-reports N_REPORTS] [--n-raters N_RATERS]
-                       bids_dir out_path
+usage: qc_reports_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR --reports_dir REPORTS_DIR [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN] [--bids_csv BIDS_CSV] [--seed SEED]
 
-Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `bids_csv`
-
-positional arguments:
-  bids_dir              BIDS directory containing the LR series.
-  out_path              Path where the reports will be stored.
+Given a `bids_dir`, lists the LR series in the directory, computes the brain masks using MONAIfbs and uses the masks to compute visual reports that can be used for manual rating.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]
-                        List of patterns to find the LR masks corresponding to the LR series. Patterns will be of the form
-                        "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be substituted based on
-                        the structure of bids_dir. The code will attempt to find the mask corresponding to the first pattern, and if it fails, will attempt the next one, etc. If no masks are found, a
-                        warning message will be displayed for the given subject, session and run. (default: ['/media/tsanchez/tsanchez_data/data/data_anon/derivatives/refined_masks/sub-{subject}[/ses-{
-                        session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz', '/media/tsanchez/tsanchez_data/data/data_anon/derivatives/automated_masks/
-                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz'])
-  --bids-csv BIDS_CSV   CSV file where the list of available LR series and masks is stored. (default: bids_csv.csv)
-  --anonymize-name, --no-anonymize-name
-                        Whether an anonymized name must be stored along the paths in `out-csv`. This will determine whether the reports will be anonymous in the end. (default: True)
-  --randomize, --no-randomize
-                        Whether the order of the reports should be randomized. The number of splits will be given by `n-raters` and the number of reports in each split by `n-reports`. The results will
-                        be stored in different subfolders of `out-path` (default: True)
-  --seed SEED           Seed to control the randomization (to be used with randomize=True). (default: 42)
-  --n-reports N_REPORTS
-                        Number of reports that should be used in the randomized study (to be used with randomize=True). (default: 100)
-  --n-raters N_RATERS   Number of permutations of the data that must be computed (to be used with randomize=True). (default: 3)
-  --navigation, --no-navigation
-                        Whether the user should be able to freely navigate between reports. This is
-                        disabled for rating, to force user to process reports sequentially.
-                        (default: False)
-
-```
-**Remark.** This script runs the whole pipeline of *fetal brain QC*, i.e. listing of BIDS directory and masks -> (anonymization of data) -> report generation (-> randomization of reports) -> index file generation
-
-The typical pipeline paths are the following:
-- Image quality metric computation: `qc_list_bids_csv` -> `qc_brain_extraction` -> `qc_compute_segmentation` -> `qc_compute_metrics`
-- Report generation: `qc_list_bids_csv` -> `qc_brain_extraction` -> `qc_generate_reports` -> `qc_generate_index`
-
-
-Each part of the pipeline can also be called individually, as shown below.
-
-- `qc_list_bids_csv` (+ anonymization)
-```
-usage: qc_list_bids_csv [-h] [--mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--out-csv OUT_CSV] [--anonymize-name | --no-anonymize-name] bids-dir
-
-Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `out_csv`
-
-positional arguments:
-  bids_dir              BIDS directory containing the LR series.
-
-options:
-  -h, --help            show this help message and exit
-  --mask-patterns MASK_PATTERNS [MASK_PATTERNS ...]
-                        List of patterns to find the LR masks corresponding to the LR series. Patterns will be of the form
-                        "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be substituted based on
-                        the structure of bids_dir. The code will attempt to find the mask corresponding to the first pattern, and if it fails, will attempt the next one, etc. If no masks are found, a
-                        warning message will be displayed for the given subject, session and run.
-  --out-csv OUT_CSV     CSV file where the list of available LR series and masks is stored.
-  --anonymize-name, --no-anonymize-name
-                        Whether an anonymized name must be stored along the paths in `out-csv`. This will determine whether the reports will be anonymous in the end. (default: True)
-```
-
-- `qc_generate_reports`
-```
-usage: qc_generate_reports [-h] [--add-js | --no-add-js] out-path bids-csv
-
-positional arguments:
-  out_path              Path where the reports will be stored.
-  bids_csv              Path where the bids config csv file is located.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --add-js, --no-add-js
-                        Whether some javascript should be added to the report for interaction with the index file. (default: True)
-```
-
-- `qc_randomize_reports`
-```
-usage: qc_randomize_reports [-h] [--seed SEED] [--n-reports N_REPORTS] [--n-raters N_RATERS] reports-path out-path
-
-Randomization of the reports located in `reports_path`. By default, the `n-reports` random reports will be sampled and `n-reports` different permutations of these reports will be saved as subfolders of
-`out-path` labelled as split_1 to split_<n-raters>. Each folder will contain an `ordering.csv` file with the randomized ordering to be used.
-
-positional arguments:
-  reports_path          Path where the reports are located
-  out_path              Path where the randomized reports will be stored.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --seed SEED           Seed to control the randomization (default: 42)
-  --n-reports N_REPORTS
-                        Number of reports that should be used in the randomized study. (default: 100)
-  --n-raters N_RATERS   Number of raters (number of permutations of the data that must be computed). (default: 3)
-```
-
-- `qc_generate_index`
-```
-usage: qc_generate_index [-h] [--add-script-to-reports | --no-add-script-to-reports] [--use-ordering-file | --no-use-ordering-file] reports-path [reports-path ...]
-
-positional arguments:
-  reports_path          Path where the reports are located
-
-options:
-  -h, --help            show this help message and exit
-  --add-script-to-reports, --no-add-script-to-reports
-                        Whether some javascript should be added to the report for interaction with the index file. (default: False)
-  --use-ordering-file, --no-use-ordering-file
-                        Whether ordering.csv should be used to construct the ordering of index.html. The file should be located in the report-path folder. (default: False)
-  --navigation, --no-navigation
-                        Whether the user should be able to freely navigate between reports. This is
-                        disabled for rating, to force user to process reports sequentially.
-                        (default: False)
-
-```
-
-- `qc_brain_extraction`
-```
-usage: qc_brain_extraction [-h] [--ckpt_path CKPT_PATH] [--mask-pattern MASK_PATTERN] bids_dir masks_dir
-
-Given a `bids_dir`, lists the LR series in the directory and computes the brain masks using MONAIfbs (https://github.com/gift-surg/MONAIfbs/tree/main). Save the masks into the `masks_dir` folder,
-follwing the same hierarchy as the `bids_dir`
-
-positional arguments:
-  bids_dir              BIDS directory containing the LR series.
-  masks_dir             Root of the BIDS directory where brain masks will be stored.
-
-optional arguments:
-  -h, --help            show this help message and exit
+  --bids_dir BIDS_DIR   BIDS directory containing the LR series. (default: None)
+  --masks_dir MASKS_DIR
+                        Root of the BIDS directory where brain masks will be stored. (default: None)
+  --reports_dir REPORTS_DIR
+                        Directory where the reports will be stored. (default: None)
   --ckpt_path CKPT_PATH
                         Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
-  --mask-pattern MASK_PATTERN
+  --mask_pattern MASK_PATTERN
                         Pattern according to which the masks will be stored. By default, masks will be stored in
                         "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
                         substituted based on the structure of bids_dir. (default:
                         sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+  --bids_csv BIDS_CSV   CSV file where the list of available LR series and masks will be stored. (default: bids_csv.csv)
+  --seed SEED           Seed for the random number generator. (default: 42)
+
+```
+**Remark.** This script runs the whole reports generating pipeline of *FetMRQC*, i.e.  brain extraction ->  listing of BIDS directory and masks into a CSV file -> Report generation -> Index file generation. 
+
+For **inference**, the recommended workflow is  `qc_inference_pipeline`.
+
+```
+usage: qc_inference_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR --seg_dir SEG_DIR [--bids_csv BIDS_CSV] [--iqms_csv IQMS_CSV] [--out_csv OUT_CSV] [--iqms IQMS [IQMS ...]] [--nprocs NPROCS]
+                             [--fetmrqc20_iqms | --no-fetmrqc20_iqms] [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN] [--seed SEED] [--classification] [--regression] [--custom_model CUSTOM_MODEL]
+
+Given a `bids_dir`, lists the LR series in the directory, computes brain masks and segmentations, uses them to extract IQMs and perform inference using one of the pretrained FetMRQC models. The output
+is a CSV file containing the predictions and IQMs.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bids_dir BIDS_DIR   BIDS directory containing the LR series. (default: None)
+  --masks_dir MASKS_DIR
+                        Root of the BIDS directory where brain masks will be/are stored. If masks already exist, they will be used. (default: None)
+  --seg_dir SEG_DIR     Root of the directory where brain segmentations will be stored. If segmentations already exist, they will be used. (default: None)
+  --bids_csv BIDS_CSV   CSV file where the list of available LR series and masks will be stored. (default: bids_csv.csv)
+  --iqms_csv IQMS_CSV   CSV file where the computed IQMs will be stored. (default: iqms_csv.csv)
+  --out_csv OUT_CSV     CSV file where the predictions from FetMRQC will be stored. (default: out_csv.csv)
+  --iqms IQMS [IQMS ...]
+                        List of IQMs that will be computed (default: all)
+  --nprocs NPROCS       Number of processes to use for the computation of the IQMs. (default: 4)
+  --fetmrqc20_iqms, --no-fetmrqc20_iqms
+                        Whether the IQMs from FetMRQC-20 should be computed (default: False)
+  --ckpt_path CKPT_PATH
+                        Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
+  --mask_pattern MASK_PATTERN
+                        Pattern according to which the masks will be stored. By default, masks will be stored in
+                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
+                        substituted based on the structure of bids_dir. (default:
+                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+  --seed SEED           Seed to control the randomization (to be used with randomize=True). (default: 42)
+  --classification      Whether to perform classification or regression. (default: True)
+  --regression          Whether to perform classification or regression. (default: True)
+  --custom_model CUSTOM_MODEL
+                        Path to a custom model, trained using run_train_fetmrqc.py. (default: None)
 
 ```
 
-- `qc_compute_segmentation`
-```
-usage: qc_compute_segmentation [-h] --bids_csv BIDS_CSV [--out_path OUT_PATH] [--ckpt_path_model CKPT_PATH_MODEL] [--nnunet_res_path NNUNET_RES_PATH] [--nnunet_env_path NNUNET_ENV_PATH]
+**Remark.** This script runs the whole inference pipeline of *FetMRQC*, i.e.  brain extraction ->  listing of BIDS directory and masks into a CSV file -> Segmentation of the brain -> IQMs extraction -> Inference using a pretrained FetMRQC model
 
-Compute segmentation on low resolution clinical acquisitions.
+Each part of the pipeline can also be called individually:
+
+- `qc_brain_extraction`:
+```
+usage: qc_brain_extraction [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN]
+
+Given a `bids_dir`, lists the LR series in the directory and computes the brain masks using MONAIfbs (https://github.com/gift-surg/MONAIfbs/tree/main). Save the masks into the `masks_dir` folder,
+follwing the same hierarchy as the `bids_dir`
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bids_dir BIDS_DIR   BIDS directory containing the LR series. (default: None)
+  --masks_dir MASKS_DIR
+                        Root of the BIDS directory where brain masks will be stored. (default: None)
+  --ckpt_path CKPT_PATH
+                        Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
+  --mask_pattern MASK_PATTERN
+                        Pattern according to which the masks will be stored. By default, masks will be stored in
+                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
+                        substituted based on the structure of bids_dir. (default:
+                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+```
+
+- `qc_list_bids_csv` 
+```
+usage: qc_list_bids_csv [-h] --bids_dir BIDS_DIR [--mask_patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--mask_patterns_base MASK_PATTERNS_BASE [MASK_PATTERNS_BASE ...]] [--out_csv OUT_CSV]
+                        [--anonymize_name | --no-anonymize_name] [--seed SEED]
+
+Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `out_csv`
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bids_dir BIDS_DIR   BIDS directory containing the LR series. (default: None)
+  --mask_patterns MASK_PATTERNS [MASK_PATTERNS ...]
+                        Pattern(s) to find the LR masks corresponding to the LR series. Patterns will be of the form
+                        "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be substituted based on
+                        the structure of bids_dir. The base directory from which the search will be run can be changed with `--mask-pattern-base`. (default: None)
+  --mask_patterns_base MASK_PATTERNS_BASE [MASK_PATTERNS_BASE ...]
+                        Base folder(s) from which the LR masks must be listed. The method will look for masks at `mask-pattern-base`/`mask-patterns`. In this case, both `mask-patterns` and `mask-
+                        pattern-base` should be of the same length. (default: None)
+  --out_csv OUT_CSV     CSV file where the list of available LR series and masks is stored. (default: bids_csv.csv)
+  --anonymize_name, --no-anonymize_name
+                        Whether an anonymized name must be stored along the paths in `out_csv`. This will determine whether the reports will be anonymous in the end. (default: True)
+  --seed SEED           Seed for the random number generator. (default: None)
+```
+
+- `qc_generate_reports`
+```
+usage: Given a BIDS CSV file, generates visual reports for annotation. [-h] --bids_csv BIDS_CSV --out_dir OUT_DIR [--sr | --no-sr] [--add_js | --no-add_js]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --bids_csv BIDS_CSV   Path where the bids config csv file is stored. (default: None)
+  --out_dir OUT_DIR     Path where the reports will be stored. (default: None)
+  --sr, --no-sr         Whether the reports to be generated are for SR data. (default: False)
+  --add_js, --no-add_js
+                        Whether some javascript should be added to the report for interaction with the index file. (default: True)
+```
+
+- `qc_generate_index`
+```
+usage: qc_generate_index [-h] [--reports_dirs REPORTS_DIRS [REPORTS_DIRS ...]] [--add_script_to_reports | --no-add_script_to_reports] [--use_ordering_file | --no-use_ordering_file]
+                         [--navigation | --no-navigation] [--seed SEED]
+
+Given a list of reports, generates an index.html file to navigate through them.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --reports_dirs REPORTS_DIRS [REPORTS_DIRS ...]
+                        Paths where the reports are located (default: None)
+  --add_script_to_reports, --no-add_script_to_reports
+                        Whether some javascript should be added to the report for interaction with the index file. (default: False)
+  --use_ordering_file, --no-use_ordering_file
+                        Whether ordering.csv should be used to construct the ordering of index.html. The file should be located in the report-path folder. (default: False)
+  --navigation, --no-navigation
+                        Whether the user should be able to freely navigate between reports. This is disabled for rating, to force user to process reports sequentially. (default: False)
+  --seed SEED           Seed to control the randomization (to be used with randomize=True). (default: 42)
+```
+
+- `qc_segmentation`
+```
+usage: qc_segmentation [-h] --bids_csv BIDS_CSV [--out_path OUT_PATH] [--ckpt_path_model CKPT_PATH_MODEL] [--nnunet_res_path NNUNET_RES_PATH] [--nnunet_env_path NNUNET_ENV_PATH] [--device {cuda,cpu}]
+
+Compute segmentation on low resolution clinical acquisitions, using a pretrained deep learning model.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -214,28 +216,27 @@ optional arguments:
                         Path to the nnunet folder containing the checkpoint. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/nnUNet)
   --nnunet_env_path NNUNET_ENV_PATH
                         Path to the nnunet folder containing the checkpoint (from `conda env list`). (default: /home/tsanchez/anaconda3/envs/nnunet)
+  --device {cuda,cpu}   Device to use for the nnUNet inference. (default: cuda)
 ```
 
-- `qc_compute_metrics`
+- `qc_compute_iqms`
 
 **Note.** If you want to run the metrics computation using segmentation-based metrics, you need to run `qc_compute_segmentation` prior to calling this script.
 ```
-usage: qc_compute_metrics [-h] --out-csv OUT_CSV [--metrics METRICS [METRICS ...]] [--use_all_metrics | --no-use_all_metrics] [--normalization {None,sub_ses,site,run}] --bids-csv BIDS_CSV
-                          [--ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA] [--ckpt_path_stack_iqa CKPT_PATH_STACK_IQA] [--device DEVICE] [--continue-run | --no-continue-run]
-                          [--use_prob_seg | --no-use_prob_seg]
+usage: qc_compute_iqms [-h] --bids_csv BIDS_CSV --out_csv OUT_CSV [--metrics METRICS [METRICS ...]] [--use_all_metrics | --no-use_all_metrics] [--ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA]
+                       [--ckpt_path_stack_iqa CKPT_PATH_STACK_IQA] [--device DEVICE] [--continue-run | --no-continue-run] [--use_prob_seg | --no-use_prob_seg] [--nprocs NPROCS]
+                       [--verbose | --no-verbose]
 
 Computes quality metrics from given images.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --out-csv OUT_CSV     Path where the IQA results will be stored. (default: None)
+  --bids_csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
+  --out_csv OUT_CSV     Path where the IQMs will be stored. (default: None)
   --metrics METRICS [METRICS ...]
                         Metrics to be evaluated. (default: ['centroid', 'dl_slice_iqa_full', 'dl_stack_iqa_full', 'rank_error', 'mask_volume', 'ncc', 'nmi'])
   --use_all_metrics, --no-use_all_metrics
                         Whether all metrics should be evaluated (default: False)
-  --normalization {None,sub_ses,site,run}
-                        Whether input data should be normalized (default: None)
-  --bids-csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
   --ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA
                         Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT). (default:
                         /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/fetal_IQA_pytorch.ckpt)
@@ -247,15 +248,92 @@ optional arguments:
                         Whether QC run should re-use existing results if a metrics.csv file at `out_path`/metrics.csv. (default: True)
   --use_prob_seg, --no-use_prob_seg
                         Whether to use the probability segmentation or the binary segmentation. (default: True)
+  --nprocs NPROCS       Number of processes to use for multiprocessing. (default: 4)
+  --verbose, --no-verbose
+                        Enable verbose. (default: False)
+```
+
+- `qc_inference`
+```
+usage: qc_inference [-h] --iqms_csv IQMS_CSV --out_csv OUT_CSV [--ckpt_path CKPT_PATH] [--classification] [--regression] [--fetmrqc20 | --no-fetmrqc20] [--custom_model CUSTOM_MODEL]
+
+Performs FetMRQC inference, given a pretrained model.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --iqms_csv IQMS_CSV   Path where the IQMs csv file is located. (default: None)
+  --out_csv OUT_CSV     CSV file where the predicted results will be stored. (default: None)
+  --ckpt_path CKPT_PATH
+                        Path to the checkpoint of the fetal IQA pytorch model. (default: None)
+  --classification      Whether to perform classification or regression. (default: True)
+  --regression          Whether to perform classification or regression. (default: True)
+  --fetmrqc20, --no-fetmrqc20
+                        Whether to use FetMRQC20 IQMs. (default: False)
+  --custom_model CUSTOM_MODEL
+                        Path to a custom model, trained using run_train_fetmrqc.py. (default: None)
+
+```
+
+- `qc_training`:
+```
+usage: Train a FetMRQC model. [-h] [--dataset DATASET] [--first_iqm FIRST_IQM] [--classification] [--regression] [--fetmrqc20 | --no-fetmrqc20] [--iqms_list IQMS_LIST [IQMS_LIST ...]]
+                              [--save_path SAVE_PATH]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dataset DATASET     Path to the csv file dataset.
+  --first_iqm FIRST_IQM
+                        First IQM in the csv of the dataset.
+  --classification      Whether to perform classification or regression.
+  --regression          Whether to perform classification or regression.
+  --fetmrqc20, --no-fetmrqc20
+                        Whether to use FetMRQC20 IQMs. (default: False)
+  --iqms_list IQMS_LIST [IQMS_LIST ...]
+                        Custom list of IQMs to use. By default, all IQMs are used.
+  --save_path SAVE_PATH
+                        Where to save the model.
+```
+- `qc_niftymic_qc`: Run the QC from NiftyMIC.
+```
+usage: qc_niftymic_qc [-h] --out-csv OUT_CSV --bids-csv BIDS_CSV [--continue-run | --no-continue-run]
+
+Exclude outlying stacks for each subject. Based on the paper from .
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --out-csv OUT_CSV     Path where the IQA results will be stored. (default: None)
+  --bids-csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
+  --continue-run, --no-continue-run
+                        Whether QC run should re-use existing results if a metrics.csv file at `out_path`/metrics.csv. (default: True)
+
+```
+
+- `qc_ratings_to_csv`: When manual QA/QC annotations have been done.
+```
+usage: qc_ratings_to_csv [-h] [--out_csv OUT_CSV] ratings_dir bids_csv
+
+Given a `ratings_dir`, and a `bids_csv`, formats the ratings into a single csv file containing all information.
+
+positional arguments:
+  ratings_dir        Directory containing the ratings.
+  bids_csv           CSV file where the list of available LR series and masks is stored.
+
+optional arguments:
+  -h, --help         show this help message and exit
+  --out_csv OUT_CSV  CSV file where the ratings will be stored (default: `<ratings_dir>/ratings.csv`). (default: None)
 
 ```
 ## License
-Part of this work is based on MRIQC, which is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
+FetMRQC is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
+## Acknowledgements
+This project was supported by the ERA-net Neuron MULTIFACT – SNSF grant [31NE30_203977](https://data.snf.ch/grants/grant/203977).
+
 ## References
 [1] Esteban, Oscar, et al. "MRIQC: Advancing the automatic prediction of image quality in MRI from unseen sites." PloS one 12.9 (2017): e0184661.
+
 [2] Ranzini, Marta, et al. "MONAIfbs: MONAI-based fetal brain MRI deep learning segmentation." arXiv preprint arXiv:2103.13314 (2021).
 
 [3] Semi-supervised learning for fetal brain MRI quality assessment with ROI consistency
@@ -264,6 +342,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 [5] Lala, Sayeri, et al. "A deep learning approach for image quality assessment of fetal brain MRI." Proceedings of the 27th Annual Meeting of ISMRM, Montréal, Québec, Canada. 2019.
 
-[6] https://github.com/FNNDSC/pl-fetal-brain-assessment
+[6] Legorreta et al. https://github.com/FNNDSC/pl-fetal-brain-assessment
 
 [7] Isensee, F., Jaeger, P. F., Kohl, S. A., Petersen, J., & Maier-Hein, K. H. (2021). nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation. Nature methods, 18(2), 203-211.
