@@ -27,3 +27,5 @@ pyyaml>=5.3.1
 pytorch-ignite>=0.3.0
 tensorboard>=2.2.1
 tensorflow==2.5.0
+fetal_brain_utils @ git+https://github.com/Medical-Image-Analysis-Laboratory/fetal_brain_utils@main
+MONAIfbs @ git+https://github.com/t-sanchez/MONAIfbs@main
