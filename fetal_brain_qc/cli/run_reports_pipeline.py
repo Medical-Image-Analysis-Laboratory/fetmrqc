@@ -98,7 +98,7 @@ def main():
         f"--bids_dir {args.bids_dir} "
         f"--mask_patterns_base {args.masks_dir} "
         f"--mask_patterns {args.mask_pattern} "
-        f"--out_csv {args.bids_csv}"
+        f"--out_csv {args.bids_csv} "
         f"--seed {args.seed}"
     )
     os.system(cmd)
