@@ -89,11 +89,6 @@ def main():
         nargs="+",
         default="all",
     )
-    parser.add_argument(
-        "--nprocs",
-        help="Number of processes to use for the computation of the IQMs.",
-        default=4,
-    )
 
     parser.add_argument(
         "--fetmrqc20_iqms",
@@ -204,7 +199,6 @@ def main():
         "qc_segmentation "
         f"--bids_csv {args.bids_csv} "
         f"--out_path {args.seg_dir} "
-        f"--nprocs {args.nprocs}"
     )
     run_cmd(cmd)
     # Running IQMs computation

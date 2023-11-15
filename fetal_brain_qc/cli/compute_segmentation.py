@@ -43,6 +43,7 @@ PATTERN_CROPPED = PATTERN_BASE + "_desc-cropped_T2w.nii.gz"
 PATTERN_PROB_SEG = PATTERN_BASE + "_desc-proba_seg.npz"
 PATTERN_SEG = PATTERN_BASE + "_seg.nii.gz"
 PATTERN_PKL = PATTERN_BASE + "_T2w.pkl"
+CONDA_PREFIX = os.environ["CONDA_PREFIX"]
 
 
 def existing_seg(ents, out_path):
@@ -328,7 +329,7 @@ def main():
     p.add_argument(
         "--nnunet_env_path",
         help="Path to the nnunet folder containing the checkpoint (from `conda env list`).",
-        default="/home/tsanchez/anaconda3/envs/nnunet",
+        default=f"{CONDA_PREFIX}/envs/nnunet",
     )
 
     p.add_argument(
