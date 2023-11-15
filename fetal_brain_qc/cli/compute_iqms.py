@@ -117,7 +117,7 @@ def main(argv=None):
 
     args = p.parse_args(argv)
     bids_list = csv_to_list(args.bids_csv)
-    print_title("Running QC evaluation")
+    print_title("Computing IQMs")
 
     lr_metrics = LRStackMetrics(
         ckpt_stack_iqa=args.ckpt_path_stack_iqa,
