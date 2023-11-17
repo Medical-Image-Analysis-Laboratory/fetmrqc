@@ -4,6 +4,7 @@
 1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
 2. A **QA/QC model** that can predict the quality of given T2w scans. It works on [BIDS](https://bids.neuroimaging.io/)-formatted datasets.
 
+While raw data cannot be shared, the extracted image quality metrics are available on (Zenodo)[https://zenodo.org/uploads/10118981].
 ![fetal brain QC](img/fetmrqc.png)
 
 The code of the rating interface is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
@@ -18,6 +19,7 @@ The code of the rating interface is based on MRIQC [1], available at https://git
       - [Downloading checkpoints](#downloading-checkpoints)
       - [Final step: nnUNet \[7\] - Tricky part](#final-step-nnunet-7---tricky-part)
   - [Usage](#usage)
+  - [Reproducibility and data](#reproducibility-and-data)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
   - [References](#references)
@@ -27,10 +29,10 @@ The code of the rating interface is based on MRIQC [1], available at https://git
 
 You can follow [this link](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) to install Docker and NVIDIA Container Toolkit. After installing docker, you can download *FetMRQC* with 
 ```
-docker pull tsanchez/fetmrqc
+docker pull thsanchez/fetmrqc:0.1.0
 ```
 
-This image by build using Ubuntu 22.04 and CUDA 12.1.
+This image by build using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
 
 #### Running FetMRQC using docker
 You have two options to run the *FetMRQC* docker. A wrapper script `run_docker.py` is provided in the *FetMRQC* repository and can run both main pipelines: the `reports` pipeline that generates visual reports from which quality can be assessed and the `inference` pipeline that computes the image quality metrics and performs inference using a pre-trained *FetMRQC* model. Both start from a [BIDS](https://bids.neuroimaging.io/) formatted directory of raw T2-weighted stacks of 2D slices. More details are available in the [usage](#usage) section.
@@ -357,6 +359,10 @@ optional arguments:
   --out_csv OUT_CSV  CSV file where the ratings will be stored (default: `<ratings_dir>/ratings.csv`). (default: None)
 
 ```
+
+## Reproducibility and data
+As fetal brain imaging contains highly sensitive data, sharing the raw data is not possible. However, as *FetMRQC* relies on extracted image quality metrics, these can be easily shared for other researchers to re-train or enhance FetMRQC based models. They are available on [Zenodo](https://zenodo.org/uploads/10118981).
+
 ## License
 FetMRQC is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0.
 
