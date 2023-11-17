@@ -23,16 +23,7 @@ import os
 from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Given a `bids_dir`, lists the LR series in "
-            " the directory, computes the brain masks using MONAIfbs"
-            " and uses the masks to compute visual reports that can be"
-            " used for manual rating."
-        ),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
+def build_parser(parser):
     parser.add_argument(
         "--bids_dir",
         required=True,
@@ -80,6 +71,19 @@ def main():
         default=42,
         help="Seed for the random number generator.",
     )
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Given a `bids_dir`, lists the LR series in "
+            " the directory, computes the brain masks using MONAIfbs"
+            " and uses the masks to compute visual reports that can be"
+            " used for manual rating."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    build_parser(parser)
     args = parser.parse_args()
 
     # Running brain extraction
@@ -98,7 +102,7 @@ def main():
         f"--bids_dir {args.bids_dir} "
         f"--mask_patterns_base {args.masks_dir} "
         f"--mask_patterns {args.mask_pattern} "
-        f"--out_csv {args.bids_csv}"
+        f"--out_csv {args.bids_csv} "
         f"--seed {args.seed}"
     )
     os.system(cmd)

@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from pathlib import Path
 import fetal_brain_qc as fbqc
 
 
@@ -58,6 +59,7 @@ FETAL_FETMRQC20_REG_CKPT = os.path.join(
 IQMs = os.path.join(os.path.dirname(fbqc.__file__), "data/iqms_train.csv")
 
 NNUNET_CKPT = os.path.join(os.path.dirname(fbqc.__file__), "models/nnUNet")
+NNUNET_ENV_DEFAULT = Path(os.getenv("CONDA_PREFIX")).parent / "nnunet"
 
 FETMRQC20 = [
     "rank_error",

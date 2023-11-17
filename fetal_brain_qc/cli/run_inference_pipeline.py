@@ -24,6 +24,9 @@ import os
 from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
 from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
 from fetal_brain_qc.definitions import FETMRQC20
+import json
+
+IQMS_NO_NAN = [iqm for iqm in METRICS + METRICS_SEG if "_nan" not in iqm]
 
 
 def run_cmd(cmd):
@@ -32,17 +35,7 @@ def run_cmd(cmd):
         raise RuntimeError(f"Command failed: {cmd}")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Given a `bids_dir`, lists the LR series in "
-            " the directory, computes brain masks and segmentations,"
-            " uses them to extract IQMs and perform inference using one of "
-            "the pretrained FetMRQC models. The output is a CSV file containing"
-            " the predictions and IQMs."
-        ),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
+def build_parser(parser):
     parser.add_argument(
         "--bids_dir",
         required=True,
@@ -89,19 +82,21 @@ def main():
         nargs="+",
         default="all",
     )
-    parser.add_argument(
-        "--nprocs",
-        help="Number of processes to use for the computation of the IQMs.",
-        default=4,
-    )
 
     parser.add_argument(
         "--fetmrqc20_iqms",
         help="Whether the IQMs from FetMRQC-20 should be computed",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=True,
     )
 
+    parser.add_argument(
+        "--use_all_iqms",
+        help="Whether all IQMs should be computed",
+        default=False,
+        action="store_false",
+        dest="fetmrqc20_iqms",
+    )
     parser.add_argument(
         "--ckpt_path",
         help="Path to the checkpoint of the MONAIfbs model.",
@@ -129,13 +124,13 @@ def main():
 
     parser.add_argument(
         "--classification",
-        help="Whether to perform classification or regression.",
+        help="Whether to perform classification.",
         action="store_true",
         default=True,
     )
     parser.add_argument(
         "--regression",
-        help="Whether to perform classification or regression.",
+        help="Whether to perform regression.",
         dest="classification",
         action="store_false",
     )
@@ -146,21 +141,32 @@ def main():
         type=str,
     )
 
-    import json
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Given a `bids_dir`, lists the LR series in "
+            " the directory, computes brain masks and segmentations,"
+            " uses them to extract IQMs and perform inference using one of "
+            "the pretrained FetMRQC models. The output is a CSV file containing"
+            " the predictions and IQMs."
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    build_parser(parser)
 
     args = parser.parse_args()
 
-    iqms = METRICS + METRICS_SEG if args.iqms == "all" else args.iqms
+    iqms = IQMS_NO_NAN if args.iqms == "all" else args.iqms
+    iqms = [iqm for iqm in iqms if "_nan" not in iqm]
     if args.fetmrqc20_iqms:
         assert (
-            iqms == METRICS + METRICS_SEG
+            iqms == IQMS_NO_NAN
         ), "Cannot take a custom set of IQMs when using FetMRQC-20 (--fetmrqc20_iqms)"
 
-    if iqms != METRICS + METRICS_SEG:
+    if iqms != IQMS_NO_NAN:
         for iqm in iqms:
-            assert (
-                iqm in METRICS + METRICS_SEG
-            ), f"The IQM {iqm} is not available."
+            assert iqm in IQMS_NO_NAN, f"The IQM {iqm} is not available."
 
         assert (
             args.custom_model is not None
@@ -204,7 +210,6 @@ def main():
         "qc_segmentation "
         f"--bids_csv {args.bids_csv} "
         f"--out_path {args.seg_dir} "
-        f"--nprocs {args.nprocs}"
     )
     run_cmd(cmd)
     # Running IQMs computation

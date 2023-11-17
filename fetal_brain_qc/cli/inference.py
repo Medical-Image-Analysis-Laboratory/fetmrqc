@@ -131,9 +131,6 @@ def main():
     model = joblib.load(ckpt_path)
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
-    import pdb
-
-    pdb.set_trace()
     test_x = bids_df[iqms]
     test_y = model.predict(test_x)
 
