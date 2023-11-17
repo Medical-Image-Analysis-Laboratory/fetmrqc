@@ -1,4 +1,20 @@
 # FetMRQC
+
+
+- [FetMRQC](#fetmrqc)
+  - [About](#about)
+  - [Local installation](#local-installation)
+    - [MONAIfbs \[2\]](#monaifbs-2)
+    - [fetal-IQA \[3,4,5\]](#fetal-iqa-345)
+    - [pl-fetal-brain-assessment \[6\]](#pl-fetal-brain-assessment-6)
+    - [Install FetMRQC](#install-fetmrqc)
+    - [Final step: nnUNet \[7\] - Tricky part](#final-step-nnunet-7---tricky-part)
+  - [Usage](#usage)
+  - [License](#license)
+  - [Acknowledgements](#acknowledgements)
+  - [References](#references)
+
+
 ## About
 [FetMRQC](https://arxiv.org/pdf/2304.05879.pdf) is a tool for quality assessment (QA) and quality control (QC) of T2-weighted (T2w) fetal brain MR images. It consists of two parts.
 1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
@@ -9,6 +25,8 @@
 The code of the rating interface is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
 
 **Disclaimer.** Fetal brain QC is not intended for clinical use.
+
+
 
 ## Local installation
 *FetMRQC* (`fetal_brain_qc`) was developed in Ubuntu 22.04 and tested for python 3.9.15
