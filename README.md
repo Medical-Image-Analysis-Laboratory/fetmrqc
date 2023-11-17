@@ -4,13 +4,14 @@
 1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
 2. A **QA/QC model** that can predict the quality of given T2w scans. It works on [BIDS](https://bids.neuroimaging.io/)-formatted datasets.
 
-While raw data cannot be shared, the extracted image quality metrics are available on [Zenodo](https://zenodo.org/uploads/10118981).
-![fetal brain QC](img/fetmrqc.png)
-
-The code of the rating interface is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
+While raw data cannot be shared, the extracted image quality metrics are available on [Zenodo](https://zenodo.org/uploads/10118981). 
 
 **Disclaimer.** Fetal brain QC is not intended for clinical use.
 
+![fetal brain QC](img/fetmrqc.png)
+
+
+**Contents**
 - [FetMRQC](#fetmrqc)
   - [Installation](#installation)
     - [Docker image](#docker-image)
@@ -23,6 +24,8 @@ The code of the rating interface is based on MRIQC [1], available at https://git
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
   - [References](#references)
+ 
+
 ## Installation
 ### Docker image
 *FetMRQC* is available as a docker image on docker hub. 
@@ -366,6 +369,8 @@ As fetal brain imaging contains highly sensitive data, sharing the raw data is n
 ## License
 Copyright 2023 Medical Image Analysis Laboratory. FetMRQC is licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+
 
 ## Acknowledgements
 This project was supported by the ERA-net Neuron MULTIFACT – SNSF grant [31NE30_203977](https://data.snf.ch/grants/grant/203977).
