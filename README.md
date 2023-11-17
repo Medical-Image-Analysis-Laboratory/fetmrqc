@@ -4,7 +4,7 @@
 1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
 2. A **QA/QC model** that can predict the quality of given T2w scans. It works on [BIDS](https://bids.neuroimaging.io/)-formatted datasets.
 
-While raw data cannot be shared, the extracted image quality metrics are available on (Zenodo)[https://zenodo.org/uploads/10118981].
+While raw data cannot be shared, the extracted image quality metrics are available on [Zenodo](https://zenodo.org/uploads/10118981).
 ![fetal brain QC](img/fetmrqc.png)
 
 The code of the rating interface is based on MRIQC [1], available at https://github.com/nipreps/mriqc.
