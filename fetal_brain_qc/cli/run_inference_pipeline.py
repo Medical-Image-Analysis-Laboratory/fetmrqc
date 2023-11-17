@@ -124,13 +124,13 @@ def build_parser(parser):
 
     parser.add_argument(
         "--classification",
-        help="Whether to perform classification or regression.",
+        help="Whether to perform classification.",
         action="store_true",
         default=True,
     )
     parser.add_argument(
         "--regression",
-        help="Whether to perform classification or regression.",
+        help="Whether to perform regression.",
         dest="classification",
         action="store_false",
     )
