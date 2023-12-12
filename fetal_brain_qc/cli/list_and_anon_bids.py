@@ -76,6 +76,14 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
     )
+
+    parser.add_argument(
+        "--suffix",
+        help="Suffix used to query the data",
+        default="T2w",
+        type=str,
+    )
+
     parser.add_argument(
         "--seed",
         help="Seed for the random number generator.",
@@ -107,6 +115,7 @@ def main():
         args.bids_dir,
         mask_patterns,
         bids_csv=args.out_csv,
+        suffix=args.suffix,
     )
     if args.anonymize_name:
         print(f"Anonymize name in {args.out_csv}.")

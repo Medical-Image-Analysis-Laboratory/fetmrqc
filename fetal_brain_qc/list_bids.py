@@ -47,7 +47,7 @@ def create_sr_masks(bids_dir, mask_folder):
         )
 
 
-def list_bids(bids_dir, mask_pattern_list, bids_csv):
+def list_bids(bids_dir, mask_pattern_list, bids_csv, suffix="T2w"):
     """Given a bids directory `bids_dir` containing LR stacks of fetal brain,
     along with a list of patterns to the corresponding brain masks, create a
     csv file `bids_csv` listing the name, subject, session, run, LR_path
@@ -59,7 +59,7 @@ def list_bids(bids_dir, mask_pattern_list, bids_csv):
     """
     bids_layout = BIDSLayout(bids_dir, validate=False)
 
-    file_list = list_masks(bids_layout, mask_pattern_list)
+    file_list = list_masks(bids_layout, mask_pattern_list, suffix=suffix)
 
     with open(bids_csv, "w") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=file_list[0].keys())
@@ -68,7 +68,7 @@ def list_bids(bids_dir, mask_pattern_list, bids_csv):
             writer.writerow(data)
 
 
-def list_masks(bids_layout, mask_pattern_list):
+def list_masks(bids_layout, mask_pattern_list, suffix="T2w"):
     """Given a BIDSLayout and a list of mask_patterns,
     tries to find the masks that exist for each (subject, session, run)
     in the BIDS dataset, using the provided patterns.
@@ -78,7 +78,7 @@ def list_masks(bids_layout, mask_pattern_list):
 
     file_list = []
     print(bids_layout)
-    for sub, ses, run, out in iter_bids(bids_layout):
+    for sub, ses, run, out in iter_bids(bids_layout, suffix=suffix):
         paths = [
             fill_pattern(bids_layout, sub, ses, run, p)
             for p in mask_pattern_list
