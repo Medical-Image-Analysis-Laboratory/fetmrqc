@@ -26,30 +26,19 @@
             var ds = "{{ dataset or 'unknown' }}";
             var sub = "{{ bids_name }}";
 
-            var artifacts = [];
-            $('#artifacts-group input:checked').each(function () {
-                artifacts.push($(this).attr('name'));
-            });
-
             // Parse the id of selected image in the form of axes_<n>
             // Return <n> - 1 to have the slice number aligned with the
             // displayed number
-            var selected_axial = $(".selected_img-axial").map(function () {
-                return parseInt(this.id.substr(5)) - 1
-            }).get().join(',');
-
-            var selected_sagittal = $(".selected_img-sagittal").map(function () {
-                return parseInt(this.id.substr(5)) - 1
-            }).get().join(',');
-
-            var selected_coronal = $(".selected_img-coronal").map(function () {
-                return parseInt(this.id.substr(5)) - 1
-            }).get().join(',');
-
-            var rating = $('#qcslider').val();
             //var orientation = $('#orientation').val();
+
+            var recon_valid = $('#recon_valid').val();
+            var geom_artefact = $('#geom_artefact').val();
+            var recon_artefact = $('#recon_artefact').val();
             var intensity = $('#intensity').val();
+            var blur = $('#blur').val();
+            var noise = $('#noise').val();
             var bias_field = $('#biasslider').val();
+
             var date = new Date(timestamp);
             var day = addZero(date.getDate());
             var month = addZero(date.getMonth() + 1); //Months are zero based
@@ -62,18 +51,16 @@
             var payload = {
                 'dataset': ds,
                 'subject': sub,
-                'rating': rating,
-                //'orientation': orientation,
-                'artifacts': artifacts,
+                'recon_valid': recon_valid,
+                'geom_artefact': geom_artefact,
+                'recon_artefact': recon_artefact,
                 'intensity': intensity,
-                //'bias_field': bias_field,
+                'blur': blur,
+                'noise': noise,
+                'bias_field': bias_field,
                 'time_sec': (Date.now() - timestamp) / 1000,
                 'timestamp': formattedTime,
-                // 'confidence': $('#confidence').val(),
                 'comments': $('#widget-comments').val(),
-                'selected_axial': selected_axial,
-                'selected_sagittal': selected_sagittal,
-                'selected_coronal': selected_coronal
             };
 
             var file = new Blob([JSON.stringify(payload)], { type: 'text/json' });
@@ -261,7 +248,6 @@
         </div>
 
         <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
-        <div>Select the slices that contain heavy artifacts in the in-plane view by clicking on them.</div>
         {% for title, svg_id, svg in svg_files %}
         <div class="card mt-2">
             <div class="card-header">{{ title }}</div>
@@ -271,267 +257,205 @@
         </div>
         {% endfor %}
 
-        <div id="rating-menu" class="card position-fixed d-none" style="width: 30%; top: 100px; left: 65%;">
+        < <div id="rating-menu" class="card position-fixed d-none" style="width: 30%; top: 100px; left: 65%;">
             <div class="card-header m-0">Rate Image
                 <button type="button" class="btn-close position-absolute top-0 end-0" aria-label="Close"
                     id="close-rating-menu" onclick="toggle_rating()" style="margin: 10px 10px 0 0"></button>
             </div>
             <div class="card-body">
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="qcslider-head">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#qcslider-collapse" aria-expanded="true"
-                                aria-controls="qcslider-collapse">
-                                Overall Quality Rating
-                            </button>
-                        </h2>
-                        <div id="qcslider-collapse" class="accordion-collapse collapse show"
-                            aria-labelledby="qcslider-head">
-                            <div class="accordion-body">
-                                <input type="range" min="0.0" max="4.0" step="0.05" value="2." id="qcslider"
-                                    class="slider" style="width:100%; margin-left:0%">
-                                <ul class=" list-group list-group-horizontal slider-labels" style="width:100%">
-                                    <li class="list-group-item list-group-item-danger"
-                                        style="width: 25%; text-align:center">Exclude</button>
-                                    <li class="list-group-item list-group-item-warning"
-                                        style="width: 25%; text-align:center">Poor</button>
-                                    <li class="list-group-item list-group-item-primary"
-                                        style="width: 25%; text-align:center">Acceptable</button>
-                                    <li class="list-group-item list-group-item-success"
-                                        style="width: 25%; text-align:center">Excellent</button>
-                                </ul>
-                                <!-- <label for="orientation">Brain orientation:</label>
-                                <select name="orientation" id="orientation">
-                                    <option value="">--Choose an orientation--</option>
-                                    <option value="axial">Axial</option>
-                                    <option value="coronal">Coronal</option>
-                                    <option value="sagittal">Sagittal</option>
-                                    <option value="oblique">Oblique</option>
-                                </select> -->
-                            </div>
-                            <!-- <div class="accordion-body">
-                                <fieldset id="artifacts-group" class="form-group">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="potential-reference"
-                                            id="ref1">
-                                        <label class="form-check-label" for="ref1">Usable as reference</label>
-                                    </div>
-                                </fieldset>
-                            </div> -->
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="qcartifacts-head">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#qcartifacts-collapse" aria-expanded="false"
-                                aria-controls="qcartifacts-collapse">
-                                Record specific artifacts
-                            </button>
-                        </h2>
-                        <div class="accordion-collapse collapse collapsed" id="qcartifacts-collapse"
-                            aria-labelledby="qcartifacts-head">
-                            <div class="accordion-body">
-                                <label for="intensity">Tissue contrast (intensity):</label>
-                                <div id="intensity-collapse">
-                                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity"
-                                        class="slider">
-                                    <ul class="list-group list-group-horizontal slider-labels"
-                                        style="width:80%;margin-left:10%">
-                                        <li class="list-group-item list-group-item-danger"
-                                            style="width: 33.3%; text-align:center">Poor</button>
-                                        <li class="list-group-item list-group-item-warning"
-                                            style="width: 33.3%; text-align:center">Okay</button>
-                                        <li class="list-group-item list-group-item-success"
-                                            style="width: 33.3%; text-align:center">Excellent</button>
-                                    </ul>
-                                </div>
-                                <!-- <label for="biasslider">Bias field:</label> -->
-                                <!-- <div id="biasslider-collapse">
-                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="biasslider"
-                                        class="slider">
-                                    <ul class="list-group list-group-horizontal slider-labels"
-                                        style="width:80%;margin-left:10%">
-                                        <li class="list-group-item list-group-item-success"
-                                            style="width: 33.3%; text-align:center">Low</button>
-                                        <li class="list-group-item list-group-item-warning"
-                                            style="width: 33.3%; text-align:center">Moderate</button>
-                                        <li class="list-group-item list-group-item-danger"
-                                            style="width: 33.3%; text-align:center">High</button>
-                                    </ul>
-                                </div> -->
-                                <fieldset id="artifacts-group" class="form-group">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="misaligned" id="art0">
-                                        <label class="form-check-label" for="art0">Misaligned image</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="blurriness" id="art1">
-                                        <label class="form-check-label" for="art1">Blurriness</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="bias" id="art2">
-                                        <label class="form-check-label" for="art2">Biased images</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="incomplete-fov" id="art3">
-                                        <label class="form-check-label" for="art3">Incomplete field of view</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="noise" id="art4">
-                                        <label class="form-check-label" for="art4">High noise</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="failed" id="art5">
-                                        <label class="form-check-label" for="art5">Failed reconstruction</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="uncategorized" id="art6">
-                                        <label class="form-check-label" for="art6">Uncategorized artifact</label>
-                                    </div>
-                                </fieldset>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="widget-misc-head">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#widget-misc-collapse" aria-expanded="false"
-                                aria-controls="widget-misc-collapse">
-                                Extra details
-                            </button>
-                        </h2>
-                        <div id="widget-misc-collapse" class="accordion-collapse collapse"
-                            aria-labelledby="widget-misc-head">
-                            <div class="accordion-body">
-                                <div class="input-group">
-                                    <span class="input-group-text">Comments</span>
-                                    <textarea class="form-control" aria-label="Comments"
-                                        id="widget-comments"></textarea>
-                                </div>
-
-                                <!-- <p style="margin-top: 20px; font-weight: bold">Rater confidence:</p>
-                                <input type="range" min="0.0" max="4.0" step="0.05" value="3.0" id="confidence"
-                                    class="slider" style="margin-left: 22%;width: 56%;">
-                                <ul class="list-group list-group-horizontal slider-labels" style="width: 100%">
-                                    <li class="list-group-item list-group-item-warning"
-                                        style="width: 50%; text-align:center">Doubtful</button>
-                                    <li class="list-group-item list-group-item-success bg-success text-white"
-                                        style="width: 50%; text-align:center">Confident</button>
-                                </ul> -->
+                <label for="recon_valid">Reconstruction validity:</label>
+                <div id="recon_valid-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="recon_valid" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Failed</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Partial</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Full</button>
+                    </ul>
+                </div>
+                <label for="geom_artefact">Geometric artefacts (e.g. stripes)</label>
+                <div id="geom_artefact-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="geom_artefact" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Multiple and major</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Little and minor</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+                <label for="recon_artefact">Reconstruction artefacts</label>
+                <div id="recon_artefact-collapse">
+                    <input type="range" min="0.0" max="4.0" step="0.05" value="2.0" id="recon_artefact" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 25%; text-align:center">
+                            Significant</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 25%; text-align:center">
+                            Multiple minor</button>
+                        <li class="list-group-item list-group-item-primary" style="width: 25%; text-align:center">A
+                            few minor</button>
+                        <li class="list-group-item list-group-item-success" style="width: 25%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+                <label for="intensity">Tissue contrast (intensity):</label>
+                <div id="intensity-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            WM/GM, GM/CSF good</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            All good</button>
+                    </ul>
+                </div>
+                <label for="blur">Blurring at GM/WM interface:</label>
+                <div id="blur-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="blur" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            High</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+                <label for="noise">Noise:</label>
+                <div id="noise-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            High (no dGM)</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+                <label for="biasslider">Bias field:</label>
+                <div id="biasslider-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="biasslider" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            High</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+            </div>
+            <div class="accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="widget-misc-head">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#widget-misc-collapse" aria-expanded="false"
+                            aria-controls="widget-misc-collapse">
+                            Extra details
+                        </button>
+                    </h2>
+                    <div id="widget-misc-collapse" class="accordion-collapse collapse"
+                        aria-labelledby="widget-misc-head">
+                        <div class="accordion-body">
+                            <div class="input-group">
+                                <span class="input-group-text">Comments</span>
+                                <textarea class="form-control" aria-label="Comments" id="widget-comments"></textarea>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div style="margin-top: 10px">
+                <div style="margin: 10px">
                     <a class="btn btn-primary disabled" id="btn-download" href="">Download</a>
-                    <button class="btn btn-primary" id="btn-post" value="<secret_token>" disabled>Post to
-                        WebAPI</button>
                 </div>
                 <script type="text/javascript">
+                    var intervalId = setInterval(function () {
+                        var time_threshold = 1000
 
-                    var time_threshold = 1000
-                    $('#qcslider').on('input', function () {
-
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
+                        if ((Date.now() - timestamp) / time_threshold >= 10) {
+                            console.log("Removing disabled")
                             $('#btn-download').removeClass('disabled');
                             $('#btn-download').removeAttr('aria-disabled');
                             $('#btn-post').removeAttr('disabled');
-                        };
+                            clearInterval(intervalId);
 
-                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
+                        };
+                    }, 1000);
+
+
+                    function defineSlider(my_class) {
+
+                        $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
                             return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
                         });
-                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
+                        $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
                             return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
                         });
 
-                        if ($(this).val() < 1.) {
-                            $('#qcslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($(this).val() > 3.) {
-                            $('#qcslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() < 2.) {
-                            $('#qcslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                        if ($('#' + my_class).val() < 1.) {
+                            $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                        } else if ($('#' + my_class).val() < 2.) {
+                            $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
                         } else {
-                            $('#qcslider-collapse .list-group-item-primary').addClass('bg-primary text-white');
+                            $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
+
                         };
 
                         var payload = read_form();
+                    }
+
+                    $('#recon_valid').on('input', function () {
+                        defineSlider('recon_valid')
+
                     });
 
                     $('#intensity').on('input', function () {
+                        defineSlider('intensity')
 
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#next-report').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                        };
+                    });
+                    $('#geom_artefact').on('input', function () {
+                        defineSlider('geom_artefact')
+                    });
 
-                        $('#intensity-collapse .list-group-item').removeClass(function (index, classname) {
+                    $('#recon_artefact').on('input', function () {
+
+                        $('#recon_artefact-collapse .list-group-item').removeClass(function (index, classname) {
                             return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
                         });
-                        $('#intensity-collapse .list-group-item').removeClass(function (index, classname) {
+                        $('#recon_artefact-collapse .list-group-item').removeClass(function (index, classname) {
                             return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
                         });
 
                         if ($(this).val() < 1.) {
-                            $('#intensity-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($(this).val() > 2.) {
-                            $('#intensity-collapse .list-group-item-success').addClass('bg-success text-white');
+                            $('#recon_artefact-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                        } else if ($(this).val() < 2.) {
+                            $('#recon_artefact-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                        } else if ($(this).val() < 3.) {
+                            $('#recon_artefact-collapse .list-group-item-primary').addClass('bg-primary text-white');
                         } else {
-                            $('#intensity-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                            $('#recon_artefact-collapse .list-group-item-success').addClass('bg-success text-white');
                         };
 
                         var payload = read_form();
                     });
 
-                    // $('#biasslider').on('input', function () {
-                    //     if ((Date.now() - timestamp) / time_threshold > 10) {
-                    //         $('#btn-download').removeClass('disabled');
-                    //         $('#next-report').removeClass('disabled');
-                    //         $('#btn-download').removeAttr('aria-disabled');
-                    //     };
+                    $('#blur').on('input', function () {
 
-                    //     $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                    //     });
-                    //     $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                    //     });
+                        defineSlider('blur')
+                    });
+                    $('#noise').on('input', function () {
 
-                    //     if ($(this).val() < 1.) {
-                    //         $('#biasslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                    //     } else if ($(this).val() > 2.) {
-                    //         $('#biasslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                    //     } else {
-                    //         $('#biasslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                    //     };
-                    //     var payload = read_form();
+                        defineSlider('noise')
+                    });
 
-                    // });
-                    // $('#confidence').on('input', function () {
-                    //     if ((Date.now() - timestamp) / 1000 > 10) {
-                    //         $('#btn-download').removeClass('disabled');
-                    //         $('#btn-download').removeAttr('aria-disabled');
-                    //         $('#btn-post').removeAttr('disabled');
-                    //     };
+                    $('#biasslider').on('input', function () {
 
-                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                    //     });
-                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                    //     });
-
-                    //     if ($(this).val() < 2.0) {
-                    //         $('#widget-misc-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                    //     } else {
-                    //         $('#widget-misc-collapse .list-group-item-success').addClass('bg-success text-white');
-                    //     };
-
-                    //     var payload = read_form();
-                    // });
-
+                        defineSlider('biasslider')
+                    });
 
                     $('#widget-comments').bind('input propertychange', function () {
                         if ((Date.now() - timestamp) / time_threshold > 10) {
@@ -542,49 +466,6 @@
                         var payload = read_form();
                     });
 
-                    // $('#orientation').bind('input propertychange', function () {
-                    //     if ((Date.now() - timestamp) / time_threshold > 10) {
-                    //         $('#btn-download').removeClass('disabled');
-                    //         $('#btn-download').removeAttr('aria-disabled');
-                    //         $('#btn-post').removeAttr('disabled');
-                    //     };
-                    //     var payload = read_form();
-                    // });
-
-                    $('#btn-post').click(function () {
-                        var payload = read_form();
-                        var md5sum = "{{ md5sum }}";
-                        var params = {
-                            'rating': payload['rating'],
-                            'md5sum': md5sum,
-                            'name': "",
-                            'comment': JSON.stringify(payload['artifacts'])
-                        };
-
-                        // disable developement releases
-                        var authorization = $(this).val();
-                        var ratingReq = new XMLHttpRequest();
-                        ratingReq.open("POST", "{{ webapi_url }}/rating");
-                        ratingReq.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                        ratingReq.setRequestHeader("Authorization", authorization);
-                        ratingReq.onload = function () {
-                            status = ratingReq.status;
-                            $('#btn-post').removeClass('btn-primary');
-                            $('#btn-post').attr('disabled', true);
-                            $('#btn-post').attr('aria-disabled', true);
-                            $('#btn-post').prop('disabled');
-                            $('#btn-post').addClass('disabled');
-                            $('#btn-post').removeClass('active');
-                            if (status === "201") {
-                                $('#btn-post').addClass('btn-success');
-                                $('#btn-post').html('Posted!');
-                            } else {
-                                $('#btn-post').addClass('btn-danger');
-                                $('#btn-post').html('Failed');
-                            };
-                        };
-                        ratingReq.send(JSON.stringify(params));
-                    });
 
                     $('body').on('click', '#artifacts-group input', function (e) {
                         if ((Date.now() - timestamp) / time_thresold > 10) {
@@ -605,26 +486,11 @@
                     });
                     {% endif %}
 
-                    {% for _, svg_id, _ in svg_files %}
-                    {% if svg_id not in ("tp1", "tp2") %}
-                    $('#report-{{ svg_id }} g[id^="axes_"]').on('click', function (e) {
-                        if ($(this).prop('clicked')) {
-                            $(this).prop('clicked', false);
-                            $(this).removeClass('selected_img-{{ svg_id }}');
-                        } else {
-                            $(this).prop('clicked', true);
-                            $(this).addClass('selected_img-{{ svg_id }}');
-                        }
-                        var payload = read_form();
-                    });
-                    {% endif %}
-                    {% endfor %}
-
 
 
                 </script>
             </div>
-        </div>
+    </div>
     </div>
 </body>
 
