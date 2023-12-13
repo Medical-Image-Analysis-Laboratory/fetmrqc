@@ -61,6 +61,13 @@ def list_bids(bids_dir, mask_pattern_list, bids_csv, suffix="T2w"):
 
     file_list = list_masks(bids_layout, mask_pattern_list, suffix=suffix)
 
+    if len(file_list) == 0:
+        error_msg = "Failed to list any elements. "
+        if len(bids_layout.get_subjects()) == 0:
+            error_msg += "BIDS Layout did not return any subjects. "
+        else:
+            error_msg += "Check that the mask pattern used is correct. "
+        raise RuntimeError(error_msg)
     with open(bids_csv, "w") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=file_list[0].keys())
         writer.writeheader()
@@ -77,7 +84,6 @@ def list_masks(bids_layout, mask_pattern_list, suffix="T2w"):
     from fetal_brain_qc.utils import fill_pattern
 
     file_list = []
-    print(bids_layout)
     for sub, ses, run, out in iter_bids(bids_layout, suffix=suffix):
         paths = [
             fill_pattern(bids_layout, sub, ses, run, p)
