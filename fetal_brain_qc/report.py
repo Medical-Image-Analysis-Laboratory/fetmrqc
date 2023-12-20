@@ -154,7 +154,7 @@ def generate_report(
     os.makedirs(out_folder, exist_ok=True)
     for i, run in enumerate(bids_list):
         im_path = run["im"]
-        mask_path = run["mask"]
+        mask_path = run.get("mask", "")
         print(f"{i+1} - Processing {Path(im_path).name} as {run['name']}")
         """Generate a report given an image path and mask"""
         if mask_path == "":
