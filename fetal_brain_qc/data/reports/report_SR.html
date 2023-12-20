@@ -17,29 +17,53 @@
 
     <script>
         var timestamp = Date.now()
+        var selectors = ['#is_reconst', '#geom_artefact', '#recon_artefact', '#blur', '#noise', '#biasslider', '#intensity'];
+        var is_disabled = [false, false, false, false, false, false, false];
 
+        /**
+         * This function formats a number by adding a leading zeros
+         * if the number is below 10
+         */
         function addZero(n) {
+
             return (n < 10 ? '0' : '') + n;
         }
 
+        /**
+         *  This functions checks if a field is selectors is disabled.
+         *  If yes, it returns null. Otherwise, it returns the value
+         *  of the selector
+         */
+        function checkDisabled(str) {
+            if (selectors.includes(str)) {
+                var pos = selectors.indexOf(str);
+                if (is_disabled[pos]) {
+                    return null;
+                } else {
+                    return $(str).val()
+                }
+            }
+        }
+
+        /**
+         * Reads and packages the values of the rating widget into
+         * a json, ready for download by the user.
+         */
         function read_form() {
+            var time_curr = Date.now()
             var ds = "{{ dataset or 'unknown' }}";
             var sub = "{{ bids_name }}";
 
-            // Parse the id of selected image in the form of axes_<n>
-            // Return <n> - 1 to have the slice number aligned with the
-            // displayed number
-            //var orientation = $('#orientation').val();
+            var is_reconst = checkDisabled('#is_reconst');
+            var geom_artefact = checkDisabled('#geom_artefact');
+            var recon_artefact = checkDisabled('#recon_artefact');
+            var intensity = checkDisabled('#intensity');
+            var blur = checkDisabled('#blur');
+            var noise = checkDisabled('#noise');
+            var bias_field = checkDisabled('#biasslider');
+            var qc_global = $('#qcslider').val();
 
-            var recon_valid = $('#recon_valid').val();
-            var geom_artefact = $('#geom_artefact').val();
-            var recon_artefact = $('#recon_artefact').val();
-            var intensity = $('#intensity').val();
-            var blur = $('#blur').val();
-            var noise = $('#noise').val();
-            var bias_field = $('#biasslider').val();
-
-            var date = new Date(timestamp);
+            var date = new Date(time_curr);
             var day = addZero(date.getDate());
             var month = addZero(date.getMonth() + 1); //Months are zero based
             var year = addZero(date.getFullYear());
@@ -51,25 +75,29 @@
             var payload = {
                 'dataset': ds,
                 'subject': sub,
-                'recon_valid': recon_valid,
+                'qcglobal': qc_global,
+                'is_reconstructed': is_reconst,
                 'geom_artefact': geom_artefact,
                 'recon_artefact': recon_artefact,
-                'intensity': intensity,
                 'blur': blur,
                 'noise': noise,
                 'bias_field': bias_field,
+                'intensity': intensity,
                 'time_sec': (Date.now() - timestamp) / 1000,
                 'timestamp': formattedTime,
                 'comments': $('#widget-comments').val(),
             };
 
             var file = new Blob([JSON.stringify(payload)], { type: 'text/json' });
-            $('#btn-download').attr('href', URL.createObjectURL(file));
             var out_time = year + month + day + "_" + hour + min + sec;
+            $('#btn-download').attr('href', URL.createObjectURL(file));
             $('#btn-download').attr('download', payload['dataset'] + "_" + payload['subject'] + "_" + out_time + ".json");
             return payload
         };
 
+        /**
+         * Toggles the rating menu
+         */
         function toggle_rating() {
             if ($('#rating-menu').hasClass('d-none')) {
                 $('#rating-menu').removeClass('d-none');
@@ -81,10 +109,6 @@
         };
 
         $(window).on('load', function () {
-            var authorization = $('#btn-post').val()
-            if (authorization.includes("secret_token")) {
-                $('#btn-post').addClass('d-none');
-            };
             timestamp = Date.now();
         });
     </script>
@@ -186,6 +210,12 @@
             z-index: 2000 !important;
         }
 
+        .slider:disabled {
+            opacity: 0.2;
+            /* Grayed out when disabled */
+            cursor: not-allowed;
+        }
+
         .slider::-moz-range-thumb {
             width: 25px;
             height: 25px;
@@ -195,19 +225,31 @@
             z-index: 2000 !important;
         }
 
-        g.selected_img-axial {
-            outline: solid 3px red;
-            outline-offset: -3px;
-        }
+        @media (max-height: 1000px) {
+            .list-group-item {
+                font-size: 8px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
 
-        g.selected_img-sagittal {
-            outline: solid 3px red;
-            outline-offset: -3px;
-        }
+            .card-body label {
+                font-size: 8px;
+            }
 
-        g.selected_img-coronal {
-            outline: solid 3px red;
-            outline-offset: -3px;
+            .accordion-button {
+                font-size: 10px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .input-group-text {
+                font-size: 8px;
+            }
+
+            .btn-primary {
+                font-size: 10px;
+            }
+
         }
     </style>
 </head>
@@ -263,19 +305,24 @@
                     id="close-rating-menu" onclick="toggle_rating()" style="margin: 10px 10px 0 0"></button>
             </div>
             <div class="card-body">
-                <label for="recon_valid">Reconstruction validity:</label>
-                <div id="recon_valid-collapse">
-                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="recon_valid" class="slider">
-                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
-                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
-                            Failed</button>
-                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
-                            Partial</button>
-                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
-                            Full</button>
+                <label for="is_reconstructed">Is the brain fully reconstructed?</label>
+                <div id="is_reconstructed-collapse">
+                    <input type="hidden" id="is_reconst" value="0.5">
+                    <ul id="is_reconstructed" class="list-group list-group-horizontal slider-labels"
+                        style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            No
+                        </li>
+                        <li class="list-group-item list-group-item-success"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            Yes
+                        </li>
                     </ul>
                 </div>
-                <label for="geom_artefact">Geometric artefacts (e.g. stripes)</label>
+
+                <label for="geom_artefact">Geometrical artefacts <span style="font-size: smaller">(e.g.
+                        stripes)</span></label>
                 <div id="geom_artefact-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="geom_artefact" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -287,7 +334,8 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="recon_artefact">Reconstruction artefacts</label>
+                <label for="recon_artefact">Topological artefacts <span style="font-size: smaller">(e.g. discontinuous
+                        cortical ribbon, cortical CSF in contact with WM, etc.)</span></label>
                 <div id="recon_artefact-collapse">
                     <input type="range" min="0.0" max="4.0" step="0.05" value="2.0" id="recon_artefact" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -301,19 +349,8 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="intensity">Tissue contrast (intensity):</label>
-                <div id="intensity-collapse">
-                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
-                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
-                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
-                            Poor</button>
-                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
-                            WM/GM, GM/CSF good</button>
-                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
-                            All good</button>
-                    </ul>
-                </div>
-                <label for="blur">Blurring at GM/WM interface:</label>
+
+                <label for="blur">Blurring <span style="font-size: smaller">(typically at the GM/WM interface)</label>
                 <div id="blur-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="blur" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -325,7 +362,7 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="noise">Noise:</label>
+                <label for="noise">Noise</label>
                 <div id="noise-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -337,7 +374,7 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="biasslider">Bias field:</label>
+                <label for="biasslider">Bias field</label>
                 <div id="biasslider-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="biasslider" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -349,7 +386,36 @@
                             None</button>
                     </ul>
                 </div>
+                <label for="intensity">Tissue contrast <span style="font-size: smaller">(intensity)</span></label>
+                <div id="intensity-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            WM/GM, GM/CSF good</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            All good</button>
+                    </ul>
+                </div>
+
+                <hr style="border: 0.5px solid black; ">
+                <label for="qcslider">Global subjective quality rating:</label>
+                <div id="qcslider-collapse">
+                    <input type="range" min="0.0" max="4.0" step="0.05" value="2.0" id="qcslider" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 25%; text-align:center">
+                            Exclude</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 25%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-primary" style="width: 25%; text-align:center">
+                            Acceptable</button>
+                        <li class="list-group-item list-group-item-success" style="width: 25%; text-align:center">
+                            Excellent</button>
+                    </ul>
+                </div>
             </div>
+
             <div class="accordion">
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="widget-misc-head">
@@ -368,130 +434,214 @@
                             </div>
                         </div>
                     </div>
+
                 </div>
                 <div style="margin: 10px">
                     <a class="btn btn-primary disabled" id="btn-download" href="">Download</a>
                 </div>
-                <script type="text/javascript">
-                    var intervalId = setInterval(function () {
-                        var time_threshold = 1000
-
-                        if ((Date.now() - timestamp) / time_threshold >= 10) {
-                            console.log("Removing disabled")
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                            clearInterval(intervalId);
-
-                        };
-                    }, 1000);
-
-
-                    function defineSlider(my_class) {
-
-                        $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                        });
-                        $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                        });
-
-                        if ($('#' + my_class).val() < 1.) {
-                            $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($('#' + my_class).val() < 2.) {
-                            $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                        } else {
-                            $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
-
-                        };
-
-                        var payload = read_form();
-                    }
-
-                    $('#recon_valid').on('input', function () {
-                        defineSlider('recon_valid')
-
-                    });
-
-                    $('#intensity').on('input', function () {
-                        defineSlider('intensity')
-
-                    });
-                    $('#geom_artefact').on('input', function () {
-                        defineSlider('geom_artefact')
-                    });
-
-                    $('#recon_artefact').on('input', function () {
-
-                        $('#recon_artefact-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                        });
-                        $('#recon_artefact-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                        });
-
-                        if ($(this).val() < 1.) {
-                            $('#recon_artefact-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($(this).val() < 2.) {
-                            $('#recon_artefact-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                        } else if ($(this).val() < 3.) {
-                            $('#recon_artefact-collapse .list-group-item-primary').addClass('bg-primary text-white');
-                        } else {
-                            $('#recon_artefact-collapse .list-group-item-success').addClass('bg-success text-white');
-                        };
-
-                        var payload = read_form();
-                    });
-
-                    $('#blur').on('input', function () {
-
-                        defineSlider('blur')
-                    });
-                    $('#noise').on('input', function () {
-
-                        defineSlider('noise')
-                    });
-
-                    $('#biasslider').on('input', function () {
-
-                        defineSlider('biasslider')
-                    });
-
-                    $('#widget-comments').bind('input propertychange', function () {
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-                        var payload = read_form();
-                    });
-
-
-                    $('body').on('click', '#artifacts-group input', function (e) {
-                        if ((Date.now() - timestamp) / time_thresold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-
-                        var payload = read_form();
-                    });
-
-                    $('body').on('click', '#rating-toggler', function (e) {
-                        toggle_rating();
-                    });
-                    {% if do_index %}
-                    $('#btn-download').click(function () {
-                        window.parent.postMessage({ 'message': 'rating done' }, '*');
-                    });
-                    {% endif %}
-
-
-
-                </script>
             </div>
     </div>
     </div>
+    </div>
+    <script type="text/javascript">
+        var time_threshold = 1000
+        var slider_changed = false;
+        var artifacts_changed = false;
+
+        /**
+         * Function highlighting the group over which a slider is.
+         * When the slider is clicked, clears the list-group-item from its style
+         * and add a highlighting based on the value of the slider 
+         * $(#my_class).val()
+         */
+        function defineSlider(my_class) {
+
+            $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+            });
+            $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+            });
+            if (my_class != "recon_artefact" && my_class != "qcslider") {
+                if ($('#' + my_class).val() < 1.) {
+                    $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                } else if ($('#' + my_class).val() < 2.) {
+                    $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                } else {
+                    $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
+
+                };
+            } else {
+                if ($('#' + my_class).val() < 1.) {
+                    $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                } else if ($('#' + my_class).val() < 2.) {
+                    $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                } else if ($('#' + my_class).val() < 3.) {
+                    $('#' + my_class + '-collapse .list-group-item-primary').addClass('bg-primary text-white');
+                } else {
+                    $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
+                };
+                if (my_class == "qcslider") {
+                    slider_changed = true;
+                }
+            }
+            checkDownload();
+
+
+        }
+
+
+        /**
+         * Various functions defining the input reaction of the slider.
+         * 
+         */
+        $('#intensity').on('input', function () {
+            defineSlider('intensity')
+
+        });
+        $('#geom_artefact').on('input', function () {
+            defineSlider('geom_artefact')
+        });
+
+        $('#recon_artefact').on('input', function () {
+            defineSlider('recon_artefact')
+        });
+
+        $('#blur').on('input', function () {
+            defineSlider('blur')
+        });
+
+        $('#noise').on('input', function () {
+            defineSlider('noise')
+        });
+
+        $('#biasslider').on('input', function () {
+            defineSlider('biasslider')
+        });
+
+        $('#qcslider').on('input', function () {
+            defineSlider('qcslider')
+        });
+
+        /**
+         * Check if the download is ready: if at least 10 seconds have
+         * passed or that artifacts have been changed so that one of them
+         * is in the disabled state, and whether the global quality slider
+         * has been changed.
+         * 
+         */
+        function checkDownload() {
+            if (((Date.now() - timestamp) / time_threshold > 10) || (artifacts_changed)) {
+                if (slider_changed) {
+                    $('#btn-download').removeClass('disabled');
+                    $('#btn-download').removeAttr('aria-disabled');
+                    $('#btn-post').removeAttr('disabled');
+                }
+            };
+        }
+
+        /**
+         * When clicks are done on the widget ot artifacts, check
+         * whether download can be called.
+         * 
+         */
+        $('#widget-comments').bind('input propertychange', function () {
+            checkDownload();
+        });
+
+        $('body').on('click', '#artifacts-group input', function (e) {
+            checkDownload();
+        });
+
+        $('body').on('click', '#rating-toggler', function (e) {
+            toggle_rating();
+        });
+
+        $('#btn-download').click(function () {
+            var payload = read_form();
+            window.parent.postMessage({ 'message': 'rating done' }, '*');
+        });
+
+        /**
+         * Checks whether the sliders must be deactivated.
+         * Based on the selectors list, checks if a selector
+         * has a value below disabled_threshold. 
+         * If yes, all sliders coming after it in the list are
+         * frozen.
+         * 
+         */
+        function checkThresholds() {
+            var disabled_threshold = [0.5, 1., 1., 1., 1., 1., 1.];
+            var reset_to = [undefined, 1.5, 2.0, 1.5, 1.5, 1.5, 1.5];
+            var disabled = false;
+
+            for (var i = 0; i < selectors.length; i++) {
+
+                var element = $(selectors[i]);
+
+                var threshold = disabled_threshold[i];
+                is_disabled[i] = disabled;
+
+                if (disabled) {
+                    $(selectors[i]).prop('disabled', true);
+
+                    //$(selectors[j]).val(reset_to[j])
+                    $(selectors[i] + '-collapse .list-group-item').removeClass(function (index, classname) {
+                        return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+                    });
+                    artifacts_changed = true;
+
+                } else {
+                    $(selectors[i]).prop('disabled', false);
+                    //$(selectors[i]).trigger('input');
+                    if ($(selectors[i]).val() != reset_to[i]) {
+                        defineSlider(selectors[i].substring(1));
+                    }
+                }
+                if (element.val() < threshold) {
+                    disabled = true;
+                }
+            }
+        }
+
+        // Call the function initially
+        checkThresholds();
+
+        /**
+         *  Add event listeners to call the function whenever the input values change
+         */
+        $(selectors.join(', ')).on('input', checkThresholds);
+
+
+        /**
+         * Onclick function for the yes/no button.
+         * Similar behaviour than defineSliders
+         */
+        $('#is_reconstructed li').click(function (e) {
+            e.preventDefault()
+
+            $(this).parent().find('li').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+            });
+
+            $(this).parent().find('li').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+            });
+
+            if ($(this).hasClass('list-group-item-danger')) {
+                $(this).addClass('bg-danger text-white');
+                $('#is_reconst').val(0.)
+            } else if (($(this).hasClass('list-group-item-success'))) {
+                $(this).addClass('bg-success text-white');
+                $('#is_reconst').val(1.)
+            } else {
+                console.log("This should not occur");
+
+            }
+            checkThresholds();
+        });
+    </script>
+
 </body>
 
 </html>

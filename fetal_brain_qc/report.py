@@ -172,7 +172,7 @@ def generate_report(
             out_plots = plot_mosaic_sr(
                 im_path,
                 mask_path,
-                boundary=0,
+                boundary=10,
                 ncols=ncols_ip,
                 annotate=annotate,
                 cmap=cmap,

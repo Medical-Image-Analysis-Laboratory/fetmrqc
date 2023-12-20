@@ -40,10 +40,11 @@ def plot_slice(
     if isinstance(cmap, (str, bytes)):
         cmap = get_cmap(cmap)
 
-    est_vmin, est_vmax = _get_limits(dslice)
-    if not vmin:
+    if vmin is None or vmax is None:
+        est_vmin, est_vmax = _get_limits(dslice)
+    if vmin is None:
         vmin = est_vmin
-    if not vmax:
+    if vmax is None:
         vmax = est_vmax
 
     if ax is None:
@@ -125,8 +126,8 @@ def _get_limits(nifti_file, only_plot_noise=False):
         vmin = np.percentile(data[data_mask], 0)
         vmax = np.percentile(data[data_mask], 61)
     else:
-        vmin = np.percentile(data[data_mask], 0.5)
-        vmax = np.percentile(data[data_mask], 99.5)
+        vmin = np.percentile(data[data_mask], 0.01)
+        vmax = np.percentile(data[data_mask], 99.9)
 
     return vmin, vmax
 
@@ -324,13 +325,7 @@ def plot_mosaic_sr(
         boundary_j=boundary,
         boundary_k=boundary,
     )
-    # maskc = get_cropped_stack_based_on_mask(
-    #    mask,
-    #    mask,
-    #    boundary_i=boundary,
-    #    boundary_j=boundary,
-    #    boundary_k=boundary,
-    # )
+
     zooms = im.header.get_zooms()
 
     im_data = imc.get_fdata()
