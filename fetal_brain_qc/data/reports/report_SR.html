@@ -571,6 +571,9 @@
          * 
          */
         function checkThresholds() {
+            {% if check_thresholds %}
+
+
             var disabled_threshold = [0.5, 1., 1., 1., 1., 1., 1.];
             var reset_to = [undefined, 1.5, 2.0, 1.5, 1.5, 1.5, 1.5];
             var disabled = false;
@@ -602,6 +605,7 @@
                     disabled = true;
                 }
             }
+            {% endif %}
         }
 
         // Call the function initially

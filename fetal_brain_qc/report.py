@@ -101,6 +101,7 @@ def individual_html(
     out_path=None,
     do_index=False,
     sr=False,
+    block_if_exclude=False,
 ):
     """From MRIQC"""
 
@@ -131,6 +132,7 @@ def individual_html(
         "resolution": im_info["resolution"],
         "field_strength": im_info["field_strength"],
         "do_index": do_index,
+        "block_if_exclude": block_if_exclude,
     }
 
     tpl = IndividualTemplate() if not sr else IndividualSRTemplate()
@@ -149,6 +151,7 @@ def generate_report(
     cmap="Greys_r",
     do_index=False,
     is_sr=False,
+    block_if_exclude=False,
 ):
     tmp_report_dir = "tmp_report_plots"
     os.makedirs(out_folder, exist_ok=True)
@@ -200,6 +203,7 @@ def generate_report(
             out_path=out_path,
             do_index=do_index,
             sr=is_sr,
+            block_if_exclude=block_if_exclude,
         )
         plt.close()
     # Remove temporary directory for report generation
