@@ -318,6 +318,7 @@ def plot_mosaic_sr(
         )
     else:
         mask = ni.load(maskp)
+
     imc = get_cropped_stack_based_on_mask(
         im,
         mask,
@@ -332,22 +333,28 @@ def plot_mosaic_sr(
 
     vmin, vmax = _get_limits(im_data, only_plot_noise=False)
 
-    # Use the affine to re-order the axes in standardized manner for visualization
-    # 1. Extract the affine orientation (non-zero entry in the line)
-    affine_axes = tuple(np.nonzero(im.affine[:3, :3]))
-    # Define axes to be flipped based on whether the entry is positive.
-    flip_axis = np.nonzero(np.sign(im.affine[affine_axes]).astype(int) == -1)[
-        0
-    ]
-    affine_axes = affine_axes[1]
-    # Flip axes
-    im_data = np.flip(im_data, axis=flip_axis)
-
-    # This is mysterious to me. This is needed to that I have the axial plane in the Right-Left direction
-    # This is only needed for NeSVoR also, not for NiftyMIC. This isn't clear to me why.
-    # im_data = im_data[:, :, ::-1]
-    # Swap axes
-    im_data = im_data.transpose(affine_axes)
+    # Check if the affine is diagonal
+    if (
+        np.count_nonzero(
+            im.affine[:3, :3] - np.diag(np.diag(im.affine[:3, :3]))
+        )
+        == 0
+    ):
+        # Use the affine to re-order the axes in standardized manner for visualization
+        # 1. Extract the affine orientation (non-zero entry in the line)
+        affine_axes = tuple(np.nonzero(im.affine[:3, :3]))
+        # Define axes to be flipped based on whether the entry is positive.
+        flip_axis = np.nonzero(
+            np.sign(im.affine[affine_axes]).astype(int) == -1
+        )[0]
+        affine_axes = affine_axes[1]
+        # Flip axes
+        im_data = np.flip(im_data, axis=flip_axis)
+        # This is mysterious to me. This is needed to that I have the axial plane in the Right-Left direction
+        # This is only needed for NeSVoR also, not for NiftyMIC. This isn't clear to me why.
+        # im_data = im_data[:, :, ::-1]
+        # Swap axes
+        im_data = im_data.transpose(affine_axes)
 
     def plot_axis(im, axis, vmin, vmax, cmap, zooms, annotate, reverse=False):
         """Plot a 3D volume along a given axis."""
@@ -366,7 +373,6 @@ def plot_mosaic_sr(
         nrows = math.ceil(im.shape[axis] / ncols)
 
         min_, max_ = min(plot_range), max(plot_range)
-
         if not reverse:
             iter_range = range(min_, max_, 1)
         else:
