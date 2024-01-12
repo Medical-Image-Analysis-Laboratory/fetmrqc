@@ -51,6 +51,13 @@ def main():
         help="Whether some javascript should be added to the report for interaction with the index file.",
     )
 
+    p.add_argument(
+        "--block_if_exclude",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether the ratings should be blocked after the first rating is set below the include threshold.",
+    )
+
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
@@ -67,6 +74,7 @@ def main():
         cmap="Greys_r",
         do_index=args.add_js,
         is_sr=args.sr,
+        block_if_exclude=args.block_if_exclude,
     )
 
     return 0
