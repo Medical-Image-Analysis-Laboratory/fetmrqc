@@ -32,6 +32,7 @@ def main(argv=None):
         FETAL_STACK_IQA_CKPT,
     )
     from fetal_brain_qc.metrics import DEFAULT_METRICS, LRStackMetrics
+    from fetal_brain_qc.definitions import FETMRQC20
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -49,7 +50,7 @@ def main(argv=None):
     p.add_argument(
         "--metrics",
         help="Metrics to be evaluated.",
-        default=DEFAULT_METRICS,
+        default=FETMRQC20,
         nargs="+",
     )
 
@@ -127,7 +128,7 @@ def main(argv=None):
     )
 
     if args.use_all_metrics:
-        if args.metrics != DEFAULT_METRICS:
+        if args.metrics != FETMRQC20:
             print(
                 f"WARNING: --use_all_metrics is enabled. Ignoring custom metrics {args.metrics}"
             )
