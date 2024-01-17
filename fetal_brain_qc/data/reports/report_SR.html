@@ -17,7 +17,7 @@
 
     <script>
         var timestamp = Date.now()
-        var selectors = ['#is_reconst', '#geom_artefact', '#recon_artefact', '#blur', '#noise', '#biasslider', '#intensity'];
+        var selectors = ['#is_reconst', '#geom_artefact', '#recon_artefact', '#blur', '#noise', '#biasslider', '#intensity', '#intensityDGM'];
         var is_disabled = [false, false, false, false, false, false, false];
 
         /**
@@ -57,7 +57,8 @@
             var is_reconst = checkDisabled('#is_reconst');
             var geom_artefact = checkDisabled('#geom_artefact');
             var recon_artefact = checkDisabled('#recon_artefact');
-            var intensity = checkDisabled('#intensity');
+            var intensityGM = checkDisabled('#intensity');
+            var intensityDGM = checkDisabled('#intensityDGM');
             var blur = checkDisabled('#blur');
             var noise = checkDisabled('#noise');
             var bias_field = checkDisabled('#biasslider');
@@ -82,7 +83,8 @@
                 'blur': blur,
                 'noise': noise,
                 'bias_field': bias_field,
-                'intensity': intensity,
+                'intensity_gm': intensityGM,
+                'intensity_dgm': intensityDGM,
                 'time_sec': (Date.now() - timestamp) / 1000,
                 'timestamp': formattedTime,
                 'comments': $('#widget-comments').val(),
@@ -386,16 +388,30 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="intensity">Tissue contrast <span style="font-size: smaller">(intensity)</span></label>
+                <label for="intensity">Tissue contrast - I <span style="font-size: smaller">(intensity at WM/cortical
+                        GM/CSF interface)</span></label>
                 <div id="intensity-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
                         <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
                             Poor</button>
                         <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
-                            WM/GM, GM/CSF good</button>
+                            Good</button>
                         <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
-                            All good</button>
+                            Excellent</button>
+                    </ul>
+                </div>
+                <label for="intensityDGM">Tissue contrast - II <span style="font-size: smaller">(intensity at WM/Deep
+                        GM interface)</span></label>
+                <div id="intensityDGM-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensityDGM" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Good</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Excellent</button>
                     </ul>
                 </div>
 
@@ -497,8 +513,12 @@
          */
         $('#intensity').on('input', function () {
             defineSlider('intensity')
-
         });
+
+        $('#intensityDGM').on('input', function () {
+            defineSlider('intensityDGM')
+        });
+
         $('#geom_artefact').on('input', function () {
             defineSlider('geom_artefact')
         });
@@ -571,7 +591,7 @@
          * 
          */
         function checkThresholds() {
-            {% if check_thresholds %}
+            {% if block_if_exclude %}
 
 
             var disabled_threshold = [0.5, 1., 1., 1., 1., 1., 1.];

@@ -58,12 +58,22 @@ def main():
         help="Whether the ratings should be blocked after the first rating is set below the include threshold.",
     )
 
+    p.add_argument(
+        "--dataset",
+        help="Name of the dataset to be used for the reports.",
+        default=None,
+    )
+
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
+    dataset = (
+        args.bids_csv.split("/")[-1] if args.dataset is None else args.dataset
+    )
     print_title("Generating reports")
     generate_report(
         bids_list,
+        dataset=dataset,
         out_folder=args.out_dir,
         boundary=20,
         boundary_tp=20,
