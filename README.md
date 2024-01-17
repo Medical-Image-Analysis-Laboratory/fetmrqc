@@ -1,6 +1,6 @@
 # FetMRQC
 
-[FetMRQC](https://arxiv.org/pdf/2304.05879.pdf) is a tool for quality assessment (QA) and quality control (QC) of T2-weighted (T2w) fetal brain MR images. It consists of two parts.
+FetMRQC [[paper1](https://arxiv.org/pdf/2304.05879.pdf),[paper2](https://arxiv.org/pdf/2311.04780.pdf)] is a tool for quality assessment (QA) and quality control (QC) of T2-weighted (T2w) fetal brain MR images. It consists of two parts.
 1. A **rating interface** (visual report) to standardize and facilitate quality annotations of T2w fetal brain MRI images, by creating interactive HTML-based visual reports from fetal brain scans. It uses a pair of low-resolution (LR) T2w images with corresponding brain masks to provide snapshots of the brain in the three orientations of the acquisition in the subject-space. 
 2. A **QA/QC model** that can predict the quality of given T2w scans. It works on [BIDS](https://bids.neuroimaging.io/)-formatted datasets.
 
@@ -20,6 +20,7 @@ While raw data cannot be shared, the extracted image quality metrics are availab
       - [Downloading checkpoints](#downloading-checkpoints)
       - [Final step: nnUNet \[7\] - Tricky part](#final-step-nnunet-7---tricky-part)
   - [Usage](#usage)
+  - [Citing](#citing)
   - [Reproducibility and data](#reproducibility-and-data)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
@@ -362,6 +363,15 @@ optional arguments:
   --out_csv OUT_CSV  CSV file where the ratings will be stored (default: `<ratings_dir>/ratings.csv`). (default: None)
 
 ```
+## Citing
+If you found this work useful, please cite the following articles.
+
+For the large, multi-centric evaluation and model:
+> Sanchez, T., Esteban, O., Gomez, Y., Pron, A., Koob, M., Dunet, V., Girard, N., Jakab, A., Eixarch, E., Auzias, G., Bach Cuadra, M. (2023). "FetMRQC: an open-source machine learning framework for multi-centric fetal brain MRI quality control." [arXiv preprint arXiv:2311.04780](https://arxiv.org/pdf/2311.04780.pdf)
+
+For the original model ([arXiv link](https://arxiv.org/pdf/2304.05879.pdf)):
+> Sanchez, T., Esteban, O., Gomez, Y., Eixarch, E., Bach Cuadra, M. (2023). "FetMRQC: Automated Quality Control for Fetal Brain MRI." PIPPI MICCAI Workshop 2023. [https://doi.org/10.1007/978-3-031-45544-5_1](https://doi.org/10.1007/978-3-031-45544-5_1)
+
 
 ## Reproducibility and data
 As fetal brain imaging contains highly sensitive data, sharing the raw data is not possible. However, as *FetMRQC* relies on extracted image quality metrics, these can be easily shared for other researchers to re-train or enhance FetMRQC based models. They are available on [Zenodo](https://zenodo.org/uploads/10118981).
