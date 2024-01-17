@@ -44,6 +44,9 @@ PATTERN_PROB_SEG = PATTERN_BASE + "_desc-proba_seg.npz"
 PATTERN_SEG = PATTERN_BASE + "_seg.nii.gz"
 PATTERN_PKL = PATTERN_BASE + "_T2w.pkl"
 CONDA_PREFIX = os.environ["CONDA_PREFIX"]
+# If envs/ in CONDA_PREFIX, split and keep the part before it.
+if "envs/" in CONDA_PREFIX:
+    CONDA_PREFIX = CONDA_PREFIX.split("envs/")[0]
 
 
 def existing_seg(ents, out_path):
