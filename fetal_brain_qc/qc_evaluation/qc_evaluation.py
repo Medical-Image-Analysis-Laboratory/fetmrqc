@@ -51,6 +51,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
+from functools import partial
 
 
 def load_dataset(csv_path, first_iqm="centroid"):
@@ -231,8 +232,10 @@ REGRESSION_MODELS = [
 
 ### BINARIZING
 
+THRESHOLD = 1.0
 
-def binarize_metric_input(metric, threshold=1):
+
+def binarize_metric_input(metric, threshold=THRESHOLD):
     @wraps(metric)
     def binarized_metric(y_true, y_pred):
         y_true = y_true > threshold
@@ -244,11 +247,20 @@ def binarize_metric_input(metric, threshold=1):
     return binarized_metric
 
 
+def binarized_roc(y_true, y_pred):
+    y_true = y_true > THRESHOLD
+    pred_proba = y_pred / 4.0  # Put in range [0,1]
+    if len(np.unique(y_true)) == 1:
+        return np.nan
+    return roc_auc_score(y_true, pred_proba)
+
+
 acc = binarize_metric_input(accuracy_score)
 prec = binarize_metric_input(precision_score)
 rec = binarize_metric_input(recall_score)
 f1 = binarize_metric_input(f1_score)
-roc_auc = binarize_metric_input(nan_roc_auc)
+f1w = binarize_metric_input(partial(f1_score, average="weighted"))
+# roc_auc = binarized_roc  # binarize_metric_input(nan_roc_auc)
 tp_ = binarize_metric_input(tp)
 fp_ = binarize_metric_input(fp)
 fn_ = binarize_metric_input(fn)
@@ -263,7 +275,8 @@ REGRESSION_SCORING = {
     "prec": make_scorer(prec),
     "rec": make_scorer(rec),
     "f1": make_scorer(f1),
-    # "roc_auc": make_scorer(roc_auc),
+    "f1w": make_scorer(f1),
+    "roc_auc": make_scorer(binarized_roc),
     "tp": make_scorer(tp_),
     "fp": make_scorer(fp_),
     "fn": make_scorer(fn_),
