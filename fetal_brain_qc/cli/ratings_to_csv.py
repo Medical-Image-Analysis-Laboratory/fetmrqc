@@ -94,13 +94,19 @@ def main():
         help="CSV file where the ratings will be stored (default: `<ratings_dir>/ratings.csv`).",
     )
 
+    p.add_argument(
+        "--sr",
+        action="store_true",
+        help="If set, the csv file will be formatted for the SR study.",
+    )
+
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
     df_base = pd.DataFrame.from_dict(bids_list)
     df_base = df_base.set_index("name")
     files = [
-        os.path.join(args.ratings_dir, f)
+        os.path.join(os.path.abspath(args.ratings_dir), f)
         for f in sorted(os.listdir(args.ratings_dir))
         if f.endswith(".json")
     ]
@@ -143,41 +149,92 @@ def main():
 
                 else:
                     df_base.at[idx, k] = v
-    # Convert some entries to float
-    df_base = df_base.dropna()
-    df_base[["rating", "fetal_motion", "bias_field"]].astype(float)
-    # Add human readable categories to the ratings.
-    df_base["rating_text"] = df_base["rating"].apply(rating_text)
-    df_base["fetal_motion_text"] = df_base["fetal_motion"].apply(artifact_text)
-    df_base["bias_field_text"] = df_base["bias_field"].apply(artifact_text)
-    # Count the number of slices selected with artifacts.
-    df_base["nselected"] = df_base["selected_slices"].apply(len)
 
-    # Shuffling of the columns
-    df_base = df_base[
-        [
-            "sub",
-            "ses",
-            "run",
-            "rating",
-            "rating_text",
-            "orientation",
-            "fetal_motion",
-            "fetal_motion_text",
-            "bias_field",
-            "bias_field_text",
-            "artifacts",
-            "nselected",
-            "selected_slices",
-            "comments",
-            "time_sec",
-            "timestamp",
-            "dataset",
-            "im",
-            "mask",
-            "ratings_json",
+    if not args.sr:
+        # Convert some entries to float
+        df_base = df_base.dropna()
+        df_base[["rating", "fetal_motion", "bias_field"]].astype(float)
+        # Add human readable categories to the ratings.
+        df_base["rating_text"] = df_base["rating"].apply(rating_text)
+        df_base["fetal_motion_text"] = df_base["fetal_motion"].apply(
+            artifact_text
+        )
+        df_base["bias_field_text"] = df_base["bias_field"].apply(artifact_text)
+        # Count the number of slices selected with artifacts.
+        df_base["nselected"] = df_base["selected_slices"].apply(len)
+
+        # Shuffling of the columns
+        df_base = df_base[
+            [
+                "sub",
+                "ses",
+                "run",
+                "rating",
+                "rating_text",
+                "orientation",
+                "fetal_motion",
+                "fetal_motion_text",
+                "bias_field",
+                "bias_field_text",
+                "artifacts",
+                "nselected",
+                "selected_slices",
+                "comments",
+                "time_sec",
+                "timestamp",
+                "dataset",
+                "im",
+                "mask",
+                "ratings_json",
+            ]
         ]
-    ]
+    else:
+        # {"dataset":"fetal_chuv","subject":"sub-feta062","qcglobal":"2.55","is_reconstructed":"1","geom_artefact":"2.3","recon_artefact":"1.6","blur":"1.45","noise":"1.5","bias_field":"2.4","intensity":"2.4","time_sec":33.098,"timestamp":"2024-01-08 15:03:13","comments":""}
+        df_base[
+            [
+                "qcglobal",
+                "is_reconstructed",
+                "geom_artefact",
+                "recon_artefact",
+                "blur",
+                "noise",
+                "bias_field",
+                "intensity",
+            ]
+        ].astype(float)
+        df_base = df_base[
+            [
+                "qcglobal",
+                "subject",
+                "is_reconstructed",
+                "geom_artefact",
+                "recon_artefact",
+                "blur",
+                "noise",
+                "bias_field",
+                "intensity_gm",
+                "intensity_dgm",
+                "comments",
+                "time_sec",
+                "timestamp",
+                "dataset",
+                "Pathology",
+                "Gestational age",
+                "im",
+                "ratings_json",
+            ]
+        ]
+        # Rename a few columns Gestionnal_age -> GA, pathology -> pathology
+        df_base = df_base.rename(
+            columns={
+                "Pathology": "pathology",
+                "Gestational age": "GA",
+                "subject": "sub",
+            }
+        )
+
+        # Drop entries only if "ratings_json == []"
+        df_base = df_base.dropna(subset=["is_reconstructed"])
 
     if args.out_csv is None:
         df_base.to_csv(os.path.join(args.ratings_dir, "ratings.csv"))
