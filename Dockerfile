@@ -1,5 +1,4 @@
 FROM nvcr.io/nvidia/pytorch:23.02-py3
-MAINTAINER Thomas Sanchez
 
 ENV CONDA_PREFIX=/root/micromamba
 RUN curl -L http://micro.mamba.pm/api/micromamba/linux-64/latest | \
