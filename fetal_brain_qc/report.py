@@ -141,6 +141,7 @@ def individual_html(
 
 def generate_report(
     bids_list,
+    dataset,
     out_folder=None,
     boundary=20,
     boundary_tp=20,
@@ -199,6 +200,7 @@ def generate_report(
         out = individual_html(
             in_plots=out_plots,
             im_info=im_info,
+            dataset=dataset,
             bids_name=run["name"],
             out_path=out_path,
             do_index=do_index,
