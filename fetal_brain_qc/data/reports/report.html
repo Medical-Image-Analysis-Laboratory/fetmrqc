@@ -243,7 +243,7 @@
 
         <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
         <div>Select the slices that contain heavy artifacts in the in-plane view by clicking on them.</div>
-        {% for title, svg_id, svg in svg_files %}
+        {% for iter, title, svg_id, svg in svg_files %}
         <div class="card mt-2">
             <div class="card-header">{{ title }}</div>
             <div id="report-{{ svg_id }}" class="card-body">

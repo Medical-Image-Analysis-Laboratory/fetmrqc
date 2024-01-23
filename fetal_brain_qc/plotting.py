@@ -405,15 +405,47 @@ def plot_mosaic_sr(
     fig2 = plot_axis(im_data[:, ::-1, :], 0, vmin, vmax, cmap, zooms, annotate)
     fig3 = plot_axis(im_data, 1, vmin, vmax, cmap, zooms, annotate)
 
+    fig_sum = plt.figure(figsize=(6, 2))
+
+    for i in range(3):
+        if i == 0:
+            im = np.moveaxis(im_data, 2, 0)
+        elif i == 1:
+            im = im_data[:, ::-1, :]
+        else:
+            im = np.moveaxis(im_data, 1, 0)
+        ax = fig_sum.add_subplot(1, 3, i + 1)
+        mid = im.shape[0] // 2
+        spacing = zooms[i]
+        plot_slice(
+            im[mid, :, :],
+            vmin=vmin,
+            vmax=vmax,
+            cmap=cmap,
+            ax=ax,
+            spacing=spacing,
+            label=f"{mid}",
+            annotate=annotate,
+        )
+
     os.makedirs(report_dir, exist_ok=True)
 
     out_files = [
+        f"{report_dir}/summary_mosaic.svg",
         f"{report_dir}/axial_mosaic.svg",
         f"{report_dir}/sagittal_mosaic.svg",
         f"{report_dir}/coronal_mosaic.svg",
     ]
 
-    for f, out in zip([fig, fig2, fig3], out_files):
+    for f, out in zip(
+        [
+            fig_sum,
+            fig,
+            fig2,
+            fig3,
+        ],
+        out_files,
+    ):
         f.subplots_adjust(
             left=0.05,
             right=0.95,
