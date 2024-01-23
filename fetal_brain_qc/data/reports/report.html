@@ -38,6 +38,10 @@
                 return parseInt(this.id.substr(5)) - 1
             }).get().join(',');
 
+            var selected_bdry = $(".selected_bdry").map(function () {
+                return parseInt(this.id.substr(5)) - 1
+            }).get().join(',');
+
             var rating = $('#qcslider').val();
             var orientation = $('#orientation').val();
             var fetal_motion = $('#motionslider').val();
@@ -63,7 +67,8 @@
                 'timestamp': formattedTime,
                 // 'confidence': $('#confidence').val(),
                 'comments': $('#widget-comments').val(),
-                'selected_slices': selected_im
+                'selected_slices': selected_im,
+                'selected_boundary': selected_bdry
             };
 
             var file = new Blob([JSON.stringify(payload)], { type: 'text/json' });
@@ -202,6 +207,11 @@
             outline: solid 3px red;
             outline-offset: -3px;
         }
+
+        g.selected_bdry {
+            outline: solid 3px blue;
+            outline-offset: -3px;
+        }
     </style>
 </head>
 
@@ -242,8 +252,11 @@
         </div>
 
         <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
-        <div>Select the slices that contain heavy artifacts in the in-plane view by clicking on them.</div>
-        {% for title, svg_id, svg in svg_files %}
+        <div>
+            Select the slices that contain heavy artifacts in the in-plane view by clicking on them. <br />A first
+            click (red) means that the slice is flagged as artifact. A second click (blue) is to mark the first and
+            last slices containing brain in the volume. </div>
+        {% for iter, title, svg_id, svg in svg_files %}
         <div class="card mt-2">
             <div class="card-header">{{ title }}</div>
             <div id="report-{{ svg_id }}" class="card-body">
@@ -574,20 +587,22 @@
                     });
                     {% endif %}
 
-                    {% for _, svg_id, _ in svg_files %}
-                    {% if svg_id not in ("tp1", "tp2") %}
-                    $('#report-{{ svg_id }} g[id^="axes_"]').on('click', function (e) {
+                    $('#report-ip1 g[id^="axes_"]').on('click', function (e) {
                         if ($(this).prop('clicked')) {
                             $(this).prop('clicked', false);
+                            $(this).prop('boundary', true);
                             $(this).removeClass('selected_img');
+                            $(this).addClass('selected_bdry');
+                        }
+                        else if ($(this).prop('boundary')) {
+                            $(this).prop('boundary', false);
+                            $(this).removeClass('selected_bdry');
                         } else {
                             $(this).prop('clicked', true);
                             $(this).addClass('selected_img');
                         }
                         var payload = read_form();
                     });
-                    {% endif %}
-                    {% endfor %}
 
                 </script>
             </div>
