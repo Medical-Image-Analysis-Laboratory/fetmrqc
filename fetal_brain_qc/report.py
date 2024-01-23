@@ -39,6 +39,7 @@ REPORT_TITLES = [
 ]
 
 REPORT_TITLES_SR = [
+    ("Quick view", "summary"),
     ("Axial view", "axial"),
     ("Sagittal view", "sagittal"),
     ("Coronal view", "coronal"),
@@ -117,7 +118,8 @@ def individual_html(
     else:
         titles = REPORT_TITLES
     in_plots = [
-        (titles[i] + (read_report_snippet(v),)) for i, v in enumerate(in_plots)
+        ((i,) + titles[i] + (read_report_snippet(v),))
+        for i, v in enumerate(in_plots)
     ]
 
     date = datetime.datetime.now()

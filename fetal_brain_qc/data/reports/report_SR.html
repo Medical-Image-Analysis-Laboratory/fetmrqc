@@ -292,12 +292,19 @@
         </div>
 
         <h2 id="visuals" class="mt-5 mb-2">Visual reports</h2>
-        {% for title, svg_id, svg in svg_files %}
+        {% for iter, title, svg_id, svg in svg_files %}
+
         <div class="card mt-2">
             <div class="card-header">{{ title }}</div>
+            {% if iter == 0 %}
+            <div id="report-{{ svg_id }}" class="card-body" style="width: 50%; margin: 0 auto; text-align: center;">
+                {{ svg }}
+            </div>
+            {% else %}
             <div id="report-{{ svg_id }}" class="card-body">
                 {{ svg }}
             </div>
+            {% endif %}
         </div>
         {% endfor %}
 
