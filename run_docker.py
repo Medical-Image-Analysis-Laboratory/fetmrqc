@@ -351,7 +351,7 @@ def main() -> None:
             "--docker_path",
             help=("FetMRQC docker image to be used."),
             type=str,
-            default="fetmrqc:0.1.0",
+            default="fetmrqc:latest",
         )
 
     args = parser.parse_args()

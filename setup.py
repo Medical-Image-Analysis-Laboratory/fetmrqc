@@ -10,7 +10,7 @@ def install_requires(fname="requirements.txt"):
 
 setup(
     name="fetal_brain_qc",
-    version="0.0.1",
+    version="0.1.1",
     packages=["fetal_brain_qc"],
     description="Quality control for fetal brain MRI",
     author="Thomas Sanchez",
