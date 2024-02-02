@@ -220,6 +220,7 @@ def main():
         f"--bids_csv {args.bids_csv} "
         f"--out_csv {args.iqms_csv} "
         f"--metrics {' '.join(iqms)}"
+        "  --verbose"
     )
     run_cmd(cmd)
 
