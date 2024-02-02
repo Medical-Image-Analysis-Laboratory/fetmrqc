@@ -32,7 +32,7 @@ def main(argv=None):
         FETAL_STACK_IQA_CKPT,
     )
     from fetal_brain_qc.metrics import DEFAULT_METRICS, LRStackMetrics
-    from fetal_brain_qc.definitions import FETMRQC20
+    from fetal_brain_qc.definitions import FETMRQC20_METRICS
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
@@ -50,7 +50,7 @@ def main(argv=None):
     p.add_argument(
         "--metrics",
         help="Metrics to be evaluated.",
-        default=FETMRQC20,
+        default=FETMRQC20_METRICS,
         nargs="+",
     )
 
@@ -128,7 +128,7 @@ def main(argv=None):
     )
 
     if args.use_all_metrics:
-        if args.metrics != FETMRQC20:
+        if args.metrics != FETMRQC20_METRICS:
             print(
                 f"WARNING: --use_all_metrics is enabled. Ignoring custom metrics {args.metrics}"
             )
@@ -168,15 +168,20 @@ def main(argv=None):
         import warnings
         import sys
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            stdo = sys.stdout  # backup current stdout
-            sys.stdout = open(os.devnull, "w")
-
+        if args.verbose:
             metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
                 run["im"], run["mask"], run[seg_key]
             )
-            sys.stdout = stdo
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                stdo = sys.stdout  # backup current stdout
+                sys.stdout = open(os.devnull, "w")
+
+                metrics_dict[run["name"]] = lr_metrics.evaluate_metrics(
+                    run["im"], run["mask"], run[seg_key]
+                )
+                sys.stdout = stdo
         df = pd.DataFrame.from_dict(metrics_dict, orient="index")
         df = pd.concat([df_base, df], axis=1, join="inner")
         df.index.name = "name"

@@ -18,6 +18,7 @@ import os
 import numpy as np
 import nibabel as ni
 import skimage
+import traceback
 from .utils import (
     allow_kwargs,
     freeze,
@@ -691,6 +692,26 @@ class LRStackMetrics:
         self.normalization = normalization
         self.norm_dict = df[["im", "norm"]].set_index("im").to_dict()["norm"]
 
+    def get_nan_output(self, metric):
+        sstats_keys = [
+            "mean",
+            "median",
+            "median",
+            "p95",
+            "p05",
+            "k",
+            "stdv",
+            "mad",
+            "n",
+        ]
+        if "seg_" in metric:
+            metrics = segm_names
+            if "seg_sstats" in metric:
+                metrics = [f"{n}_{k}" for n in segm_names for k in sstats_keys]
+            return {m: np.nan for m in metrics}
+        else:
+            return [np.nan]
+
     def get_default_output(self, metric):
         """Return the default output for a given metric when the mask is invalid and metrics cannot be computed."""
         METRIC_DEFAULT = {"cjv": 0}
@@ -721,10 +742,14 @@ class LRStackMetrics:
         if is_valid_mask:
             try:
                 out = self.metrics_func[metric](**args_dict)
-            except Exception as e:
+            except Exception:
                 if self.verbose:
-                    print(f"EXCEPTION: {e}")
-                out = [np.nan]
+
+                    print(
+                        f"EXCEPTION with {metric}\n" + traceback.format_exc(),
+                        file=sys.stderr,
+                    )
+                out = self.get_nan_output(metric)
             # Checking once more that if the metric is nan, we replace it with 0
         else:
             out = self.get_default_output(metric)
@@ -1006,9 +1031,7 @@ class LRStackMetrics:
             seg_dict = {
                 k: (seg == l).astype(np.uint8) for k, l in SEGM.items()
             }
-            # raise NotImplementedError(
-            #    "The nifti segmentation file has not been tested yet."
-            # )
+
         elif seg_path.endswith(".npz"):
             seg = np.load(seg_path)["probabilities"]
             if seg.shape[0] > 4:
@@ -1084,7 +1107,8 @@ class LRStackMetrics:
                 # The segmentation map is computed on data cropped with margin 15mm
                 seg_dict = {
                     k: crop_stack(
-                        ni.Nifti1Image(v, imagec.affine, imagec.header), maskc
+                        ni.Nifti1Image(v, imagec.affine, imagec.header),
+                        maskc,
                     )
                     for k, v in self.load_and_format_seg(seg_path).items()
                 }
@@ -1093,6 +1117,7 @@ class LRStackMetrics:
                     k: squeeze_dim(v.get_fdata(), -1).transpose(2, 1, 0)
                     for k, v in seg_dict.items()
                 }
+
                 assert image.shape == (
                     seg_dict["BG"].shape
                 ), "Image and segmentation have different sizes"
