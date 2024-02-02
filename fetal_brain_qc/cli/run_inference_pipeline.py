@@ -23,7 +23,7 @@ import argparse
 import os
 from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
 from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
-from fetal_brain_qc.definitions import FETMRQC20
+from fetal_brain_qc.definitions import FETMRQC20, FETMRQC20_METRICS
 import json
 
 IQMS_NO_NAN = [iqm for iqm in METRICS + METRICS_SEG if "_nan" not in iqm]
@@ -213,7 +213,7 @@ def main():
     )
     run_cmd(cmd)
     # Running IQMs computation
-    iqms = FETMRQC20 if args.fetmrqc20_iqms else iqms
+    iqms = FETMRQC20_METRICS if args.fetmrqc20_iqms else iqms
 
     cmd = (
         "qc_compute_iqms "
