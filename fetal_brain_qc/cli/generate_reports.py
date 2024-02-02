@@ -64,19 +64,27 @@ def main():
         default=None,
     )
 
+    p.add_argument(
+        "--boundary_tp_lr",
+        help="Through plane cropping boundary for the LR reports. The None value means that no cropping is done in the through-plane direction.",
+        default=None,
+    )
+
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
     dataset = (
         args.bids_csv.split("/")[-1] if args.dataset is None else args.dataset
     )
+
+    boundary_tp = 1000 if args.boundary_tp_lr is None else args.boundary_tp_lr
     print_title("Generating reports")
     generate_report(
         bids_list,
         dataset=dataset,
         out_folder=args.out_dir,
         boundary=20,
-        boundary_tp=20,
+        boundary_tp=boundary_tp,
         ncols_ip=6,
         n_slices_tp=6,
         every_n_tp=4,
