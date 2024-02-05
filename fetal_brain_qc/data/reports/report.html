@@ -15,6 +15,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"
         integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 
+
     <script>
         var timestamp = Date.now()
 
@@ -25,11 +26,6 @@
         function read_form() {
             var ds = "{{ dataset or 'unknown' }}";
             var sub = "{{ bids_name }}";
-
-            var artifacts = [];
-            $('#artifacts-group input:checked').each(function () {
-                artifacts.push($(this).attr('name'));
-            });
 
             // Parse the id of selected image in the form of axes_<n>
             // Return <n> - 1 to have the slice number aligned with the
@@ -44,9 +40,15 @@
 
             var rating = $('#qcslider').val();
             var orientation = $('#orientation').val();
-            var fetal_motion = $('#motionslider').val();
+            var is_brain = $('#is_brain_is_on').val();
+            var is_fov_full = $('#is_fov_full_is_on').val();
+            var inter_motion = $('#inter_motion').val();
             var bias_field = $('#biasslider').val();
-            var date = new Date(timestamp);
+            var signal_drop = $('#signal_drop').val();
+            var noise = $('#noise').val();
+            var intensity = $('#intensity').val();
+            var contrast = $('#contrast').val();
+            var date = new Date(Date.now());
             var day = addZero(date.getDate());
             var month = addZero(date.getMonth() + 1); //Months are zero based
             var year = addZero(date.getFullYear());
@@ -54,18 +56,21 @@
             var min = addZero(date.getMinutes());
             var sec = addZero(date.getSeconds());
 
+
             var formattedTime = year + "-" + month + "-" + day + " " + hour + ':' + min + ':' + sec;
             var payload = {
                 'dataset': ds,
                 'subject': sub,
                 'rating': rating,
                 'orientation': orientation,
-                'artifacts': artifacts,
-                'fetal_motion': fetal_motion,
+                'inter_motion': inter_motion,
                 'bias_field': bias_field,
+                'noise': noise,
+                'contrast': contrast,
+                'intensity': intensity,
+                'contrast': contrast,
                 'time_sec': (Date.now() - timestamp) / 1000,
                 'timestamp': formattedTime,
-                // 'confidence': $('#confidence').val(),
                 'comments': $('#widget-comments').val(),
                 'selected_slices': selected_im,
                 'selected_boundary': selected_bdry
@@ -88,13 +93,6 @@
             }
         };
 
-        $(window).on('load', function () {
-            var authorization = $('#btn-post').val()
-            if (authorization.includes("secret_token")) {
-                $('#btn-post').addClass('d-none');
-            };
-            timestamp = Date.now();
-        });
     </script>
     <style type="text/css">
         body {
@@ -212,8 +210,34 @@
             outline: solid 3px blue;
             outline-offset: -3px;
         }
+
+        @media (max-height: 1000px) or (max-width: 1300px) {
+            .list-group-item {
+                font-size: 8px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .card-body label {
+                font-size: 8px;
+            }
+
+            .accordion-button {
+                font-size: 10px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .input-group-text {
+                font-size: 8px;
+            }
+
+            .btn-primary {
+                font-size: 10px;
+            }
+
+        }
     </style>
-</head>
 
 <body>
     <div class="document">
@@ -271,343 +295,353 @@
                     id="close-rating-menu" onclick="toggle_rating()" style="margin: 10px 10px 0 0"></button>
             </div>
             <div class="card-body">
-                <div class="accordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="qcslider-head">
-                            <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#qcslider-collapse" aria-expanded="true"
-                                aria-controls="qcslider-collapse">
-                                Overall Quality Rating
-                            </button>
-                        </h2>
-                        <div id="qcslider-collapse" class="accordion-collapse collapse show"
-                            aria-labelledby="qcslider-head">
-                            <div class="accordion-body">
-                                <input type="range" min="0.0" max="4.0" step="0.05" value="2." id="qcslider"
-                                    class="slider" style="width:100%; margin-left:0%">
-                                <ul class=" list-group list-group-horizontal slider-labels" style="width:100%">
-                                    <li class="list-group-item list-group-item-danger"
-                                        style="width: 25%; text-align:center">Exclude</button>
-                                    <li class="list-group-item list-group-item-warning"
-                                        style="width: 25%; text-align:center">Poor</button>
-                                    <li class="list-group-item list-group-item-primary"
-                                        style="width: 25%; text-align:center">Acceptable</button>
-                                    <li class="list-group-item list-group-item-success"
-                                        style="width: 25%; text-align:center">Excellent</button>
-                                </ul>
-                                <label for="orientation">Brain orientation:</label>
-                                <select name="orientation" id="orientation">
-                                    <option value="">--Choose an orientation--</option>
-                                    <option value="axial">Axial</option>
-                                    <option value="coronal">Coronal</option>
-                                    <option value="sagittal">Sagittal</option>
-                                    <option value="oblique">Oblique</option>
-                                </select>
-                            </div>
-                            <!-- <div class="accordion-body">
-                                <fieldset id="artifacts-group" class="form-group">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="potential-reference"
-                                            id="ref1">
-                                        <label class="form-check-label" for="ref1">Usable as reference</label>
-                                    </div>
-                                </fieldset>
-                            </div> -->
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="qcartifacts-head">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#qcartifacts-collapse" aria-expanded="false"
-                                aria-controls="qcartifacts-collapse">
-                                Record specific artifacts
-                            </button>
-                        </h2>
-                        <div class="accordion-collapse collapse collapsed" id="qcartifacts-collapse"
-                            aria-labelledby="qcartifacts-head">
-                            <div class="accordion-body">
-                                <label for="motionslider">Fetal motion:</label>
-                                <div id="motionslider-collapse">
-                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="motionslider"
-                                        class="slider">
-                                    <ul class="list-group list-group-horizontal slider-labels"
-                                        style="width:80%;margin-left:10%">
-                                        <li class="list-group-item list-group-item-success"
-                                            style="width: 33.3%; text-align:center">Low</button>
-                                        <li class="list-group-item list-group-item-warning"
-                                            style="width: 33.3%; text-align:center">Moderate</button>
-                                        <li class="list-group-item list-group-item-danger"
-                                            style="width: 33.3%; text-align:center">High</button>
-                                    </ul>
-                                </div>
-                                <label for="biasslider">Bias field:</label>
-                                <div id="biasslider-collapse">
-                                    <input type="range" min="0.0" max="3.0" step="0.05" value="0.0" id="biasslider"
-                                        class="slider">
-                                    <ul class="list-group list-group-horizontal slider-labels"
-                                        style="width:80%;margin-left:10%">
-                                        <li class="list-group-item list-group-item-success"
-                                            style="width: 33.3%; text-align:center">Low</button>
-                                        <li class="list-group-item list-group-item-warning"
-                                            style="width: 33.3%; text-align:center">Moderate</button>
-                                        <li class="list-group-item list-group-item-danger"
-                                            style="width: 33.3%; text-align:center">High</button>
-                                    </ul>
-                                </div>
-                                <fieldset id="artifacts-group" class="form-group">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="signal-drop" id="art1">
-                                        <label class="form-check-label" for="art1">Signal drop</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="incomplete-fov" id="art2">
-                                        <label class="form-check-label" for="art2">Incomplete field of view</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="noise" id="art3">
-                                        <label class="form-check-label" for="art3">High noise</label>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="uncategorized" id="art0">
-                                        <label class="form-check-label" for="art0">Uncategorized artifact</label>
-                                    </div>
-                                </fieldset>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="widget-misc-head">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#widget-misc-collapse" aria-expanded="false"
-                                aria-controls="widget-misc-collapse">
-                                Extra details
-                            </button>
-                        </h2>
-                        <div id="widget-misc-collapse" class="accordion-collapse collapse"
-                            aria-labelledby="widget-misc-head">
-                            <div class="accordion-body">
-                                <div class="input-group">
-                                    <span class="input-group-text">Comments</span>
-                                    <textarea class="form-control" aria-label="Comments"
-                                        id="widget-comments"></textarea>
-                                </div>
-
-                                <!-- <p style="margin-top: 20px; font-weight: bold">Rater confidence:</p>
-                                <input type="range" min="0.0" max="4.0" step="0.05" value="3.0" id="confidence"
-                                    class="slider" style="margin-left: 22%;width: 56%;">
-                                <ul class="list-group list-group-horizontal slider-labels" style="width: 100%">
-                                    <li class="list-group-item list-group-item-warning"
-                                        style="width: 50%; text-align:center">Doubtful</button>
-                                    <li class="list-group-item list-group-item-success bg-success text-white"
-                                        style="width: 50%; text-align:center">Confident</button>
-                                </ul> -->
-                            </div>
-                        </div>
-                    </div>
+                <label for="is_brain">Is this a brain?</label>
+                <div id="is_brain-collapse">
+                    <ul id="is_brain" class="list-group list-group-horizontal slider-labels"
+                        style="width:80%;margin-left:10%">
+                        <input type="hidden" id="is_brain_is_on" value="0.5">
+                        <li class="list-group-item list-group-item-danger"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            No
+                        </li>
+                        <li class="list-group-item list-group-item-success"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            Yes
+                        </li>
+                    </ul>
                 </div>
-                <div style="margin-top: 10px">
+                <div>
+                    <label for="orientation">Brain orientation:</label>
+                    <select name="orientation" id="orientation">
+                        <option value="">--Choose an orientation--</option>
+                        <option value="axial">Axial</option>
+                        <option value="coronal">Coronal</option>
+                        <option value="sagittal">Sagittal</option>
+                        <option value="oblique">Oblique</option>
+                    </select>
+                </div>
+
+                <label for="is_fov_full">Is the brain fully covered?</label>
+                <div id="is_fov_full-collapse">
+                    <input type="hidden" id="is_fov_full_is_on" value="0.5">
+
+                    <ul id="is_fov_full" class="list-group list-group-horizontal slider-labels"
+                        style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            No
+                        </li>
+                        <li class="list-group-item list-group-item-success"
+                            style="width: 50%; text-align:center; caret-color: transparent;">
+                            Yes
+                        </li>
+                    </ul>
+                </div>
+
+                <label for="inter_motion">Inter-slice fetal motion <span style="font-size: smaller">(e.g.
+                        stripes)</span></label>
+                <div id="inter_motion-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="inter_motion" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Large</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Low</button>
+                    </ul>
+                </div>
+                <label for="biasslider">Bias field <span style="font-size: smaller">(in-plane and through-plane
+                        intensity gradient)</span></label>
+                <div id="biasslider-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="biasslider" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Large</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Low</button>
+                    </ul>
+                </div>
+                <label for="signal_drop">Signal drops <span style="font-size: smaller">(flag the corresponding
+                        slices)</span></label>
+                <div id="signal_drop-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="signal_drop" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Multiple and major</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Few and minor </button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            None</button>
+                    </ul>
+                </div>
+                <label for="noise">Noise</label>
+                <div id="noise-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            High <span style="font-size: smaller">(no dGM)</span></button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Low </button>
+                    </ul>
+                </div>
+
+                <label for="intensity">Intensity shifts across slices</label>
+                <div id="intensity-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Large</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Low</button>
+                    </ul>
+                </div>
+                <label for="contrast">Tissue contrast<span style="font-size: smaller"> (intensity at WM/cortical
+                        GM/CSF, WM/dGM interfaces)</span></label>
+                <div id="contrast-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="contrast" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Good</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Excellent</button>
+                    </ul>
+                </div>
+
+                <hr style="border: 0.5px solid black; ">
+                <label for="qcslider">Global subjective quality rating:</label>
+                <div id="qcslider-collapse">
+                    <input type="range" min="0.0" max="4.0" step="0.05" value="2.0" id="qcslider" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 25%; text-align:center">
+                            Exclude</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 25%; text-align:center">
+                            Poor</button>
+                        <li class="list-group-item list-group-item-primary" style="width: 25%; text-align:center">
+                            Acceptable</button>
+                        <li class="list-group-item list-group-item-success" style="width: 25%; text-align:center">
+                            Excellent</button>
+                    </ul>
+                </div>
+
+            </div>
+
+            <div class="accordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="widget-misc-head">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#widget-misc-collapse" aria-expanded="false"
+                            aria-controls="widget-misc-collapse">
+                            Extra details
+                        </button>
+                    </h2>
+                    <div id="widget-misc-collapse" class="accordion-collapse collapse"
+                        aria-labelledby="widget-misc-head">
+                        <div class="accordion-body">
+                            <div class="input-group">
+                                <span class="input-group-text">Comments</span>
+                                <textarea class="form-control" aria-label="Comments" id="widget-comments"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div style="margin: 10px">
                     <a class="btn btn-primary disabled" id="btn-download" href="">Download</a>
-                    <button class="btn btn-primary" id="btn-post" value="<secret_token>" disabled>Post to
-                        WebAPI</button>
                 </div>
-                <script type="text/javascript">
-
-                    var time_threshold = 1000
-                    $('#qcslider').on('input', function () {
-
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-
-                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                        });
-                        $('#qcslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                        });
-
-                        if ($(this).val() < 1.) {
-                            $('#qcslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else if ($(this).val() > 3.) {
-                            $('#qcslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() < 2.) {
-                            $('#qcslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                        } else {
-                            $('#qcslider-collapse .list-group-item-primary').addClass('bg-primary text-white');
-                        };
-
-                        var payload = read_form();
-                    });
-
-                    $('#motionslider').on('input', function () {
-
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#next-report').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                        };
-
-                        $('#motionslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                        });
-                        $('#motionslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                        });
-
-                        if ($(this).val() < 1.) {
-                            $('#motionslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() > 2.) {
-                            $('#motionslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else {
-                            $('#motionslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                        };
-
-                        var payload = read_form();
-                    });
-
-                    $('#biasslider').on('input', function () {
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#next-report').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                        };
-
-                        $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                        });
-                        $('#biasslider-collapse .list-group-item').removeClass(function (index, classname) {
-                            return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                        });
-
-                        if ($(this).val() < 1.) {
-                            $('#biasslider-collapse .list-group-item-success').addClass('bg-success text-white');
-                        } else if ($(this).val() > 2.) {
-                            $('#biasslider-collapse .list-group-item-danger').addClass('bg-danger text-white');
-                        } else {
-                            $('#biasslider-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                        };
-                        var payload = read_form();
-
-                    });
-                    // $('#confidence').on('input', function () {
-                    //     if ((Date.now() - timestamp) / 1000 > 10) {
-                    //         $('#btn-download').removeClass('disabled');
-                    //         $('#btn-download').removeAttr('aria-disabled');
-                    //         $('#btn-post').removeAttr('disabled');
-                    //     };
-
-                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
-                    //     });
-                    //     $('#widget-misc-collapse .list-group-item').removeClass(function (index, classname) {
-                    //         return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
-                    //     });
-
-                    //     if ($(this).val() < 2.0) {
-                    //         $('#widget-misc-collapse .list-group-item-warning').addClass('bg-warning text-dark');
-                    //     } else {
-                    //         $('#widget-misc-collapse .list-group-item-success').addClass('bg-success text-white');
-                    //     };
-
-                    //     var payload = read_form();
-                    // });
-
-
-                    $('#widget-comments').bind('input propertychange', function () {
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-                        var payload = read_form();
-                    });
-
-                    $('#orientation').bind('input propertychange', function () {
-                        if ((Date.now() - timestamp) / time_threshold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-                        var payload = read_form();
-                    });
-
-                    $('#btn-post').click(function () {
-                        var payload = read_form();
-                        var md5sum = "{{ md5sum }}";
-                        var params = {
-                            'rating': payload['rating'],
-                            'md5sum': md5sum,
-                            'name': "",
-                            'comment': JSON.stringify(payload['artifacts'])
-                        };
-
-                        // disable developement releases
-                        var authorization = $(this).val();
-                        var ratingReq = new XMLHttpRequest();
-                        ratingReq.open("POST", "{{ webapi_url }}/rating");
-                        ratingReq.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                        ratingReq.setRequestHeader("Authorization", authorization);
-                        ratingReq.onload = function () {
-                            status = ratingReq.status;
-                            $('#btn-post').removeClass('btn-primary');
-                            $('#btn-post').attr('disabled', true);
-                            $('#btn-post').attr('aria-disabled', true);
-                            $('#btn-post').prop('disabled');
-                            $('#btn-post').addClass('disabled');
-                            $('#btn-post').removeClass('active');
-                            if (status === "201") {
-                                $('#btn-post').addClass('btn-success');
-                                $('#btn-post').html('Posted!');
-                            } else {
-                                $('#btn-post').addClass('btn-danger');
-                                $('#btn-post').html('Failed');
-                            };
-                        };
-                        ratingReq.send(JSON.stringify(params));
-                    });
-
-                    $('body').on('click', '#artifacts-group input', function (e) {
-                        if ((Date.now() - timestamp) / time_thresold > 10) {
-                            $('#btn-download').removeClass('disabled');
-                            $('#btn-download').removeAttr('aria-disabled');
-                            $('#btn-post').removeAttr('disabled');
-                        };
-
-                        var payload = read_form();
-                    });
-
-                    $('body').on('click', '#rating-toggler', function (e) {
-                        toggle_rating();
-                    });
-                    {% if do_index %}
-                    $('#btn-download').click(function () {
-                        window.parent.postMessage({ 'message': 'rating done' }, '*');
-                    });
-                    {% endif %}
-
-                    $('#report-ip1 g[id^="axes_"]').on('click', function (e) {
-                        if ($(this).prop('clicked')) {
-                            $(this).prop('clicked', false);
-                            $(this).prop('boundary', true);
-                            $(this).removeClass('selected_img');
-                            $(this).addClass('selected_bdry');
-                        }
-                        else if ($(this).prop('boundary')) {
-                            $(this).prop('boundary', false);
-                            $(this).removeClass('selected_bdry');
-                        } else {
-                            $(this).prop('clicked', true);
-                            $(this).addClass('selected_img');
-                        }
-                        var payload = read_form();
-                    });
-
-                </script>
             </div>
         </div>
     </div>
+    <script type="text/javascript">
+        var time_threshold = 1000
+        var slider_changed = false;
+        var artifacts_changed = false;
+
+        /**
+         * Function highlighting the group over which a slider is.
+         * When the slider is clicked, clears the list-group-item from its style
+         * and add a highlighting based on the value of the slider 
+         * $(#my_class).val()
+         */
+        function defineSlider(my_class) {
+
+            $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+            });
+            $('#' + my_class + '-collapse .list-group-item').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+            });
+            if (my_class != "qcslider") {
+                if ($('#' + my_class).val() < 1.) {
+                    $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                } else if ($('#' + my_class).val() < 2.) {
+                    $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                } else {
+                    $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
+
+                };
+            } else {
+                if ($('#' + my_class).val() < 1.) {
+                    $('#' + my_class + '-collapse .list-group-item-danger').addClass('bg-danger text-white');
+                } else if ($('#' + my_class).val() < 2.) {
+                    $('#' + my_class + '-collapse .list-group-item-warning').addClass('bg-warning text-dark');
+                } else if ($('#' + my_class).val() < 3.) {
+                    $('#' + my_class + '-collapse .list-group-item-primary').addClass('bg-primary text-white');
+                } else {
+                    $('#' + my_class + '-collapse .list-group-item-success').addClass('bg-success text-white');
+                };
+                if (my_class == "qcslider") {
+                    slider_changed = true;
+                }
+            }
+            checkDownload();
+        }
+
+        /**
+         * Various functions defining the input reaction of the slider.
+         * 
+         */
+
+
+        $('#inter_motion').on('input', function () {
+            defineSlider('inter_motion')
+        });
+
+        $('#biasslider').on('input', function () {
+            defineSlider('biasslider')
+        });
+
+        $('#signal_drop').on('input', function () {
+            defineSlider('signal_drop')
+        });
+
+        $('#noise').on('input', function () {
+            defineSlider('noise')
+        });
+
+        $('#intensity').on('input', function () {
+            defineSlider('intensity')
+        });
+        $('#contrast').on('input', function () {
+            defineSlider('contrast')
+        });
+
+        $('#qcslider').on('input', function () {
+            defineSlider('qcslider')
+        });
+
+        /**
+         * Check if the download is ready: if at least 10 seconds have
+         * passed or that artifacts have been changed so that one of them
+         * is in the disabled state, and whether the global quality slider
+         * has been changed.
+         * The second case is that if the image is not brain, you can finish the rating.
+         */
+        function checkDownload() {
+            console.log("Check", $('#is_brain_is_on').val(), is_brain_is_on, $('#is_brain_is_on').val() == 0)
+            if (((Date.now() - timestamp) / time_threshold > 10) || (artifacts_changed)) {
+                if (slider_changed) {
+                    $('#btn-download').removeClass('disabled');
+                    $('#btn-download').removeAttr('aria-disabled');
+                    $('#btn-post').removeAttr('disabled');
+                }
+            }
+            if ($('#is_brain_is_on').val() == 0) {
+                $('#qcslider').val(0.);
+                $('#btn-download').removeClass('disabled');
+                $('#btn-download').removeAttr('aria-disabled');
+                $('#btn-post').removeAttr('disabled');
+            }
+        }
+
+
+        /**
+         * Onclick function for the yes/no button.
+         * Similar behaviour than defineSliders
+         */
+        function defineButton(e, _this, name) {
+            e.preventDefault()
+
+            _this.parent().find('li').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)bg-\S+/g) || []).join(' ');
+            });
+
+            _this.parent().find('li').removeClass(function (index, classname) {
+                return (classname.match(/(^|\s)text-\S+/g) || []).join(' ');
+            });
+
+            if (_this.hasClass('list-group-item-danger')) {
+                _this.addClass('bg-danger text-white');
+                $('#' + name + '_is_on').val(0.)
+
+            } else if (_this.hasClass('list-group-item-success')) {
+                _this.addClass('bg-success text-white');
+                $('#' + name + '_is_on').val(1.)
+            } else {
+                console.log("This should not occur");
+
+            }
+            checkDownload();
+        }
+
+        $('#is_brain li').click(function (e) { defineButton(e, $(this), "is_brain") });
+        $('#is_fov_full li').click(function (e) { defineButton(e, $(this), "is_fov_full") });
+
+        $('#widget-comments').bind('input propertychange', function () {
+            if ((Date.now() - timestamp) / time_threshold > 10) {
+                $('#btn-download').removeClass('disabled');
+                $('#btn-download').removeAttr('aria-disabled');
+                $('#btn-post').removeAttr('disabled');
+            };
+        });
+
+        $('#orientation').bind('input propertychange', function () {
+            if ((Date.now() - timestamp) / time_threshold > 10) {
+                $('#btn-download').removeClass('disabled');
+                $('#btn-download').removeAttr('aria-disabled');
+                $('#btn-post').removeAttr('disabled');
+            };
+        });
+
+
+        $('body').on('click', '#rating-toggler', function (e) {
+            toggle_rating();
+        });
+        $('#btn-download').click(function () {
+            var payload = read_form();
+            {% if do_index %}
+
+            window.parent.postMessage({ 'message': 'rating done' }, '*');
+
+            {% endif %}
+        });
+        $('#report-ip1 g[id^="axes_"]').on('click', function (e) {
+            if ($(this).prop('clicked')) {
+                $(this).prop('clicked', false);
+                $(this).prop('boundary', true);
+                $(this).removeClass('selected_img');
+                $(this).addClass('selected_bdry');
+            }
+            else if ($(this).prop('boundary')) {
+                $(this).prop('boundary', false);
+                $(this).removeClass('selected_bdry');
+            } else {
+                $(this).prop('clicked', true);
+                $(this).addClass('selected_img');
+            }
+            var payload = read_form();
+        });
+
+    </script>
+
 </body>
 
 </html>

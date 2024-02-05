@@ -275,7 +275,7 @@
                 expected </h1>
         </noscript>
 
-        <h1 class="mt-5 mb-5">Low-resolution scan report</h1>
+        <h1 class="mt-5 mb-5">Super-resolution scan report</h1>
 
         <div class="card mt-3" style="width: 480pt;">
             <h2 id="summary" class="card-header">Summary</h2>
@@ -308,7 +308,7 @@
         </div>
         {% endfor %}
 
-        < <div id="rating-menu" class="card position-fixed d-none" style="width: 30%; top: 100px; left: 65%;">
+        <div id="rating-menu" class="card position-fixed d-none" style="width: 30%; top: 100px; left: 65%;">
             <div class="card-header m-0">Rate Image
                 <button type="button" class="btn-close position-absolute top-0 end-0" aria-label="Close"
                     id="close-rating-menu" onclick="toggle_rating()" style="margin: 10px 10px 0 0"></button>
@@ -316,7 +316,7 @@
             <div class="card-body">
                 <label for="is_reconstructed">Is the brain fully reconstructed?</label>
                 <div id="is_reconstructed-collapse">
-                    <input type="hidden" id="is_reconst" value="0.5">
+                    <input type="hidden" id="is_brain_is_on" value="0.5">
                     <ul id="is_reconstructed" class="list-group list-group-horizontal slider-labels"
                         style="width:80%;margin-left:10%">
                         <li class="list-group-item list-group-item-danger"
@@ -463,8 +463,7 @@
                     <a class="btn btn-primary disabled" id="btn-download" href="">Download</a>
                 </div>
             </div>
-    </div>
-    </div>
+        </div>
     </div>
     <script type="text/javascript">
         var time_threshold = 1000
