@@ -74,7 +74,7 @@ FetMRQC relies on pretrained models from various other works. In order to run it
 -  **MONAIfbs [2].** Download the pretrained model from [Zenodo](https://zenodo.org/record/4282679#.X7fyttvgqL5), and to add it to `fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt`.
 -  **fetal-IQA [3,4,5].** Download the checkpoint `pytorch.ckpt` of [fetal-IQA](https://github.com/daviddmc/fetal-IQA) from [Zenodo](https://zenodo.org/record/7368570). Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
 - **pl-fetal-brain-assessment [6].** Download the checkpoint of [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) from [Zenodo](https://zenodo.org/records/8309634/files/weights_resnet_sw2_k1.hdf5?download=1). Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`
-- **Pretrained nnUNetv2 [7] model.** Download the [checkpoint folder](https://drive.switch.ch/index.php/s/wpepw8DS71IRsW9), unzip it and put it into `fetal_brain_qc/models`. 
+- **Pretrained nnUNetv2 [7] model.** Download the checkpoint folder from [Zenodo](https://zenodo.org/records/10785234/files/nnUNet.zip), unzip it and put it into `fetal_brain_qc/models`. 
 
 #### Final step: nnUNet [7] - Tricky part
 Create a **new** environment for nnUNet (exit the current one by doing `conda deactivate`), using `conda env create -n nnunet` and activate it. Then, following the [nnUNet installation instructions](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/installation_instructions.md), install pytorch:
