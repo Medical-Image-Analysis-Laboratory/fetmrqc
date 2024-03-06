@@ -219,7 +219,7 @@
             }
 
             .card-body label {
-                font-size: 8px;
+                font-size: 10px;
             }
 
             .accordion-button {
@@ -229,10 +229,14 @@
             }
 
             .input-group-text {
-                font-size: 8px;
+                font-size: 10px;
             }
 
             .btn-primary {
+                font-size: 10px;
+            }
+
+            select {
                 font-size: 10px;
             }
 
@@ -338,8 +342,7 @@
                     </ul>
                 </div>
 
-                <label for="inter_motion">Inter-slice fetal motion <span style="font-size: smaller">(e.g.
-                        stripes)</span></label>
+                <label for="inter_motion">Inter-slice fetal motion</label>
                 <div id="inter_motion-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="inter_motion" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
@@ -364,6 +367,18 @@
                             Low</button>
                     </ul>
                 </div>
+                <label for="noise">Noise</label>
+                <div id="noise-collapse">
+                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
+                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
+                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
+                            High</button>
+                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
+                            Moderate</button>
+                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
+                            Low </button>
+                    </ul>
+                </div>
                 <label for="signal_drop">Signal drops <span style="font-size: smaller">(flag the corresponding
                         slices)</span></label>
                 <div id="signal_drop-collapse">
@@ -377,29 +392,18 @@
                             None</button>
                     </ul>
                 </div>
-                <label for="noise">Noise</label>
-                <div id="noise-collapse">
-                    <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
-                    <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
-                        <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
-                            High <span style="font-size: smaller">(no dGM)</span></button>
-                        <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
-                            Moderate</button>
-                        <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
-                            Low </button>
-                    </ul>
-                </div>
 
-                <label for="intensity">Intensity shifts across slices</label>
+
+                <label for="intensity">Hyperintense slices</label>
                 <div id="intensity-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="intensity" class="slider">
                     <ul class="list-group list-group-horizontal slider-labels" style="width:80%;margin-left:10%">
                         <li class="list-group-item list-group-item-danger" style="width: 33.3%; text-align:center">
-                            Large</button>
+                            Multiple and major</button>
                         <li class="list-group-item list-group-item-warning" style="width: 33.3%; text-align:center">
-                            Moderate</button>
+                            Few and minor</button>
                         <li class="list-group-item list-group-item-success" style="width: 33.3%; text-align:center">
-                            Low</button>
+                            None</button>
                     </ul>
                 </div>
                 <label for="contrast">Tissue contrast<span style="font-size: smaller"> (intensity at WM/cortical
