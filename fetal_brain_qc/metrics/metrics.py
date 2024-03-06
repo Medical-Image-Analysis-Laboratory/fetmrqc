@@ -20,8 +20,6 @@ import nibabel as ni
 import skimage
 import traceback
 from .utils import (
-    allow_kwargs,
-    freeze,
     normalized_cross_correlation,
     shannon_entropy,
     joint_entropy,
@@ -40,7 +38,6 @@ from inspect import getmembers, isfunction
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 from fetal_brain_qc.utils import squeeze_dim
 from scipy.stats import kurtosis, variation
-from functools import partial
 import pandas as pd
 from .mriqc_metrics import (
     summary_stats,
@@ -51,6 +48,7 @@ from .mriqc_metrics import (
     wm2max,
 )
 import sys
+from functools import partial
 
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 DEFAULT_METRICS = [
@@ -134,39 +132,41 @@ class LRStackMetrics:
             self.slice_model.load_state_dict(checkpoint["ema_state_dict"])
             self.slice_model.eval()
         self.metrics_func = {
-            "centroid": freeze(self._metric_mask_centroid, central_third=True),
-            "centroid_full": freeze(
+            "centroid": partial(
+                self._metric_mask_centroid, central_third=True
+            ),
+            "centroid_full": partial(
                 self._metric_mask_centroid, central_third=False
             ),
-            "rank_error": freeze(
+            "rank_error": partial(
                 self._metric_rank_error,
                 threshold=0.99,
                 central_third=True,
                 crop_image=True,
                 relative_rank=True,
             ),
-            "rank_error_full": freeze(
+            "rank_error_full": partial(
                 self._metric_rank_error,
                 threshold=0.99,
                 central_third=False,
                 crop_image=False,
                 relative_rank=False,
             ),
-            "rank_error_center": freeze(
+            "rank_error_center": partial(
                 self._metric_rank_error,
                 threshold=0.99,
                 central_third=True,
                 crop_image=False,
                 relative_rank=False,
             ),
-            "rank_error_center_relative": freeze(
+            "rank_error_center_relative": partial(
                 self._metric_rank_error,
                 threshold=0.99,
                 central_third=True,
                 crop_image=False,
                 relative_rank=True,
             ),
-            "rank_error_full_cropped_relative": freeze(
+            "rank_error_full_cropped_relative": partial(
                 self._metric_rank_error,
                 central_third=False,
                 crop_image=True,
@@ -430,8 +430,8 @@ class LRStackMetrics:
                 reduction="mean",
                 use_window=True,
             ),
-            "ssim": freeze(self._ssim, **default_params),
-            "ssim_window": freeze(
+            "ssim": partial(self._ssim, **default_params),
+            "ssim_window": partial(
                 self._ssim,
                 central_third=True,
                 crop_image=True,
@@ -538,46 +538,46 @@ class LRStackMetrics:
                 crop_image=True,
                 compute_on_mask=True,
             ),
-            "bias": freeze(
+            "bias": partial(
                 self._metric_bias_field,
                 compute_on_mask=True,
                 central_third=True,
             ),
-            "bias_full": freeze(
+            "bias_full": partial(
                 self._metric_bias_field,
                 compute_on_mask=True,
                 central_third=False,
             ),
-            "bias_full_not_mask": freeze(
+            "bias_full_not_mask": partial(
                 self._metric_bias_field,
                 compute_on_mask=False,
                 central_third=False,
             ),
             ## Filter-based metrics
-            "dilate_erode_mask": freeze(
+            "dilate_erode_mask": partial(
                 self._metric_dilate_erode_mask, central_third=True
             ),
-            "dilate_erode_mask_full": freeze(
+            "dilate_erode_mask_full": partial(
                 self._metric_dilate_erode_mask, central_third=False
             ),
-            "filter_laplace_mask": freeze(
+            "filter_laplace_mask": partial(
                 self._metric_filter_mask, filter=laplace
             ),
-            "filter_laplace_mask_full": freeze(
+            "filter_laplace_mask_full": partial(
                 self._metric_filter_mask, filter=laplace, central_third=False
             ),
-            "filter_sobel_mask": freeze(
+            "filter_sobel_mask": partial(
                 self._metric_filter_mask, filter=sobel
             ),
-            "filter_sobel_mask_full": freeze(
+            "filter_sobel_mask_full": partial(
                 self._metric_filter_mask, filter=sobel, central_third=False
             ),
-            "filter_laplace": freeze(self._metric_filter, filter=laplace),
-            "filter_laplace_full": freeze(
+            "filter_laplace": partial(self._metric_filter, filter=laplace),
+            "filter_laplace_full": partial(
                 self._metric_filter, filter=laplace, central_third=False
             ),
-            "filter_sobel": freeze(self._metric_filter, filter=sobel),
-            "filter_sobel_full": freeze(
+            "filter_sobel": partial(self._metric_filter, filter=sobel),
+            "filter_sobel_full": partial(
                 self._metric_filter, filter=sobel, central_third=False
             ),
             "seg_sstats": self.process_metric(
@@ -838,23 +838,23 @@ class LRStackMetrics:
         """
 
         if type == "ref":
-            return freeze(
+            return partial(
                 self.preprocess_and_evaluate_metric, metric=metric, **kwargs
             )
         elif type == "noref":
-            return freeze(
+            return partial(
                 self.preprocess_and_evaluate_noref_metric,
                 noref_metric=metric,
                 **kwargs,
             )
         elif type == "dl":
-            return freeze(
+            return partial(
                 self.preprocess_and_evaluate_dl_metric,
                 dl_metric=metric,
                 **kwargs,
             )
         elif type == "seg":
-            return freeze(
+            return partial(
                 self.preprocess_and_evaluate_seg_metric,
                 seg_metric=metric,
                 **kwargs,
@@ -864,9 +864,8 @@ class LRStackMetrics:
                 f"Unknown metric type {type}. Please choose among ['ref', 'noref', 'dl']"
             )
 
-    @allow_kwargs
     def _metric_mask_centroid(
-        self, mask_path: str, central_third: bool = True
+        self, mask_path: str, central_third: bool = True, **kwargs
     ) -> np.ndarray:
         """Given a path to a brain mask `mask_path`, computes
         a motion index based on centroids of this mask. Lower is better.
@@ -909,8 +908,7 @@ class LRStackMetrics:
             isnan,
         )
 
-    @allow_kwargs
-    def _metric_mask_volume(self, mask_path):
+    def _metric_mask_volume(self, mask_path, **kwargs):
         """
         Compute volume of a nifti-encoded mask.
         Simply computes the volume of a voxel and multiply it
@@ -935,7 +933,6 @@ class LRStackMetrics:
         isnan = False
         return np.sum(mask) * vx_volume, isnan
 
-    @allow_kwargs
     def _metric_rank_error(
         self,
         lr_path,
@@ -944,6 +941,7 @@ class LRStackMetrics:
         central_third: bool = True,
         crop_image: bool = True,
         relative_rank: bool = True,
+        **kwargs,
     ):
         """Given a low-resolution cropped_stack (image_cropped), computes the
         rank and svd_quality. The algorithm is based on the paper of Kainz
@@ -1397,8 +1395,9 @@ class LRStackMetrics:
         )
         return seg_metric(image, seg)
 
-    @allow_kwargs
-    def _metric_stack_iqa(self, image, mask, positive_only=None) -> np.ndarray:
+    def _metric_stack_iqa(
+        self, image, mask, positive_only=None, **kwargs
+    ) -> np.ndarray:
         """ """
         from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
 
@@ -1412,12 +1411,8 @@ class LRStackMetrics:
         df = df.set_index("filename")
         return df.loc["img"]["quality"]
 
-    @allow_kwargs
     def _metric_slice_iqa(
-        self,
-        image,
-        mask,
-        positive_only=False,
+        self, image, mask, positive_only=False, **kwargs
     ) -> np.ndarray:
         """ """
         # Loading data
@@ -1438,7 +1433,6 @@ class LRStackMetrics:
             weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
         return weighted_score
 
-    @allow_kwargs
     def _metric_bias_field(
         self,
         lr_path,
@@ -1449,6 +1443,7 @@ class LRStackMetrics:
         wiener_filter_noise=0.11,
         convergence_threshold=1e-6,
         fwhm=0.15,
+        **kwargs,
     ) -> np.ndarray:
         """ """
 
@@ -1506,9 +1501,8 @@ class LRStackMetrics:
 
     ### Filter-based metrics
 
-    @allow_kwargs
     def _metric_dilate_erode_mask(
-        self, mask_path: str, central_third: bool = True
+        self, mask_path: str, central_third: bool = True, **kwargs
     ) -> np.ndarray:
         """Given a path to a brain mask `mask_path`, dilates and
         erodes the mask in the z-direction to see the overlap between masks
@@ -1551,9 +1545,8 @@ class LRStackMetrics:
             res = np.sum(abs(processed - mask)) / volume
             return res, False
 
-    @allow_kwargs
     def _metric_filter_mask(
-        self, mask_path: str, filter=None, central_third: bool = True
+        self, mask_path: str, filter=None, central_third: bool = True, **kwargs
     ) -> np.ndarray:
         """Given a path to a
 
@@ -1587,13 +1580,13 @@ class LRStackMetrics:
         res = np.mean(abs(filtered - mask))
         return res, np.isnan(res)
 
-    @allow_kwargs
     def _metric_filter(
         self,
         lr_path: str,
         mask_path: str,
         filter=None,
         central_third: bool = True,
+        **kwargs,
     ) -> np.ndarray:
         """Given a path to a LR image and its corresponding image,
         loads and processes the LR image, filters it with a `filter` from
