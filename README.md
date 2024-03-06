@@ -33,7 +33,7 @@ While raw data cannot be shared, the extracted image quality metrics are availab
 
 You can follow [this link](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) to install Docker and NVIDIA Container Toolkit. After installing docker, you can download *FetMRQC* with 
 ```
-docker pull thsanchez/fetmrqc:0.1.0
+docker pull thsanchez/fetmrqc:0.1.1
 ```
 
 This image by build using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
