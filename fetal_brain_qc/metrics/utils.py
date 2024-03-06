@@ -14,56 +14,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
-import re
-import os
 import numpy as np
-from inspect import getfullargspec
-from functools import wraps
 import skimage
-
-
-def allow_kwargs(func):
-    """Wrapper to allow flexible kwargs: if the kwargs do not match
-    the argspec of the function, they are simply ignored."""
-    argspec = getfullargspec(func)
-
-    # if the original allows kwargs then do nothing
-    if argspec.varkw:
-        return func
-
-    # Otherwise, define a decorator
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        matched_args = dict(
-            (k, kwargs[k]) for k in argspec.args if k in kwargs
-        )
-
-        return func(*args, **matched_args)
-
-    return wrapper
-
-
-def freeze(f, **kwargs):
-    """Decorator to wrap a function and set the value
-    of part of its argument.
-    //Q. What is the difference with partial?
-    """
-    frozen = kwargs
-
-    def wrapper(*args, **kwargs):
-        for k, v in frozen.items():
-            if k in kwargs and kwargs[k] != v:
-                print(
-                    f"WARNING: In function {f.__name__} input {k} is already "
-                    f"defined as {v}. \nIgnoring {k}={kwargs[k]}."
-                )
-                kwargs[k] = v
-            elif k not in kwargs:
-                kwargs[k] = v
-        return f(*args, **kwargs)
-
-    return wrapper
 
 
 def normalized_cross_correlation(x, x_ref):
