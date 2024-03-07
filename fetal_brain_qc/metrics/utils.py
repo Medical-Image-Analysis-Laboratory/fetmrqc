@@ -16,6 +16,155 @@
 # limitations under the License.
 import numpy as np
 import skimage
+import nibabel as ni
+from fetal_brain_qc.utils import squeeze_dim
+
+
+def centroid(
+    mask_path: str, central_third: bool = True, **kwargs
+) -> np.ndarray:
+    """Given a path to a brain mask `mask_path`, computes
+    a motion index based on centroids of this mask. Lower is better.
+
+    Implemented by Thomas Yu.
+
+    Inputs
+    ------
+    central_third:
+        whether the motion index should only be computed
+        from the most central part of the data
+
+    Output
+    ------
+    The computed score based on mask centroid
+    """
+    mask_ni = ni.load(mask_path)
+    mask = squeeze_dim(mask_ni.get_fdata(), -1)
+    if central_third:
+        num_z = mask.shape[2]
+        center_z = int(num_z / 2.0)
+        mask = mask[
+            ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+        ]
+
+    centroid_coord = np.zeros((mask.shape[2], 2))
+    for i in range(mask.shape[2]):
+        moments = skimage.measure.moments(mask[..., i])
+        centroid_coord[i, :] = [
+            moments[0, 1] / moments[0, 0],
+            moments[1, 0] / moments[0, 0],
+        ]
+    isnan = np.isnan(centroid_coord).any()
+    centroid_coord = centroid_coord[~np.isnan(centroid_coord)]
+    centroid_coord = np.reshape(
+        centroid_coord, (int(centroid_coord.shape[0] / 2), 2)
+    )
+    return (
+        np.var(centroid_coord[:, 0]) + np.var(centroid_coord[:, 1]),
+        isnan,
+    )
+
+
+def mask_volume(mask_path, **kwargs):
+    """
+    Compute volume of a nifti-encoded mask.
+    Simply computes the volume of a voxel and multiply it
+    by the number of voxels in the mask
+
+    Original code by Michael Ebner:
+    https://github.com/gift-surg/NiftyMIC/blob/master/niftymic/utilities/template_stack_estimator.py
+
+    Input
+    -----
+    mask_ni:
+        Nifti mask
+
+    Output
+    ------
+        The volume of mask_ni (mm^3 by default)
+    """
+
+    mask_ni = ni.load(mask_path)
+    mask = squeeze_dim(mask_ni.get_fdata(), -1)
+    vx_volume = np.array(mask_ni.header.get_zooms()).prod()
+    isnan = False
+    return np.sum(mask) * vx_volume, isnan
+
+
+def rank_error(
+    lr_path,
+    mask_path,
+    threshold: float = 0.99,
+    central_third: bool = True,
+    relative_rank: bool = True,
+    **kwargs,
+):
+    """Given a low-resolution cropped_stack (image_cropped), computes the
+    rank and svd_quality. The algorithm is based on the paper of Kainz
+    et al. (2015), and ranks the stacks according to rank*svd_error,
+    where lower is better.
+
+    The implementation is based on the code in the repo NiftyMIC of Michael Ebner.
+
+    The algorithm computes an SVD of the current stack, computes a rank r approximation
+    of the original stack and iterates until the svd_error is below a given threshold.
+    In Kainz' paper, they use threshold = 0.99, central_third=True
+
+    Args:
+        lr_path (str): Path to the low-resolution stack
+        mask_path (str): Path to the mask
+        threshold (float, optional): Threshold for the svd_error. Defaults to 0.99.
+        central_third (bool, optional): Whether to only consider the central third of the stack. Defaults to True.
+        relative_rank (bool, optional): Whether to use the relative rank (rank/num_slices) or the absolute rank. Defaults to True.
+
+    Returns:
+        rank_error (float): The computed rank_error (rank * svd_error)
+        isnan (bool): Whether the computed value is nan
+
+    """
+    image_ni = ni.load(lr_path)
+    image = image_ni.get_fdata()
+
+    if image is None:
+        return np.nan, True
+    image = image.get_fdata()
+    # As computed in NiftyMIC
+    threshold = np.sqrt(1 - threshold**2)
+
+    if central_third:
+        num_z = image.shape[2]
+        center_z = int(num_z / 2.0)
+        image = image[
+            ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
+        ]
+
+    reshaped_data = np.reshape(
+        image,
+        (
+            image.shape[0] * image.shape[1],
+            image.shape[2],
+        ),
+    )
+    _, s, _ = np.linalg.svd(reshaped_data[:, :], full_matrices=False)
+    s2 = np.square(s)
+    s2_sum = np.sum(s2)
+
+    svd_error = 2 * threshold
+    rank = 0
+    while svd_error > threshold:
+        rank += 1
+        svd_error = np.sqrt(np.sum(s2[rank:]) / s2_sum)
+
+    isnan = False
+    if relative_rank:
+        # NiftyMIC: avoid penalizing stacks with a lot of slices.
+        if len(s) != 0:
+            rank = rank / float(len(s))
+        else:
+            rank = np.nan
+            isnan = True
+
+    return rank * svd_error, isnan
 
 
 def normalized_cross_correlation(x, x_ref):
