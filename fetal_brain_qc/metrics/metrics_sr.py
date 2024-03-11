@@ -54,13 +54,6 @@ from functools import partial
 from fetal_brain_utils import get_cropped_stack_based_on_mask
 
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
-DEFAULT_METRICS = [
-    "centroid",
-    "rank_error",
-    "mask_volume",
-    "ncc",
-    "nmi",
-]
 SEGM = {"BG": 0, "CSF": 1, "GM": 2, "WM": 3}
 segm_names = list(SEGM.keys())
 
@@ -76,431 +69,131 @@ class SRMetrics:
     def __init__(
         self,
         metrics=None,
-        ckpt_stack_iqa=None,
-        ckpt_slice_iqa=None,
-        device=None,
         verbose=False,
     ):
         default_params = dict(
-            central_third=True,
             compute_on_mask=True,
-            mask_intersection=False,
+            mask_intersection=True,
+            use_window=True,
             reduction="mean",
         )
-        self._metrics = self.get_default_metrics() if not metrics else metrics
-        self.stack_iqa_enabled = True if ckpt_stack_iqa else False
+
         self.verbose = verbose
-        if ckpt_stack_iqa:
-            import os
-
-            os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
-            from fetal_brain_qc.fnndsc_IQA import Predictor
-
-            self.stack_predictor = Predictor(ckpt_stack_iqa)
-        self.slice_iqa_enabled = True if ckpt_slice_iqa and device else False
-        if ckpt_slice_iqa:
-            from fetal_brain_qc.fetal_IQA import resnet34
-            import torch
-
-            self.device = device
-            self.slice_model = resnet34(num_classes=3)
-            self.slice_model = torch.nn.DataParallel(self.slice_model).to(
-                device
-            )
-            checkpoint = torch.load(ckpt_slice_iqa, map_location=device)
-            self.slice_model.load_state_dict(checkpoint["ema_state_dict"])
-            self.slice_model.eval()
         self.metrics_func = {
-            "centroid": partial(centroid, central_third=True),
-            "centroid_full": partial(centroid, central_third=False),
+            "centroid": partial(centroid),
             "rank_error": partial(
                 rank_error,
                 threshold=0.99,
-                central_third=True,
-                relative_rank=True,
-            ),
-            "rank_error_full": partial(
-                rank_error,
-                threshold=0.99,
-                central_third=False,
                 relative_rank=False,
             ),
-            "rank_error_center": partial(
+            "rank_error_relative": partial(
                 rank_error,
                 threshold=0.99,
-                central_third=True,
-                relative_rank=False,
-            ),
-            "rank_error_full_relative": partial(
-                rank_error,
-                central_third=False,
                 relative_rank=True,
             ),
             "mask_volume": mask_volume,
-            "ncc": self.process_metric(
-                metric=normalized_cross_correlation, **default_params
-            ),
             "ncc_window": self.process_metric(
-                metric=normalized_cross_correlation,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
+                metric=normalized_cross_correlation, **default_params
             ),
             "ncc_median": self.process_metric(
                 metric=normalized_cross_correlation,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
+                mask_intersection=True,
                 reduction="median",
             ),
-            "ncc_intersection": self.process_metric(
-                metric=normalized_cross_correlation,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "ncc_full": self.process_metric(
-                metric=normalized_cross_correlation,
-                central_third=False,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "joint_entropy": self.process_metric(
-                metric=joint_entropy, **default_params
-            ),
             "joint_entropy_window": self.process_metric(
-                metric=joint_entropy,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
+                metric=joint_entropy, **default_params
             ),
             "joint_entropy_median": self.process_metric(
                 metric=joint_entropy,
-                central_third=True,
                 compute_on_mask=True,
-                mask_intersection=False,
+                mask_intersection=True,
                 reduction="median",
             ),
-            "joint_entropy_intersection": self.process_metric(
-                metric=joint_entropy,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "joint_entropy_full": self.process_metric(
-                metric=joint_entropy,
-                central_third=False,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "mi": self.process_metric(
-                metric=mutual_information, **default_params
-            ),
             "mi_window": self.process_metric(
-                metric=mutual_information,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
+                metric=mutual_information, **default_params
             ),
             "mi_median": self.process_metric(
                 metric=mutual_information,
-                central_third=True,
                 compute_on_mask=True,
-                mask_intersection=False,
+                mask_intersection=True,
                 reduction="median",
             ),
-            "mi_intersection": self.process_metric(
-                metric=mutual_information,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "mi_full": self.process_metric(
-                metric=mutual_information,
-                central_third=False,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "nmi": self.process_metric(
-                metric=normalized_mutual_information, **default_params
-            ),
             "nmi_window": self.process_metric(
-                metric=normalized_mutual_information,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
+                metric=normalized_mutual_information, **default_params
             ),
             "nmi_median": self.process_metric(
                 metric=normalized_mutual_information,
-                central_third=True,
                 compute_on_mask=True,
-                mask_intersection=False,
+                mask_intersection=True,
                 reduction="median",
-            ),
-            "nmi_intersection": self.process_metric(
-                metric=normalized_mutual_information,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
-            ),
-            "nmi_full": self.process_metric(
-                metric=normalized_mutual_information,
-                central_third=False,
-                compute_on_mask=True,
-                mask_intersection=True,
-                reduction="mean",
             ),
             "shannon_entropy": self.process_metric(
                 shannon_entropy,
                 type="noref",
-                central_third=True,
                 compute_on_mask=True,
-            ),
-            "shannon_entropy_full": self.process_metric(
-                shannon_entropy,
-                type="noref",
-                central_third=False,
-                compute_on_mask=True,
-            ),
-            # This should be the default metric, but
-            # this preprocessing does not work with stack iqa
-            "psnr": self.process_metric(
-                psnr,
-                use_datarange=True,
             ),
             "psnr_window": self.process_metric(
                 psnr,
                 use_datarange=True,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
+                **default_params,
             ),
-            "nrmse": self.process_metric(nrmse, **default_params),
-            "nrmse_window": self.process_metric(
-                nrmse,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
-            ),
-            "rmse": self.process_metric(rmse, **default_params),
-            "rmse_window": self.process_metric(
-                rmse,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
-            ),
-            "nmae": self.process_metric(nmae, **default_params),
-            "nmae_window": self.process_metric(
-                nmae,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
-            ),
-            "mae": self.process_metric(mae, **default_params),
-            "mae_window": self.process_metric(
-                mae,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
-            ),
-            "ssim": partial(self._ssim, **default_params),
-            "ssim_window": partial(
-                self._ssim,
-                central_third=True,
-                compute_on_mask=True,
-                mask_intersection=False,
-                reduction="mean",
-                use_window=True,
-            ),
+            "nrmse_window": self.process_metric(nrmse, **default_params),
+            "rmse_window": self.process_metric(rmse, **default_params),
+            "nmae_window": self.process_metric(nmae, **default_params),
+            "mae_window": self.process_metric(mae, **default_params),
+            "ssim_window": partial(self._ssim, **default_params),
             "mean": self.process_metric(
                 np.mean,
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "mean_full": self.process_metric(
-                np.mean,
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "std": self.process_metric(
                 np.std,
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "std_full": self.process_metric(
-                np.std,
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "median": self.process_metric(
                 np.median,
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "median_full": self.process_metric(
-                np.median,
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "percentile_5": self.process_metric(
                 partial(np.percentile, q=5),
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "percentile_5_full": self.process_metric(
-                partial(np.percentile, q=5),
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "percentile_95": self.process_metric(
                 partial(np.percentile, q=95),
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "percentile_95_full": self.process_metric(
-                partial(np.percentile, q=95),
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "kurtosis": self.process_metric(
                 kurtosis,
                 type="noref",
-                central_third=True,
-                compute_on_mask=True,
-            ),
-            "kurtosis_full": self.process_metric(
-                kurtosis,
-                type="noref",
-                central_third=False,
                 compute_on_mask=True,
             ),
             "variation": self.process_metric(
                 variation,
                 type="noref",
-                central_third=True,
                 compute_on_mask=True,
             ),
-            "variation_full": self.process_metric(
-                variation,
-                type="noref",
-                central_third=False,
-                compute_on_mask=True,
-            ),
-            "bias": partial(
-                self._metric_bias_field,
-                compute_on_mask=True,
-                central_third=True,
-            ),
-            "bias_full": partial(
-                self._metric_bias_field,
-                compute_on_mask=True,
-                central_third=False,
-            ),
-            "bias_full_not_mask": partial(
-                self._metric_bias_field,
-                compute_on_mask=False,
-                central_third=False,
-            ),
+            # This metric currently does not work.
+            # "bias": partial(
+            #    self._metric_bias_field,
+            #    compute_on_mask=True,
+            # ),
             ## Filter-based metrics
-            "dilate_erode_mask": partial(
-                self._metric_dilate_erode_mask, central_third=True
-            ),
-            "dilate_erode_mask_full": partial(
-                self._metric_dilate_erode_mask, central_third=False
-            ),
-            "filter_laplace_mask": partial(
-                self._metric_filter_mask, filter=laplace
-            ),
-            "filter_laplace_mask_full": partial(
-                self._metric_filter_mask, filter=laplace, central_third=False
-            ),
-            "filter_sobel_mask": partial(
-                self._metric_filter_mask, filter=sobel
-            ),
-            "filter_sobel_mask_full": partial(
-                self._metric_filter_mask, filter=sobel, central_third=False
-            ),
             "filter_laplace": partial(self._metric_filter, filter=laplace),
-            "filter_laplace_full": partial(
-                self._metric_filter, filter=laplace, central_third=False
-            ),
             "filter_sobel": partial(self._metric_filter, filter=sobel),
-            "filter_sobel_full": partial(
-                self._metric_filter, filter=sobel, central_third=False
-            ),
-            "seg_sstats": self.process_metric(
-                self._seg_sstats, type="seg", central_third=True
-            ),
-            "seg_sstats_full": self.process_metric(
-                self._seg_sstats, type="seg", central_third=False
-            ),
-            "seg_volume": self.process_metric(
-                self._seg_volume, type="seg", central_third=True
-            ),
-            "seg_volume_full": self.process_metric(
-                self._seg_volume, type="seg", central_third=False
-            ),
-            "seg_snr": self.process_metric(
-                self._seg_snr, type="seg", central_third=True
-            ),
-            "seg_snr_full": self.process_metric(
-                self._seg_snr, type="seg", central_third=False
-            ),
-            "seg_cnr": self.process_metric(
-                self._seg_cnr, type="seg", central_third=True
-            ),
-            "seg_cnr_full": self.process_metric(
-                self._seg_cnr, type="seg", central_third=False
-            ),
-            "seg_cjv": self.process_metric(
-                self._seg_cjv, type="seg", central_third=True
-            ),
-            "seg_cjv_full": self.process_metric(
-                self._seg_cjv, type="seg", central_third=False
-            ),
-            "seg_wm2max": self.process_metric(
-                self._seg_wm2max, type="seg", central_third=True
-            ),
-            "seg_wm2max_full": self.process_metric(
-                self._seg_wm2max, type="seg", central_third=False
-            ),
+            "seg_sstats": self.process_metric(self._seg_sstats, type="seg"),
+            "seg_volume": self.process_metric(self._seg_volume, type="seg"),
+            "seg_snr": self.process_metric(self._seg_snr, type="seg"),
+            "seg_cnr": self.process_metric(self._seg_cnr, type="seg"),
+            "seg_cjv": self.process_metric(self._seg_cjv, type="seg"),
+            "seg_wm2max": self.process_metric(self._seg_wm2max, type="seg"),
             "im_size": self._metric_vx_size,
         }
+        self._metrics = self.get_all_metrics()
 
         self._check_metrics()
         self.normalization = None
@@ -508,9 +201,6 @@ class SRMetrics:
         # Summary statistics from the segmentation, used for computing a bunch of metrics
         # besides being a metric itself
         self._sstats = None
-
-    def get_default_metrics(self):
-        return DEFAULT_METRICS
 
     def get_all_metrics(self):
         return list(self.metrics_func.keys())
@@ -524,56 +214,6 @@ class SRMetrics:
             return False
         else:
             return True
-
-    def _max_normalize(self, group):
-        """Normalize the data to have on average the max at 255."""
-        max_list = []
-        iter_ = (
-            group.iterrows() if not isinstance(group, pd.Series) else [group]
-        )
-        for row in iter_:
-            row = row[1] if not isinstance(group, pd.Series) else row
-            im, _ = self._load_and_prep_nifti(
-                row["im"], row["mask"], central_third=False
-            )
-            assert (im >= 0).all(), "Images should have positive values."
-            max_list.append(np.max(im))
-        factor = 255 / np.mean(max_list)
-        return factor
-
-    def normalize_dataset(self, bids_list, normalization="sub_ses"):
-        """Taking a `bids_list` obtained using csv_to_list,
-        computes the factor that should be used to scale the input to the LR method.
-        """
-
-        assert normalization in ["sub_ses", "site", "run", None]
-
-        # This is not the cleanest: normalization needs to be None because
-        # the _max_normalize functions calls _load_and_prep_nifti
-        # which uses the computed normalization.
-        self.normalization = None
-        self.norm_dict = {}
-        df = pd.DataFrame(bids_list)
-
-        if normalization is None:
-            self.norm_dict = None
-            return
-        elif normalization in ["sub_ses", "site"]:
-            grp_by = ["sub", "ses"] if normalization == "sub_ses" else "site"
-            grp = (
-                df.groupby(grp_by, group_keys=True)
-                .apply(self._max_normalize)
-                .rename("norm")
-            )
-            df = (
-                df.set_index(grp_by)
-                .merge(grp, left_index=True, right_index=True)
-                .reset_index()
-            )
-        else:
-            df["norm"] = df.apply(self._max_normalize, axis=1)
-        self.normalization = normalization
-        self.norm_dict = df[["im", "norm"]].set_index("im").to_dict()["norm"]
 
     def get_nan_output(self, metric):
         sstats_keys = [
@@ -662,9 +302,16 @@ class SRMetrics:
         # features as input.
         # Reset the summary statistics
         self._sstats = None
+
+        imagec, maskc, seg_dict = self._load_and_prep_nifti(lr_path, seg_path)
+        vx_size = ni.load(lr_path).header.get_zooms()
         args_dict = {
             "lr_path": lr_path,
             "seg_path": seg_path,
+            "image": imagec,
+            "mask": maskc,
+            "seg_dict": seg_dict,
+            "vx_size": vx_size,
         }
         if any(["seg_" in m for m in self._metrics]):
             assert seg_path is not None, (
@@ -756,8 +403,6 @@ class SRMetrics:
         self,
         lr_path,
         seg_path,
-        *,
-        central_third=True,
     ):
         image_ni = ni.load(lr_path)
         # zero_fill the Nan values
@@ -797,23 +442,31 @@ class SRMetrics:
         }
         return imagec, maskc, seg_dict
 
+    def _remove_empty_slices(self, image, mask):
+        s = np.flatnonzero(
+            mask.sum(
+                axis=(
+                    1,
+                    2,
+                )
+            )
+            > 50  # Remove negligible amounts
+        )
+        imin, imax = s[0], s[-1]
+        return image[imin:imax], mask[imin:imax]
+
     def _ssim(
         self,
-        lr_path,
-        mask_path,
+        image,
+        mask,
         seg_path=None,
-        central_third=True,
         compute_on_mask=True,
         mask_intersection=True,
         reduction="mean",
-        use_window=False,
+        use_window=True,
         window_size=3,
+        **kwargs,
     ):
-        image, mask = self._load_and_prep_nifti(
-            lr_path,
-            mask_path,
-            central_third=central_third,
-        )
 
         if (
             image is None
@@ -825,6 +478,9 @@ class SRMetrics:
             return np.nan, True
         metric_out = []
         isnan = False
+
+        image, mask = self._remove_empty_slices(image, mask)
+
         datarange = image[mask > 0].max() - image[mask > 0].min()
         for i, img_i in enumerate(image):
             if use_window:
@@ -912,31 +568,28 @@ class SRMetrics:
     def preprocess_and_evaluate_metric(
         self,
         metric,
-        lr_path,
-        mask_path,
-        seg_path=None,
+        image,
+        mask,
         *,
-        central_third=True,
         compute_on_mask=True,
         mask_intersection=True,
         reduction="mean",
-        use_window=False,
+        use_window=True,
         window_size=3,
         use_datarange=False,
+        **kwargs,
     ):
         VALID_REDUCTIONS = ["mean", "median"]
         assert reduction in VALID_REDUCTIONS, (
             f"Unknown reduction function {reduction}."
             f"Choose from {VALID_REDUCTIONS}"
         )
-        image, mask = self._load_and_prep_nifti(
-            lr_path,
-            mask_path,
-            central_third=central_third,
-        )
+
         if image is None or mask is None:
             # image is None when the mask is empty: nothing is computed.
             return np.nan, True
+
+        image, mask = self._remove_empty_slices(image, mask)
         metric_out = []
         isnan = False
         if use_datarange:
@@ -977,19 +630,14 @@ class SRMetrics:
     def preprocess_and_evaluate_noref_metric(
         self,
         noref_metric,
-        lr_path,
-        mask_path,
+        image,
+        mask,
         seg_path=None,
         *,
-        central_third=True,
         compute_on_mask=True,
         flatten=True,
+        **kwargs,
     ):
-        image, mask = self._load_and_prep_nifti(
-            lr_path,
-            mask_path,
-            central_third=central_third,
-        )
         if compute_on_mask:
             image = image[np.where(mask)]
         if flatten:
@@ -997,69 +645,16 @@ class SRMetrics:
         return metric, np.isnan(metric)
 
     def preprocess_and_evaluate_seg_metric(
-        self,
-        seg_metric,
-        lr_path,
-        mask_path,
-        seg_path,
-        *,
-        central_third=True,
+        self, seg_metric, image, seg_dict, **kwargs
     ):
-        assert (
-            seg_path is not None
-        ), "Segmentation path must be provided for seg metrics."
-        image, _, seg = self._load_and_prep_nifti(
-            lr_path,
-            mask_path,
-            seg_path,
-            central_third=central_third,
-        )
-        return seg_metric(image, seg)
-
-    def _metric_stack_iqa(
-        self, image, mask, positive_only=None, **kwargs
-    ) -> np.ndarray:
-        """ """
-        from fetal_brain_qc.fnndsc_IQA import fnndsc_preprocess
-
-        # Loading data
-
-        # Input to fnndsc must be n_h x n_w x n_slices, not the other way around.
-        image = image.transpose(2, 1, 0)
-        mask = mask.transpose(2, 1, 0)
-        image = fnndsc_preprocess(image, mask)
-        df = self.stack_predictor.predict([image], ["img"])
-        df = df.set_index("filename")
-        return df.loc["img"]["quality"]
-
-    def _metric_slice_iqa(
-        self, image, mask, positive_only=False, **kwargs
-    ) -> np.ndarray:
-        """ """
-        # Loading data
-        from fetal_brain_qc.fetal_IQA import eval_model
-
-        iqa_dict = eval_model(image, mask, self.slice_model, self.device)
-        if iqa_dict is None:
-            return np.nan
-        weighted_score = iqa_dict[list(iqa_dict.keys())[0]]["weighted"]
-        p_good, p_bad = [], []
-        for v in iqa_dict.values():
-            p_good.append(v["good"])
-            p_bad.append(v["bad"])
-
-        if positive_only is None:
-            weighted_score = sum(p_good) / len(p_good)
-        else:
-            weighted_score = (sum(p_good) - sum(p_bad)) / len(p_good)
-        return weighted_score
+        return seg_metric(image, seg_dict)
 
     def _metric_bias_field(
         self,
-        lr_path,
-        mask_path,
+        image,
+        mask,
+        vx_size,
         compute_on_mask=True,
-        central_third=True,
         spline_order=3,
         wiener_filter_noise=0.11,
         convergence_threshold=1e-6,
@@ -1076,20 +671,18 @@ class SRMetrics:
         bias_corr.SetConvergenceThreshold(convergence_threshold)
         bias_corr.SetSplineOrder(spline_order)
         bias_corr.SetWienerFilterNoise(wiener_filter_noise)
+        print(image.shape, mask.shape)
+        image_sitk = sitk.GetImageFromArray(image, sitk.sitkFloat32)
+        image_sitk.SetSpacing(vx_size)
+        image_sitk.SetOrigin((0, 0, 0))
+        # sitk.ReadImage(str(lr_path), sitk.sitkFloat64)
 
-        image_sitk = sitk.ReadImage(str(lr_path), sitk.sitkFloat64)
-
-        sitk_mask = sitk.ReadImage(str(mask_path), sitk.sitkUInt8)
+        sitk_mask = sitk.GetImageFromArray(mask, sitk.sitkInt8)
+        sitk_mask.SetSpacing(vx_size)
+        sitk_mask.SetOrigin((0, 0, 0))
+        print(image_sitk, sitk_mask, image_sitk.GetSize(), sitk_mask.GetSize())
+        # sitk.ReadImage(str(mask_path), sitk.sitkUInt8)
         # Allows to deal with masks that have a different shape than the input image.
-        sitk_mask = sitk.Resample(
-            sitk_mask,
-            image_sitk,
-            sitk.Euler3DTransform(),
-            sitk.sitkNearestNeighbor,
-            0,
-            sitk_mask.GetPixelIDValue(),
-        )
-        sitk_mask.CopyInformation(image_sitk)
         bias_corr.Execute(image_sitk, sitk_mask)
         bias_field = sitk.Cast(
             sitk.Exp(bias_corr.GetLogBiasFieldAsImage(image_sitk)),
@@ -1100,18 +693,6 @@ class SRMetrics:
         )
         im_ref = sitk.GetArrayFromImage(image_sitk)
         mask = sitk.GetArrayFromImage(sitk_mask)
-        if central_third:
-            num_z = im_ref.shape[0]
-            center_z = int(num_z / 2.0)
-            bias_error = bias_error[
-                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
-            ]
-            im_ref = im_ref[
-                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
-            ]
-            mask = mask[
-                int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
-            ]
         if compute_on_mask:
             bias_error = bias_error[mask > 0]
             im_ref = im_ref[mask > 0]
@@ -1122,90 +703,10 @@ class SRMetrics:
 
     ### Filter-based metrics
 
-    def _metric_dilate_erode_mask(
-        self, mask_path: str, central_third: bool = True, **kwargs
-    ) -> np.ndarray:
-        """Given a path to a brain mask `mask_path`, dilates and
-        erodes the mask in the z-direction to see the overlap between masks
-        in consecutive slices.
-
-        Inputs
-        ------
-        central_third:
-            whether the dilation-erosion should only be computed
-            from the most central part of the data
-
-        Output
-        ------
-        """
-
-        # Structuring element (Vertical line to only dilate and erode)
-        # through the plane
-        struc = np.array(
-            [
-                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-                [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
-                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-            ]
-        )
-
-        mask_ni = ni.load(mask_path)
-        mask = squeeze_dim(mask_ni.get_fdata(), -1)
-
-        if central_third:
-            num_z = mask.shape[2]
-            center_z = int(num_z / 2.0)
-            mask = mask[
-                ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
-            ]
-        processed = binary_erosion(binary_dilation(mask, struc), struc)
-        volume = np.sum(mask)
-        if volume == 0.0:
-            return np.nan, True
-        else:
-            res = np.sum(abs(processed - mask)) / volume
-            return res, False
-
-    def _metric_filter_mask(
-        self, mask_path: str, filter=None, central_third: bool = True, **kwargs
-    ) -> np.ndarray:
-        """Given a path to a
-
-        Inputs
-        ------
-        filter:
-            A filter from skimage.filters to be applied to the mask
-        central_third:
-            whether the dilation-erosion should only be computed
-            from the most central part of the data
-
-        Output
-        ------
-        """
-        mask_ni = ni.load(mask_path)
-        mask = squeeze_dim(mask_ni.get_fdata(), -1)
-
-        if central_third:
-            num_z = mask.shape[2]
-            center_z = int(num_z / 2.0)
-            mask = mask[
-                ..., int(center_z - num_z / 6.0) : int(center_z + num_z / 6.0)
-            ]
-
-        assert (
-            filter in SKIMAGE_FCT
-        ), f"ERROR: {filter} is not a function from `skimage.filters`"
-
-        filtered = filter(mask)
-        res = np.mean(abs(filtered - mask))
-        return res, np.isnan(res)
-
     def _metric_filter(
         self,
-        lr_path: str,
-        mask_path: str,
+        image,
         filter=None,
-        central_third: bool = True,
         **kwargs,
     ) -> np.ndarray:
         """Given a path to a LR image and its corresponding image,
@@ -1216,40 +717,30 @@ class SRMetrics:
         ------
         filter:
             A filter from skimage.filters to be applied to the mask
-        central_third:
-            whether the dilation-erosion should only be computed
-            from the most central part of the data
 
         Output
         ------
         """
-        im, mask = self._load_and_prep_nifti(
-            lr_path, mask_path, central_third=central_third
-        )
 
         assert (
             filter in SKIMAGE_FCT
         ), f"ERROR: {filter} is not a function from `skimage.filters`"
 
-        filtered = filter(im)
-        res = np.mean(abs(filtered - im))
+        filtered = filter(image)
+        res = np.mean(abs(filtered - image))
         return res, np.isnan(res)
 
-    def _metric_vx_size(
-        self, lr_path: str, mask_path: str, seg_path: str = None
-    ):
+    def _metric_vx_size(self, vx_size, **kwargs):
         """Given a path to a LR image and its corresponding image,
         loads the LR image and return the voxel size.
         """
-        im = ni.load(lr_path)
 
-        x, y, z = im.header.get_zooms()
+        x, y, z = vx_size
         out_dict = {
             "x": x,
             "y": y,
             "z": z,
             "vx_size": x * y * z,
-            "ip_size": x * y,
         }
         return out_dict
 

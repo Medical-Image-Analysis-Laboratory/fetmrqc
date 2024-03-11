@@ -21,7 +21,7 @@ from fetal_brain_qc.utils import squeeze_dim
 
 
 def centroid(
-    mask_path: str, central_third: bool = True, **kwargs
+    mask: np.ndarray, central_third: bool = True, **kwargs
 ) -> np.ndarray:
     """Given a path to a brain mask `mask_path`, computes
     a motion index based on centroids of this mask. Lower is better.
@@ -38,8 +38,6 @@ def centroid(
     ------
     The computed score based on mask centroid
     """
-    mask_ni = ni.load(mask_path)
-    mask = squeeze_dim(mask_ni.get_fdata(), -1)
     if central_third:
         num_z = mask.shape[2]
         center_z = int(num_z / 2.0)
@@ -65,7 +63,7 @@ def centroid(
     )
 
 
-def mask_volume(mask_path, **kwargs):
+def mask_volume(mask, vx_size, **kwargs):
     """
     Compute volume of a nifti-encoded mask.
     Simply computes the volume of a voxel and multiply it
@@ -84,16 +82,13 @@ def mask_volume(mask_path, **kwargs):
         The volume of mask_ni (mm^3 by default)
     """
 
-    mask_ni = ni.load(mask_path)
-    mask = squeeze_dim(mask_ni.get_fdata(), -1)
-    vx_volume = np.array(mask_ni.header.get_zooms()).prod()
+    vx_volume = np.prod(vx_size)
     isnan = False
     return np.sum(mask) * vx_volume, isnan
 
 
 def rank_error(
-    lr_path,
-    mask_path,
+    image,
     threshold: float = 0.99,
     central_third: bool = True,
     relative_rank: bool = True,
@@ -122,12 +117,8 @@ def rank_error(
         isnan (bool): Whether the computed value is nan
 
     """
-    image_ni = ni.load(lr_path)
-    image = image_ni.get_fdata()
-
     if image is None:
         return np.nan, True
-    image = image.get_fdata()
     # As computed in NiftyMIC
     threshold = np.sqrt(1 - threshold**2)
 
@@ -314,7 +305,7 @@ def normalized_mutual_information(x, x_ref, bins=100):
     return nmi
 
 
-def psnr(x, x_ref, datarange=None):
+def psnr(x, x_ref, datarange=None, **kwargs):
     if not datarange:
         datarange = int(np.amax(x_ref) - min(np.amin(x), np.amin(x_ref)))
 
@@ -327,7 +318,7 @@ def psnr(x, x_ref, datarange=None):
     return psnr
 
 
-def nrmse(x, x_ref):
+def nrmse(x, x_ref, **kwargs):
     return skimage.metrics.normalized_root_mse(x, x_ref)
 
 
