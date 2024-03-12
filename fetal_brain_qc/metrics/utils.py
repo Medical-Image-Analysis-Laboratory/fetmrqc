@@ -23,7 +23,7 @@ from fetal_brain_qc.utils import squeeze_dim
 def centroid(
     mask: np.ndarray, central_third: bool = True, **kwargs
 ) -> np.ndarray:
-    """Given a path to a brain mask `mask_path`, computes
+    """Computes
     a motion index based on centroids of this mask. Lower is better.
 
     Implemented by Thomas Yu.
@@ -106,10 +106,7 @@ def rank_error(
     In Kainz' paper, they use threshold = 0.99, central_third=True
 
     Args:
-        lr_path (str): Path to the low-resolution stack
-        mask_path (str): Path to the mask
         threshold (float, optional): Threshold for the svd_error. Defaults to 0.99.
-        central_third (bool, optional): Whether to only consider the central third of the stack. Defaults to True.
         relative_rank (bool, optional): Whether to use the relative rank (rank/num_slices) or the absolute rank. Defaults to True.
 
     Returns:

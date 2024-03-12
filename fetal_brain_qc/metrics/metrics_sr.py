@@ -14,7 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
 import numpy as np
 import nibabel as ni
 import skimage
@@ -35,7 +34,6 @@ from .utils import (
     rank_error,
     mask_volume,
 )
-from skimage.morphology import binary_dilation, binary_erosion
 from skimage.filters import sobel, laplace
 from inspect import getmembers, isfunction
 from fetal_brain_qc.utils import squeeze_dim
@@ -55,10 +53,9 @@ from fetal_brain_utils import get_cropped_stack_based_on_mask
 
 SKIMAGE_FCT = [fct for _, fct in getmembers(skimage.filters, isfunction)]
 SEGM = {"BG": 0, "CSF": 1, "GM": 2, "WM": 3}
+# Re-mapping to do for FeTA labels: ventricles as CSF, dGM as GM.
+FETA_LABELS = [0, 1, 2, 3, 1, None, 2, None, None]
 segm_names = list(SEGM.keys())
-
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
 class SRMetrics:
@@ -68,8 +65,9 @@ class SRMetrics:
 
     def __init__(
         self,
-        metrics=None,
+        # metrics=None,
         verbose=False,
+        map_seg=FETA_LABELS,
     ):
         default_params = dict(
             compute_on_mask=True,
@@ -194,10 +192,8 @@ class SRMetrics:
             "im_size": self._metric_vx_size,
         }
         self._metrics = self.get_all_metrics()
-
         self._check_metrics()
-        self.normalization = None
-        self.norm_dict = {}
+        self.map_seg = map_seg
         # Summary statistics from the segmentation, used for computing a bunch of metrics
         # besides being a metric itself
         self._sstats = None
@@ -306,8 +302,6 @@ class SRMetrics:
         imagec, maskc, seg_dict = self._load_and_prep_nifti(lr_path, seg_path)
         vx_size = ni.load(lr_path).header.get_zooms()
         args_dict = {
-            "lr_path": lr_path,
-            "seg_path": seg_path,
             "image": imagec,
             "mask": maskc,
             "seg_dict": seg_dict,
@@ -385,19 +379,93 @@ class SRMetrics:
                 seg_ni.affine,
             )
             seg = squeeze_dim(seg_ni.get_fdata(), -1).astype(np.uint8)
-            if seg.max() > 3:
-                seg[seg == 4] = 1
-                seg[seg == 6] = 2
-                seg[seg > 3] = 0
-            seg_dict = {
-                k: (seg == l).astype(np.uint8) for k, l in SEGM.items()
-            }
+            seg_remapped = np.zeros_like(seg)
+            for label, target in enumerate(self.map_seg):
+                if target is not None:
+                    seg_remapped[seg == label] = target
+            seg_ni = ni.Nifti1Image(
+                seg_remapped,
+                seg_ni.affine,
+            )
         else:
             raise ValueError(
                 f"Unknown file format for segmentation file {seg_path}"
             )
         # We cannot return a nifti object as seg_path might be .npz
-        return seg_dict, mask_ni
+        return seg_ni, mask_ni
+
+    def _scale_intensity_percentiles(
+        self, im, q_low, q_up, to_low, to_up, clip=True
+    ):
+        from warnings import warn
+
+        a_min: float = np.percentile(im, q_low)  # type: ignore
+        a_max: float = np.percentile(im, q_up)  # type: ignore
+        b_min = to_low
+        b_max = to_up
+
+        if a_max - a_min == 0.0:
+            warn("Divide by zero (a_min == a_max)", Warning)
+            if b_min is None:
+                return im - a_min
+            return im - a_min + b_min
+
+        im = (im - a_min) / (a_max - a_min)
+        if (b_min is not None) and (b_max is not None):
+            im = im * (b_max - b_min) + b_min
+        if clip:
+            im = np.clip(im, b_min, b_max)
+
+        return im
+
+    def _preprocess_nifti(self, im, seg_path):
+        from nilearn.image import resample_img
+
+        seg, mask = self.load_and_format_seg(seg_path)
+
+        img = self._scale_intensity_percentiles(
+            im.get_fdata(), 0.5, 99.5, 0, 1, clip=True
+        )
+        new_affine = np.diag([0.8] * 3)
+        image_ni = resample_img(
+            ni.Nifti1Image(
+                img,
+                im.affine,
+                im.header,
+            ),
+            target_affine=new_affine,
+        )
+        mask_ni = resample_img(
+            mask, target_affine=new_affine, interpolation="nearest"
+        )
+        seg = resample_img(
+            seg, target_affine=new_affine, interpolation="nearest"
+        )
+
+        def crop_stack(x, y):
+            return get_cropped_stack_based_on_mask(
+                x,
+                y,
+                boundary_i=5,
+                boundary_j=5,
+                boundary_k=5,
+            )
+
+        # seg_dict = {k: (seg == l).astype(np.uint8) for k, l in SEGM.items()}
+        seg_dict = {
+            k: crop_stack(
+                ni.Nifti1Image(
+                    (seg.get_fdata() == l).astype(np.uint8),
+                    image_ni.affine,
+                    image_ni.header,
+                ),
+                mask_ni,
+            )
+            for k, l in SEGM.items()
+        }
+        imagec = crop_stack(image_ni, mask_ni)
+        maskc = crop_stack(mask_ni, mask_ni)
+        return imagec, maskc, seg_dict
 
     def _load_and_prep_nifti(
         self,
@@ -412,25 +480,7 @@ class SRMetrics:
             image_ni.header,
         )
 
-        def crop_stack(x, y):
-            return get_cropped_stack_based_on_mask(
-                x,
-                y,
-                boundary_i=5,
-                boundary_j=5,
-                boundary_k=5,
-            )
-
-        seg_dict, mask_ni = self.load_and_format_seg(seg_path)
-        seg_dict = {
-            k: crop_stack(
-                ni.Nifti1Image(v, image_ni.affine, image_ni.header),
-                mask_ni,
-            )
-            for k, v in seg_dict.items()
-        }
-        imagec = crop_stack(image_ni, mask_ni)
-        maskc = crop_stack(mask_ni, mask_ni)
+        imagec, maskc, seg_dict = self._preprocess_nifti(image_ni, seg_path)
 
         def squeeze_flip_tr(x):
             return squeeze_dim(x, -1)[::-1, ::-1, ::-1].transpose(2, 1, 0)
@@ -675,7 +725,6 @@ class SRMetrics:
         image_sitk = sitk.GetImageFromArray(image, sitk.sitkFloat32)
         image_sitk.SetSpacing(vx_size)
         image_sitk.SetOrigin((0, 0, 0))
-        # sitk.ReadImage(str(lr_path), sitk.sitkFloat64)
 
         sitk_mask = sitk.GetImageFromArray(mask, sitk.sitkInt8)
         sitk_mask.SetSpacing(vx_size)
