@@ -292,7 +292,7 @@ def plot_mosaic(
 def plot_mosaic_sr(
     imp,
     maskp,
-    boundary=0,
+    boundary=5,
     ncols=6,
     annotate=False,
     cmap="Greys_r",
@@ -329,32 +329,40 @@ def plot_mosaic_sr(
 
     zooms = im.header.get_zooms()
 
-    im_data = imc.get_fdata()
+    # im_data = imc.get_fdata()
 
+    # #
+    # # Check if the affine is diagonal
+    # if (
+    #     np.count_nonzero(
+    #         im.affine[:3, :3] - np.diag(np.diag(im.affine[:3, :3]))
+    #     )
+    #     == 0
+    # ):
+
+    #     # Use the affine to re-order the axes in standardized manner for visualization
+    #     # 1. Extract the affine orientation (non-zero entry in the line)
+    #     affine_axes = tuple(np.nonzero(im.affine[:3, :3]))
+    #     # Define axes to be flipped based on whether the entry is positive.
+    #     flip_axis = np.nonzero(
+    #         np.sign(im.affine[affine_axes]).astype(int) == -1
+    #     )[0]
+    #     affine_axes = affine_axes[1]
+    #     # Flip axes
+    #     im_data = np.flip(im_data, axis=flip_axis)
+    #     # This is mysterious to me. This is needed to that I have the axial plane in the Right-Left direction
+    #     # This is only needed for NeSVoR also, not for NiftyMIC. This isn't clear to me why.
+    #     # im_data = im_data[:, :, ::-1]
+    #     # Swap axes
+    #     im_data = im_data.transpose(affine_axes)
+
+    from nilearn.image import reorder_img
+
+    im_data = reorder_img(imc, resample="continuous")
+    im_data = im_data.get_fdata()
+    # im_data = im_data.transpose(2, 1, 0)
+    # im_data = im_data[::-1, ::-1]
     vmin, vmax = _get_limits(im_data, only_plot_noise=False)
-
-    # Check if the affine is diagonal
-    if (
-        np.count_nonzero(
-            im.affine[:3, :3] - np.diag(np.diag(im.affine[:3, :3]))
-        )
-        == 0
-    ):
-        # Use the affine to re-order the axes in standardized manner for visualization
-        # 1. Extract the affine orientation (non-zero entry in the line)
-        affine_axes = tuple(np.nonzero(im.affine[:3, :3]))
-        # Define axes to be flipped based on whether the entry is positive.
-        flip_axis = np.nonzero(
-            np.sign(im.affine[affine_axes]).astype(int) == -1
-        )[0]
-        affine_axes = affine_axes[1]
-        # Flip axes
-        im_data = np.flip(im_data, axis=flip_axis)
-        # This is mysterious to me. This is needed to that I have the axial plane in the Right-Left direction
-        # This is only needed for NeSVoR also, not for NiftyMIC. This isn't clear to me why.
-        # im_data = im_data[:, :, ::-1]
-        # Swap axes
-        im_data = im_data.transpose(affine_axes)
 
     def plot_axis(im, axis, vmin, vmax, cmap, zooms, annotate, reverse=False):
         """Plot a 3D volume along a given axis."""
@@ -399,10 +407,16 @@ def plot_mosaic_sr(
             naxis += 1
         return fig
 
+    # fig = plot_axis(im_data, 2, vmin, vmax, cmap, zooms, annotate)
+    # # I don't know why we have to swap the axes on the sagittal axis ...
+    # # This is mysterious to me. This is needed to that I have the sagittal plane in the Anterior-Posterior direction
+    # fig2 = plot_axis(im_data[:, ::-1, :], 0, vmin, vmax, cmap, zooms, annotate)
+    # fig3 = plot_axis(im_data, 1, vmin, vmax, cmap, zooms, annotate)
+
     fig = plot_axis(im_data, 2, vmin, vmax, cmap, zooms, annotate)
+    fig2 = plot_axis(im_data, 0, vmin, vmax, cmap, zooms, annotate)
     # I don't know why we have to swap the axes on the sagittal axis ...
     # This is mysterious to me. This is needed to that I have the sagittal plane in the Anterior-Posterior direction
-    fig2 = plot_axis(im_data[:, ::-1, :], 0, vmin, vmax, cmap, zooms, annotate)
     fig3 = plot_axis(im_data, 1, vmin, vmax, cmap, zooms, annotate)
 
     fig_sum = plt.figure(figsize=(6, 2))
@@ -411,7 +425,8 @@ def plot_mosaic_sr(
         if i == 0:
             im = np.moveaxis(im_data, 2, 0)
         elif i == 1:
-            im = im_data[:, ::-1, :]
+            # im = im_data[:, ::-1, :]
+            im = im_data
         else:
             im = np.moveaxis(im_data, 1, 0)
         ax = fig_sum.add_subplot(1, 3, i + 1)
