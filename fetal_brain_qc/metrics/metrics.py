@@ -709,16 +709,10 @@ class LRStackMetrics:
             if "seg_sstats" in metric:
                 metrics = [f"{n}_{k}" for n in segm_names for k in sstats_keys]
             return {m: np.nan for m in metrics}
+        elif metric == "im_size":
+            return {f"{k}": np.nan for k in ["x", "y", "z"]}
         else:
             return [np.nan]
-
-    def get_default_output(self, metric):
-        """Return the default output for a given metric when the mask is invalid and metrics cannot be computed."""
-        METRIC_DEFAULT = {"cjv": 0}
-        if metric not in METRIC_DEFAULT.keys():
-            return [0.0, False]
-        else:
-            return METRIC_DEFAULT[metric]
 
     def _flatten_dict(self, d):
         """Flatten a nested dictionary by concatenating the keys with '_'."""
@@ -750,9 +744,10 @@ class LRStackMetrics:
                         file=sys.stderr,
                     )
                 out = self.get_nan_output(metric)
+
             # Checking once more that if the metric is nan, we replace it with 0
         else:
-            out = self.get_default_output(metric)
+            out = self.get_nan_output(metric)
         if isinstance(out, dict):
             out = self._flatten_dict(out)
             for k, v in out.items():
@@ -1118,7 +1113,7 @@ class LRStackMetrics:
 
                 assert image.shape == (
                     seg_dict["BG"].shape
-                ), "Image and segmentation have different sizes"
+                ), f"Image and segmentation have different sizes: {image.shape} vs {seg_dict['BG'].shape}"
         if central_third:
             num_z = image.shape[0]
             center_z = int(num_z / 2.0)
