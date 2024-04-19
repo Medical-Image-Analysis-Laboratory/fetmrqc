@@ -44,7 +44,7 @@ You have two options to run the *FetMRQC* docker. A wrapper script `run_docker.p
 The `run_docker.py` script automatically handles the mounting of folders onto the docker container, and can help people unfamiliar with docker containers. For those who are familiar with docker, we provide an example of how the inference pipeline can be run by directly calling the docker
 ```
 docker run --rm -it 
-  --gpus all --gpus all 
+  --gpus all
   --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
   -v <your BIDS data folder>:/data/data 
   -v <your masks folder>:/data/masks 
