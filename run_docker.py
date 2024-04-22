@@ -235,6 +235,8 @@ def run_reports(args: argparse.Namespace) -> None:
     masks_dir = os.path.abspath(args.masks_dir)
     out_dir = os.path.abspath(args.out_dir)
 
+    os.makedirs(masks_dir, exist_ok=True)
+
     cmd = (
         f"docker run --rm -it "
         "--gpus all --gpus all --ipc=host "  # Recommended by NVIDIA
@@ -283,6 +285,10 @@ def run_inference(args: argparse.Namespace) -> None:
     masks_dir = os.path.abspath(args.masks_dir)
     seg_dir = os.path.abspath(args.seg_dir)
     out_dir = os.path.abspath(args.out_dir)
+
+    os.makedirs(masks_dir, exist_ok=True)
+    os.makedirs(seg_dir, exist_ok=True)
+
     fetmrqc20 = (
         "--fetmrqc20_iqms " if args.fetmrqc20_iqms else "--no-fetmrqc20_iqms "
     )
@@ -351,7 +357,7 @@ def main() -> None:
             "--docker_path",
             help=("FetMRQC docker image to be used."),
             type=str,
-            default="fetmrqc:0.1.0",
+            default="thsanchez/fetmrqc:latest",
         )
 
     args = parser.parse_args()

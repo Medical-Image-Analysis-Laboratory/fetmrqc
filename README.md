@@ -33,7 +33,7 @@ While raw data cannot be shared, the extracted image quality metrics are availab
 
 You can follow [this link](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) to install Docker and NVIDIA Container Toolkit. After installing docker, you can download *FetMRQC* with 
 ```
-docker pull thsanchez/fetmrqc:0.1.0
+docker pull thsanchez/fetmrqc:0.1.1
 ```
 
 This image by build using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
@@ -44,14 +44,15 @@ You have two options to run the *FetMRQC* docker. A wrapper script `run_docker.p
 The `run_docker.py` script automatically handles the mounting of folders onto the docker container, and can help people unfamiliar with docker containers. For those who are familiar with docker, we provide an example of how the inference pipeline can be run by directly calling the docker
 ```
 docker run --rm -it 
-  --gpus all --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+  --gpus all --gpus all 
+  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
   -v <your BIDS data folder>:/data/data 
   -v <your masks folder>:/data/masks 
   -v <your output folder>:/data/out 
-  fetmrqc:0.1.0 qc_inference_pipeline 
+  thsanchez/fetmrqc:0.1.2 qc_inference_pipeline 
   --bids_dir /data/data 
   --masks_dir /data/masks 
-  --seg_dir /data/seg 
+  --seg_dir /data/out/seg 
   --bids_csv /data/out/bids_csv.csv 
   --iqms_csv /data/out/iqms_csv.csv 
   --out_csv /data/out/out_csv.csv 
@@ -74,7 +75,7 @@ FetMRQC relies on pretrained models from various other works. In order to run it
 -  **MONAIfbs [2].** Download the pretrained model from [Zenodo](https://zenodo.org/record/4282679#.X7fyttvgqL5), and to add it to `fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt`.
 -  **fetal-IQA [3,4,5].** Download the checkpoint `pytorch.ckpt` of [fetal-IQA](https://github.com/daviddmc/fetal-IQA) from [Zenodo](https://zenodo.org/record/7368570). Rename it to `fetal_IQA_pytorch.ckpt` and put it into `fetal_brain_qc/models`.
 - **pl-fetal-brain-assessment [6].** Download the checkpoint of [pl-fetal-brain-assessment](https://github.com/FNNDSC/pl-fetal-brain-assessment) from [Zenodo](https://zenodo.org/records/8309634/files/weights_resnet_sw2_k1.hdf5?download=1). Rename it to `FNNDSC_qcnet_ckpt.hdf5` and put it into `fetal_brain_qc/models`
-- **Pretrained nnUNetv2 [7] model.** Download the [checkpoint folder](https://drive.switch.ch/index.php/s/wpepw8DS71IRsW9), unzip it and put it into `fetal_brain_qc/models`. 
+- **Pretrained nnUNetv2 [7] model.** Download the checkpoint folder from [Zenodo](https://zenodo.org/records/10785234/files/nnUNet.zip), unzip it and put it into `fetal_brain_qc/models`. 
 
 #### Final step: nnUNet [7] - Tricky part
 Create a **new** environment for nnUNet (exit the current one by doing `conda deactivate`), using `conda env create -n nnunet` and activate it. Then, following the [nnUNet installation instructions](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/installation_instructions.md), install pytorch:

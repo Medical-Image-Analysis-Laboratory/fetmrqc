@@ -83,3 +83,25 @@ FETMRQC20 = [
     "seg_snr_WM",
     "seg_volume_GM",
 ]
+# This is a slightly different list from FETMRQC20
+# as some metrics are only available in groups
+FETMRQC20_METRICS = [
+    "rank_error",
+    "dilate_erode_mask_full",
+    "mask_volume",
+    "filter_sobel_mask_full",
+    "nrmse_window",
+    "filter_laplace_mask",
+    "filter_laplace_mask_full",
+    "dilate_erode_mask",
+    "rank_error_center",
+    "centroid",
+    "rank_error_center_relative",
+    "seg_sstats",
+    "im_size",
+    "ncc_intersection",
+    "ncc_window",
+    "psnr_window",
+    "seg_snr",
+    "seg_volume",
+]
