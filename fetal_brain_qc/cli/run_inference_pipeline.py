@@ -77,13 +77,6 @@ def build_parser(parser):
     )
 
     parser.add_argument(
-        "--iqms",
-        help="List of IQMs that will be computed",
-        nargs="+",
-        default="all",
-    )
-
-    parser.add_argument(
         "--fetmrqc20_iqms",
         help="Whether the IQMs from FetMRQC-20 should be computed",
         action=argparse.BooleanOptionalAction,
@@ -123,13 +116,6 @@ def build_parser(parser):
     )
 
     parser.add_argument(
-        "--custom_model",
-        help="Path to a custom model, trained using run_train_fetmrqc.py.",
-        default=None,
-        type=str,
-    )
-
-    parser.add_argument(
         "--device",
         help="Device to use for inference.",
         choices=["cpu", "cuda"],
@@ -151,33 +137,6 @@ def main():
     build_parser(parser)
 
     args = parser.parse_args()
-
-    iqms = IQMS_NO_NAN if args.iqms == "all" else args.iqms
-    iqms = [iqm for iqm in iqms if "_nan" not in iqm]
-    if args.fetmrqc20_iqms:
-        assert (
-            iqms == IQMS_NO_NAN
-        ), "Cannot take a custom set of IQMs when using FetMRQC-20 (--fetmrqc20_iqms)"
-
-    if iqms != IQMS_NO_NAN:
-        for iqm in iqms:
-            assert iqm in IQMS_NO_NAN, f"The IQM {iqm} is not available."
-
-        assert (
-            args.custom_model is not None
-        ), "When extracting a custom set of IQMs, a custom model must be provided (--custom_model)."
-
-    if args.custom_model is not None:
-        custom_json = args.custom_model.replace(".joblib", ".json")
-        with open(custom_json, "r") as f:
-            json_dict = json.load(f)
-        for iqm in json_dict["iqms"]:
-            assert (
-                iqm in iqms
-            ), f"The IQM {iqm} from the custom model is not in the provided IQMs (--iqms)."
-        assert (
-            args.classification == json_dict["classification"]
-        ), "Mismatch between the task of the custom model and the provided mode (--classification/--regression)."
 
     # Running brain extraction
     cmd = (
@@ -209,29 +168,25 @@ def main():
     )
     run_cmd(cmd)
     # Running IQMs computation
-    iqms = FETMRQC20_METRICS if args.fetmrqc20_iqms else iqms
 
+    cmd_iqms = "" if args.fetmrqc20_iqms else "--use_all_metrics"
     cmd = (
         "qc_compute_iqms "
         f"--bids_csv {args.bids_csv} "
         f"--out_csv {args.iqms_csv} "
-        f"--metrics {' '.join(iqms)} "
+        f"{cmd_iqms} "
         "--verbose "
         f"--device {args.device} "
     )
     run_cmd(cmd)
 
     # Running inference
-    custom_model = (
-        f"--custom_model {args.custom_model}" if args.custom_model else ""
-    )
     fetmrqc20 = "--fetmrqc20 " if args.fetmrqc20_iqms else ""
     cmd = (
         "qc_inference "
         f"--iqms_csv {args.iqms_csv} "
         f"--out_csv {args.out_csv} "
-        f"--regression --classification"
-        f"{custom_model} "
+        f"--regression --classification "
         f"{fetmrqc20}"
     )
     print(cmd)

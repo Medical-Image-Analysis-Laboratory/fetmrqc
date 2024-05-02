@@ -90,7 +90,6 @@ def run_model(bids_df, ckpt_path, iqms, task, args):
     """
     is20 = "20" if args.fetmrqc20 else ""
     print_title(f"Running FetMRQC{is20} inference ({task}).")
-    print(ckpt_path)
     model = joblib.load(ckpt_path)
     out_path = Path(args.out_csv)
     os.makedirs(out_path.parent, exist_ok=True)
