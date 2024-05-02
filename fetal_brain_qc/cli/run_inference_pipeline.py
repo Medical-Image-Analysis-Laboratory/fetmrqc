@@ -141,6 +141,13 @@ def build_parser(parser):
         type=str,
     )
 
+    parser.add_argument(
+        "--device",
+        help="Device to use for inference.",
+        choices=["cpu", "cuda"],
+        default="cuda",
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -210,6 +217,7 @@ def main():
         "qc_segmentation "
         f"--bids_csv {args.bids_csv} "
         f"--out_path {args.seg_dir} "
+        f"--device {args.device} "
     )
     run_cmd(cmd)
     # Running IQMs computation
@@ -221,6 +229,7 @@ def main():
         f"--out_csv {args.iqms_csv} "
         f"--metrics {' '.join(iqms)}"
         "  --verbose"
+        f"--device {args.device} "
     )
     run_cmd(cmd)
 
