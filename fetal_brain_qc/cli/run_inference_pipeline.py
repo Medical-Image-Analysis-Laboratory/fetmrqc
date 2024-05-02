@@ -123,18 +123,6 @@ def build_parser(parser):
     )
 
     parser.add_argument(
-        "--classification",
-        help="Whether to perform classification.",
-        action="store_true",
-        default=True,
-    )
-    parser.add_argument(
-        "--regression",
-        help="Whether to perform regression.",
-        dest="classification",
-        action="store_false",
-    )
-    parser.add_argument(
         "--custom_model",
         help="Path to a custom model, trained using run_train_fetmrqc.py.",
         default=None,
@@ -227,14 +215,13 @@ def main():
         "qc_compute_iqms "
         f"--bids_csv {args.bids_csv} "
         f"--out_csv {args.iqms_csv} "
-        f"--metrics {' '.join(iqms)}"
-        "  --verbose"
+        f"--metrics {' '.join(iqms)} "
+        "--verbose "
         f"--device {args.device} "
     )
     run_cmd(cmd)
 
     # Running inference
-    task = "--classification " if args.classification else "--regression "
     custom_model = (
         f"--custom_model {args.custom_model}" if args.custom_model else ""
     )
@@ -243,7 +230,7 @@ def main():
         "qc_inference "
         f"--iqms_csv {args.iqms_csv} "
         f"--out_csv {args.out_csv} "
-        f"{task}"
+        f"--regression --classification"
         f"{custom_model} "
         f"{fetmrqc20}"
     )
