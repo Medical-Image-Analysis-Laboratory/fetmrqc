@@ -25,6 +25,7 @@ from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
 from fetal_brain_qc.qc_evaluation import METRICS, METRICS_SEG
 from fetal_brain_qc.definitions import FETMRQC20, FETMRQC20_METRICS
 import json
+from fetal_brain_qc.cli.build_run_parsers import build_inference_parser
 
 IQMS_NO_NAN = [iqm for iqm in METRICS + METRICS_SEG if "_nan" not in iqm]
 
@@ -33,113 +34,6 @@ def run_cmd(cmd):
     flag = os.system(cmd)
     if flag != 0:
         raise RuntimeError(f"Command failed: {cmd}")
-
-
-def build_parser(parser):
-    parser.add_argument(
-        "--bids_dir",
-        required=True,
-        help="BIDS directory containing the LR series.",
-    )
-
-    parser.add_argument(
-        "--masks_dir",
-        help=(
-            "Root of the BIDS directory where brain masks will be/are stored. "
-            "If masks already exist, they will be used."
-        ),
-        required=True,
-    )
-
-    parser.add_argument(
-        "--seg_dir",
-        help=(
-            "Root of the directory where brain segmentations will be stored. "
-            "If segmentations already exist, they will be used."
-        ),
-        required=True,
-    )
-    parser.add_argument(
-        "--bids_csv",
-        help="CSV file where the list of available LR series and masks will be stored.",
-        default="bids_csv.csv",
-    )
-    parser.add_argument(
-        "--iqms_csv",
-        help="CSV file where the computed IQMs will be stored.",
-        default="iqms_csv.csv",
-    )
-
-    parser.add_argument(
-        "--out_csv",
-        help="CSV file where the predictions from FetMRQC will be stored.",
-        default="out_csv.csv",
-    )
-
-    parser.add_argument(
-        "--iqms",
-        help="List of IQMs that will be computed",
-        nargs="+",
-        default="all",
-    )
-
-    parser.add_argument(
-        "--fetmrqc20_iqms",
-        help="Whether the IQMs from FetMRQC-20 should be computed",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-    )
-
-    parser.add_argument(
-        "--use_all_iqms",
-        help="Whether all IQMs should be computed",
-        default=False,
-        action="store_false",
-        dest="fetmrqc20_iqms",
-    )
-    parser.add_argument(
-        "--ckpt_path",
-        help="Path to the checkpoint of the MONAIfbs model.",
-        default=BRAIN_CKPT,
-    )
-
-    parser.add_argument(
-        "--mask_pattern",
-        help=(
-            "Pattern according to which the masks will be stored.\n "
-            'By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
-            '[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be '
-            "substituted based on the structure of bids_dir."
-        ),
-        type=str,
-        default=MASK_PATTERN,
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Seed to control the randomization (to be used with randomize=True).",
-    )
-
-    parser.add_argument(
-        "--classification",
-        help="Whether to perform classification.",
-        action="store_true",
-        default=True,
-    )
-    parser.add_argument(
-        "--regression",
-        help="Whether to perform regression.",
-        dest="classification",
-        action="store_false",
-    )
-    parser.add_argument(
-        "--custom_model",
-        help="Path to a custom model, trained using run_train_fetmrqc.py.",
-        default=None,
-        type=str,
-    )
 
 
 def main():
@@ -153,36 +47,9 @@ def main():
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    build_parser(parser)
+    build_inference_parser(parser)
 
     args = parser.parse_args()
-
-    iqms = IQMS_NO_NAN if args.iqms == "all" else args.iqms
-    iqms = [iqm for iqm in iqms if "_nan" not in iqm]
-    if args.fetmrqc20_iqms:
-        assert (
-            iqms == IQMS_NO_NAN
-        ), "Cannot take a custom set of IQMs when using FetMRQC-20 (--fetmrqc20_iqms)"
-
-    if iqms != IQMS_NO_NAN:
-        for iqm in iqms:
-            assert iqm in IQMS_NO_NAN, f"The IQM {iqm} is not available."
-
-        assert (
-            args.custom_model is not None
-        ), "When extracting a custom set of IQMs, a custom model must be provided (--custom_model)."
-
-    if args.custom_model is not None:
-        custom_json = args.custom_model.replace(".joblib", ".json")
-        with open(custom_json, "r") as f:
-            json_dict = json.load(f)
-        for iqm in json_dict["iqms"]:
-            assert (
-                iqm in iqms
-            ), f"The IQM {iqm} from the custom model is not in the provided IQMs (--iqms)."
-        assert (
-            args.classification == json_dict["classification"]
-        ), "Mismatch between the task of the custom model and the provided mode (--classification/--regression)."
 
     # Running brain extraction
     cmd = (
@@ -210,32 +77,29 @@ def main():
         "qc_segmentation "
         f"--bids_csv {args.bids_csv} "
         f"--out_path {args.seg_dir} "
+        f"--device {args.device} "
     )
     run_cmd(cmd)
     # Running IQMs computation
-    iqms = FETMRQC20_METRICS if args.fetmrqc20_iqms else iqms
 
+    cmd_iqms = "" if args.fetmrqc20_iqms else "--use_all_metrics"
     cmd = (
         "qc_compute_iqms "
         f"--bids_csv {args.bids_csv} "
         f"--out_csv {args.iqms_csv} "
-        f"--metrics {' '.join(iqms)}"
-        "  --verbose"
+        f"{cmd_iqms} "
+        "--verbose "
+        f"--device {args.device} "
     )
     run_cmd(cmd)
 
     # Running inference
-    task = "--classification " if args.classification else "--regression "
-    custom_model = (
-        f"--custom_model {args.custom_model}" if args.custom_model else ""
-    )
     fetmrqc20 = "--fetmrqc20 " if args.fetmrqc20_iqms else ""
     cmd = (
         "qc_inference "
         f"--iqms_csv {args.iqms_csv} "
         f"--out_csv {args.out_csv} "
-        f"{task}"
-        f"{custom_model} "
+        f"--regression --classification "
         f"{fetmrqc20}"
     )
     print(cmd)

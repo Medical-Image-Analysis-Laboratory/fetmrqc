@@ -51,7 +51,11 @@ def bidsify_monaifbs(files_filtered, bids_layout, mask_pattern, masks_tmp):
             fill_pattern(bids_layout, sub, ses, run, mask_pattern)
         )
         os.makedirs(mask_path.parent, exist_ok=True)
-        shutil.move(monaifbs_mask_path, mask_path)
+        try:
+            shutil.move(monaifbs_mask_path, mask_path)
+        except FileNotFoundError:
+            print(f"Mask not found for {sub} {ses} {run}.")
+            continue
     shutil.rmtree(os.path.abspath(masks_tmp))
 
 
