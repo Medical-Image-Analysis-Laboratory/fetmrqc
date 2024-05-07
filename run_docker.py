@@ -224,7 +224,6 @@ def main() -> None:
         }
     else:
         raise ValueError(f"Unknown command {args.command}")
-    print(outputs_check)
     check_fixed_args(fixed_args)
     check_paths(outputs_check, args.out_dir)
 
