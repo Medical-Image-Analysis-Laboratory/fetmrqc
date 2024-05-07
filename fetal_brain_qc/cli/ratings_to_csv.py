@@ -193,8 +193,6 @@ def main():
             ]
         ]
     else:
-        # {"dataset":"fetal_chuv","subject":"sub-feta062","qcglobal":"2.55","is_reconstructed":"1","geom_artefact":"2.3","recon_artefact":"1.6","blur":"1.45","noise":"1.5","bias_field":"2.4","intensity":"2.4","time_sec":33.098,"timestamp":"2024-01-08 15:03:13","comments":""}
-        # {"dataset":"list_srr_normative_modeling_nesvor.csv","subject":"sub-0019_ses-0022_haste_nesvor","qcglobal":"3.8","is_reconstructed":"1","geom_artefact":"2.85","recon_artefact":"3.8","blur":"2.25","noise":"2.65","bias_field":"3","intensity_gm":"2.45","intensity_dgm":"1.85","time_sec":62.446,"timestamp":"2024-02-14 11:23:43","comments":""}
         df_base[
             [
                 "qcglobal",
