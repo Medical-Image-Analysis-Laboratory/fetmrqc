@@ -574,7 +574,7 @@
                     });
                     {% endif %}
 
-                    {% for _, svg_id, _ in svg_files %}
+                    {% for _, _, svg_id, _ in svg_files %}
                     {% if svg_id not in ("tp1", "tp2") %}
                     $('#report-{{ svg_id }} g[id^="axes_"]').on('click', function (e) {
                         if ($(this).prop('clicked')) {

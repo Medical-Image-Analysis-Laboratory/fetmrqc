@@ -32,6 +32,7 @@ import re
 import os
 import time
 
+
 REPORT_TITLES = [
     ("In-plane view", "ip1"),
     ("Through-plane view 1", "tp1"),
@@ -46,7 +47,7 @@ REPORT_TITLES_SR = [
 ]
 
 
-def get_image_info(im_path):
+def get_image_info(im_path, is_sr=False):
     """Extracting information for the report
     from the header of the nifti file as well
     as the json configuration file if it exists.
@@ -58,15 +59,24 @@ def get_image_info(im_path):
         dim=imh["dim"][1:4],
         resolution=imh["pixdim"][1:4],
     )
+
     if os.path.isfile(im_json_path):
-        with open(im_json_path, "r") as f:
-            config = json.load(f)
+        try:
+            config = json.load(open(im_json_path, "r"))
+        except json.JSONDecodeError:
+            print(f"Error reading {im_json_path}. Trying with pyjson5")
+            try:
+                import json5
+
+                config = json5.load(open(im_json_path, "r"))
+            except ImportError:
+                print("json5 not installed. Skipping json file")
+                config = {}
         im_info["field_strength"] = config.get(
             "MagneticFieldStrength", "Unknown"
         )
     else:
         im_info["field_strength"] = "Unknown"
-
     return im_info
 
 
@@ -121,7 +131,6 @@ def individual_html(
         ((i,) + titles[i] + (read_report_snippet(v),))
         for i, v in enumerate(in_plots)
     ]
-
     date = datetime.datetime.now()
     timestamp = date.strftime("%Y-%m-%d, %H:%M")
     _config = {
@@ -174,6 +183,7 @@ def generate_report(
                     f"\tWARNING: Empty mask {Path(mask_path).name}. Report generation skipped"
                 )
                 continue
+
         if is_sr:
             out_plots = plot_mosaic_sr(
                 im_path,
@@ -198,7 +208,7 @@ def generate_report(
                 report_dir=tmp_report_dir,
             )
         out_path = Path(out_folder) / (run["name"] + "_report.html")
-        im_info = get_image_info(im_path)
+        im_info = get_image_info(im_path, is_sr=is_sr)
         out = individual_html(
             in_plots=out_plots,
             im_info=im_info,
