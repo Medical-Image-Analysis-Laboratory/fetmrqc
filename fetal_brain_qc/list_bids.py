@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 from fetal_brain_utils import iter_bids
 from bids import BIDSLayout
+from bids import BIDSLayoutIndexer
 from fetal_brain_qc.definitions import MASK_PATTERN
 import csv
 import nibabel as ni
@@ -47,7 +48,9 @@ def create_sr_masks(bids_dir, mask_folder):
         )
 
 
-def list_bids(bids_dir, mask_pattern_list, bids_csv, suffix="T2w"):
+def list_bids(
+    bids_dir, mask_pattern_list, bids_csv, suffix="T2w", skip_masks=False
+):
     """Given a bids directory `bids_dir` containing LR stacks of fetal brain,
     along with a list of patterns to the corresponding brain masks, create a
     csv file `bids_csv` listing the name, subject, session, run, LR_path
@@ -57,9 +60,25 @@ def list_bids(bids_dir, mask_pattern_list, bids_csv, suffix="T2w"):
     More details about how mask_pattern_list is formatted is given in
     `run_list_and_anon_bids.py` and an example can be found in `definitions.py`.
     """
-    bids_layout = BIDSLayout(bids_dir, validate=False)
+    bids_layout = BIDSLayout(
+        bids_dir,
+        validate=False,
+        indexer=BIDSLayoutIndexer(index_metadata=False),
+    )
 
-    file_list = list_masks(bids_layout, mask_pattern_list, suffix=suffix)
+    if skip_masks:
+        file_list = [
+            {
+                "name": Path(out).name.replace(".nii.gz", ""),
+                "sub": sub,
+                "ses": ses,
+                "run": run,
+                "im": out,
+            }
+            for sub, ses, run, out in iter_bids(bids_layout, suffix=suffix)
+        ]
+    else:
+        file_list = list_masks(bids_layout, mask_pattern_list, suffix=suffix)
 
     if len(file_list) == 0:
         error_msg = "Failed to list any elements. "
@@ -82,6 +101,7 @@ def list_masks(bids_layout, mask_pattern_list, suffix="T2w"):
     If no mask is found, the data isn't added to the returned file_list
     """
     from fetal_brain_qc.utils import fill_pattern
+    import pdb
 
     file_list = []
     for sub, ses, run, out in iter_bids(bids_layout, suffix=suffix):

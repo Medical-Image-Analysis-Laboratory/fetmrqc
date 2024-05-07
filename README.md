@@ -33,7 +33,7 @@ While raw data cannot be shared, the extracted image quality metrics are availab
 
 You can follow [this link](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) to install Docker and NVIDIA Container Toolkit. After installing docker, you can download *FetMRQC* with 
 ```
-docker pull thsanchez/fetmrqc:0.1.1
+docker pull thsanchez/fetmrqc:0.1.3
 ```
 
 This image by build using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
@@ -43,23 +43,23 @@ You have two options to run the *FetMRQC* docker. A wrapper script `run_docker.p
 
 The `run_docker.py` script automatically handles the mounting of folders onto the docker container, and can help people unfamiliar with docker containers. For those who are familiar with docker, we provide an example of how the inference pipeline can be run by directly calling the docker
 ```
-docker run --rm -it 
-  --gpus all --gpus all 
-  --ipc=host --ulimit memlock=-1 --ulimit stack=67108864
-  -v <your BIDS data folder>:/data/data 
-  -v <your masks folder>:/data/masks 
-  -v <your output folder>:/data/out 
-  thsanchez/fetmrqc:0.1.2 qc_inference_pipeline 
-  --bids_dir /data/data 
-  --masks_dir /data/masks 
-  --seg_dir /data/out/seg 
-  --bids_csv /data/out/bids_csv.csv 
-  --iqms_csv /data/out/iqms_csv.csv 
-  --out_csv /data/out/out_csv.csv 
-  --fetmrqc20_iqms  
-  --classification
+docker run --rm -it \
+    --gpus all --gpus all --ipc=host \
+    --ulimit memlock=-1 --ulimit stack=67108864 \
+    -v <local BIDS data folder>:/data/data \
+    -v <local masks folder>:/data/masks \
+    -v <local masks folder>:/data/seg \
+    -v <local output folder>:/data/out \
+    thsanchez/fetmrqc:0.1.3 qc_inference_pipeline \
+    --bids_dir /data/data \
+    --masks_dir /data/masks \
+    --seg_dir /data/out/seg \
+    --bids_csv /data/out/bids_csv.csv \
+    --iqms_csv /data/out/iqms_csv.csv \
+    --out_csv /data/out/out_csv.csv \
+    --fetmrqc20_iqms \
+    --device <cpu or cuda>
 ```
-
 
 ### From source
 *FetMRQC* (`fetal_brain_qc`) was developed in Ubuntu 22.04 and tested for python 3.9.15
@@ -98,7 +98,7 @@ You can now exit the new environment and re-activate `fetal_brain_qc`.
 For **reports** generation, the recommended workflow is to use `qc_reports_pipeline`.
 
 ```
-usage: qc_reports_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR --reports_dir REPORTS_DIR [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN] [--bids_csv BIDS_CSV] [--seed SEED]
+usage: qc_reports_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR [--reports_dir REPORTS_DIR] [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN] [--bids_csv BIDS_CSV] [--seed SEED]
 
 Given a `bids_dir`, lists the LR series in the directory, computes the brain masks using MONAIfbs and uses the masks to compute visual reports that can be used for manual rating.
 
@@ -108,14 +108,12 @@ optional arguments:
   --masks_dir MASKS_DIR
                         Root of the BIDS directory where brain masks will be stored. (default: None)
   --reports_dir REPORTS_DIR
-                        Directory where the reports will be stored. (default: None)
+                        Directory where the reports will be stored. (Default is <bids_dir>/derivatives/reports) (default: None)
   --ckpt_path CKPT_PATH
                         Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
   --mask_pattern MASK_PATTERN
-                        Pattern according to which the masks will be stored. By default, masks will be stored in
-                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
-                        substituted based on the structure of bids_dir. (default:
-                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+                        Pattern according to which the masks will be stored. By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields
+                        will be substituted based on the structure of bids_dir. (default: sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
   --bids_csv BIDS_CSV   CSV file where the list of available LR series and masks will be stored. (default: bids_csv.csv)
   --seed SEED           Seed for the random number generator. (default: 42)
 
@@ -125,11 +123,10 @@ optional arguments:
 For **inference**, the recommended workflow is  `qc_inference_pipeline`.
 
 ```
-usage: qc_inference_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR --seg_dir SEG_DIR [--bids_csv BIDS_CSV] [--iqms_csv IQMS_CSV] [--out_csv OUT_CSV] [--iqms IQMS [IQMS ...]] [--nprocs NPROCS]
-                             [--fetmrqc20_iqms | --no-fetmrqc20_iqms] [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN] [--seed SEED] [--classification] [--regression] [--custom_model CUSTOM_MODEL]
+usage: qc_inference_pipeline [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR --seg_dir SEG_DIR [--bids_csv BIDS_CSV] [--iqms_csv IQMS_CSV] [--out_csv OUT_CSV] [--fetmrqc20_iqms | --no-fetmrqc20_iqms] [--use_all_iqms] [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN]
+                             [--seed SEED] [--device {cpu,cuda}]
 
-Given a `bids_dir`, lists the LR series in the directory, computes brain masks and segmentations, uses them to extract IQMs and perform inference using one of the pretrained FetMRQC models. The output
-is a CSV file containing the predictions and IQMs.
+Given a `bids_dir`, lists the LR series in the directory, computes brain masks and segmentations, uses them to extract IQMs and perform inference using one of the pretrained FetMRQC models. The output is a CSV file containing the predictions and IQMs.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -140,24 +137,16 @@ optional arguments:
   --bids_csv BIDS_CSV   CSV file where the list of available LR series and masks will be stored. (default: bids_csv.csv)
   --iqms_csv IQMS_CSV   CSV file where the computed IQMs will be stored. (default: iqms_csv.csv)
   --out_csv OUT_CSV     CSV file where the predictions from FetMRQC will be stored. (default: out_csv.csv)
-  --iqms IQMS [IQMS ...]
-                        List of IQMs that will be computed (default: all)
-  --nprocs NPROCS       Number of processes to use for the computation of the IQMs. (default: 4)
   --fetmrqc20_iqms, --no-fetmrqc20_iqms
-                        Whether the IQMs from FetMRQC-20 should be computed (default: False)
+                        Whether the IQMs from FetMRQC-20 should be computed (default: True)
+  --use_all_iqms        Whether all IQMs should be computed (default: False)
   --ckpt_path CKPT_PATH
                         Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
   --mask_pattern MASK_PATTERN
-                        Pattern according to which the masks will be stored. By default, masks will be stored in
-                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
-                        substituted based on the structure of bids_dir. (default:
-                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+                        Pattern according to which the masks will be stored. By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields
+                        will be substituted based on the structure of bids_dir. (default: sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
   --seed SEED           Seed to control the randomization (to be used with randomize=True). (default: 42)
-  --classification      Whether to perform classification or regression. (default: True)
-  --regression          Whether to perform classification or regression. (default: True)
-  --custom_model CUSTOM_MODEL
-                        Path to a custom model, trained using run_train_fetmrqc.py. (default: None)
-
+  --device {cpu,cuda}   Device to use for inference. (default: cuda)
 ```
 
 **Remark.** This script runs the whole inference pipeline of *FetMRQC*, i.e.  brain extraction ->  listing of BIDS directory and masks into a CSV file -> Segmentation of the brain -> IQMs extraction -> Inference using a pretrained FetMRQC model
@@ -168,8 +157,7 @@ Each part of the pipeline can also be called individually:
 ```
 usage: qc_brain_extraction [-h] --bids_dir BIDS_DIR --masks_dir MASKS_DIR [--ckpt_path CKPT_PATH] [--mask_pattern MASK_PATTERN]
 
-Given a `bids_dir`, lists the LR series in the directory and computes the brain masks using MONAIfbs (https://github.com/gift-surg/MONAIfbs/tree/main). Save the masks into the `masks_dir` folder,
-follwing the same hierarchy as the `bids_dir`
+Given a `bids_dir`, lists the LR series in the directory and computes the brain masks using MONAIfbs (https://github.com/gift-surg/MONAIfbs/tree/main). Save the masks into the `masks_dir` folder, following the same hierarchy as the `bids_dir`
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -179,16 +167,14 @@ optional arguments:
   --ckpt_path CKPT_PATH
                         Path to the checkpoint of the MONAIfbs model. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/MONAIfbs_dynunet_ckpt.pt)
   --mask_pattern MASK_PATTERN
-                        Pattern according to which the masks will be stored. By default, masks will be stored in
-                        "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
-                        substituted based on the structure of bids_dir. (default:
-                        sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
+                        Pattern according to which the masks will be stored. By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields
+                        will be substituted based on the structure of bids_dir. (default: sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz)
 ```
 
 - `qc_list_bids_csv` 
 ```
-usage: qc_list_bids_csv [-h] --bids_dir BIDS_DIR [--mask_patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--mask_patterns_base MASK_PATTERNS_BASE [MASK_PATTERNS_BASE ...]] [--out_csv OUT_CSV]
-                        [--anonymize_name | --no-anonymize_name] [--seed SEED]
+usage: qc_list_bids_csv [-h] --bids_dir BIDS_DIR [--mask_patterns MASK_PATTERNS [MASK_PATTERNS ...]] [--mask_patterns_base MASK_PATTERNS_BASE [MASK_PATTERNS_BASE ...]] [--out_csv OUT_CSV] [--anonymize_name | --no-anonymize_name] [--suffix SUFFIX] [--seed SEED]
+                        [--skip_masks | --no-skip_masks]
 
 Given a `bids_dir`, lists the LR series in the directory and tries to find corresponding masks given by `mask_patterns`. Then, saves all the found pairs of (LR series, masks) in a CSV file at `out_csv`
 
@@ -196,21 +182,22 @@ optional arguments:
   -h, --help            show this help message and exit
   --bids_dir BIDS_DIR   BIDS directory containing the LR series. (default: None)
   --mask_patterns MASK_PATTERNS [MASK_PATTERNS ...]
-                        Pattern(s) to find the LR masks corresponding to the LR series. Patterns will be of the form
-                        "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be substituted based on
-                        the structure of bids_dir. The base directory from which the search will be run can be changed with `--mask-pattern-base`. (default: None)
+                        Pattern(s) to find the LR masks corresponding to the LR series. Patterns will be of the form "sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be
+                        substituted based on the structure of bids_dir. The base directory from which the search will be run can be changed with `--mask-pattern-base`. (default: None)
   --mask_patterns_base MASK_PATTERNS_BASE [MASK_PATTERNS_BASE ...]
-                        Base folder(s) from which the LR masks must be listed. The method will look for masks at `mask-pattern-base`/`mask-patterns`. In this case, both `mask-patterns` and `mask-
-                        pattern-base` should be of the same length. (default: None)
+                        Base folder(s) from which the LR masks must be listed. The method will look for masks at `mask-pattern-base`/`mask-patterns`. In this case, both `mask-patterns` and `mask-pattern-base` should be of the same length. (default: None)
   --out_csv OUT_CSV     CSV file where the list of available LR series and masks is stored. (default: bids_csv.csv)
   --anonymize_name, --no-anonymize_name
                         Whether an anonymized name must be stored along the paths in `out_csv`. This will determine whether the reports will be anonymous in the end. (default: True)
+  --suffix SUFFIX       Suffix used to query the data (default: T2w)
   --seed SEED           Seed for the random number generator. (default: None)
+  --skip_masks, --no-skip_masks
+                        Whether the masks should be skipped. (default: False)
 ```
 
 - `qc_generate_reports`
 ```
-usage: Given a BIDS CSV file, generates visual reports for annotation. [-h] --bids_csv BIDS_CSV --out_dir OUT_DIR [--sr | --no-sr] [--add_js | --no-add_js]
+usage: Given a BIDS CSV file, generates visual reports for annotation. [-h] --bids_csv BIDS_CSV --out_dir OUT_DIR [--sr | --no-sr] [--add_js | --no-add_js] [--block_if_exclude | --no-block_if_exclude] [--dataset DATASET]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -219,12 +206,14 @@ optional arguments:
   --sr, --no-sr         Whether the reports to be generated are for SR data. (default: False)
   --add_js, --no-add_js
                         Whether some javascript should be added to the report for interaction with the index file. (default: True)
+  --block_if_exclude, --no-block_if_exclude
+                        Whether the ratings should be blocked after the first rating is set below the include threshold. (default: False)
+  --dataset DATASET     Name of the dataset to be used for the reports. (default: None)
 ```
 
 - `qc_generate_index`
 ```
-usage: qc_generate_index [-h] [--reports_dirs REPORTS_DIRS [REPORTS_DIRS ...]] [--add_script_to_reports | --no-add_script_to_reports] [--use_ordering_file | --no-use_ordering_file]
-                         [--navigation | --no-navigation] [--seed SEED]
+usage: qc_generate_index [-h] [--reports_dirs REPORTS_DIRS [REPORTS_DIRS ...]] [--add_script_to_reports | --no-add_script_to_reports] [--use_ordering_file | --no-use_ordering_file] [--navigation | --no-navigation] [--seed SEED]
 
 Given a list of reports, generates an index.html file to navigate through them.
 
@@ -256,7 +245,7 @@ optional arguments:
   --nnunet_res_path NNUNET_RES_PATH
                         Path to the nnunet folder containing the checkpoint. (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/nnUNet)
   --nnunet_env_path NNUNET_ENV_PATH
-                        Path to the nnunet folder containing the checkpoint (from `conda env list`). (default: /home/tsanchez/anaconda3/envs/nnunet)
+                        Path to the nnunet folder containing the checkpoint (from `conda env list`). (default: /home/tsanchez/anaconda3//envs/nnunet)
   --device {cuda,cpu}   Device to use for the nnUNet inference. (default: cuda)
 ```
 
@@ -264,39 +253,38 @@ optional arguments:
 
 **Note.** If you want to run the metrics computation using segmentation-based metrics, you need to run `qc_compute_segmentation` prior to calling this script.
 ```
-usage: qc_compute_iqms [-h] --bids_csv BIDS_CSV --out_csv OUT_CSV [--metrics METRICS [METRICS ...]] [--use_all_metrics | --no-use_all_metrics] [--ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA]
-                       [--ckpt_path_stack_iqa CKPT_PATH_STACK_IQA] [--device DEVICE] [--continue-run | --no-continue-run] [--use_prob_seg | --no-use_prob_seg] [--nprocs NPROCS]
-                       [--verbose | --no-verbose]
+usage: qc_compute_iqms [-h] --out_csv OUT_CSV [--metrics METRICS [METRICS ...]] [--use_all_metrics | --no-use_all_metrics] [--normalization {None,sub_ses,site,run}] --bids_csv BIDS_CSV [--ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA] [--ckpt_path_stack_iqa CKPT_PATH_STACK_IQA]
+                       [--device DEVICE] [--continue_run | --no-continue_run] [--use_prob_seg | --no-use_prob_seg] [--verbose | --no-verbose]
 
 Computes quality metrics from given images.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --bids_csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
-  --out_csv OUT_CSV     Path where the IQMs will be stored. (default: None)
+  --out_csv OUT_CSV     Path where the IQA results will be stored. (default: None)
   --metrics METRICS [METRICS ...]
-                        Metrics to be evaluated. (default: ['centroid', 'dl_slice_iqa_full', 'dl_stack_iqa_full', 'rank_error', 'mask_volume', 'ncc', 'nmi'])
+                        Metrics to be evaluated. (default: ['rank_error', 'dilate_erode_mask_full', 'mask_volume', 'filter_sobel_mask_full', 'nrmse_window', 'filter_laplace_mask', 'filter_laplace_mask_full', 'dilate_erode_mask', 'rank_error_center', 'centroid',
+                        'rank_error_center_relative', 'seg_sstats', 'im_size', 'ncc_intersection', 'ncc_window', 'psnr_window', 'seg_snr', 'seg_volume'])
   --use_all_metrics, --no-use_all_metrics
                         Whether all metrics should be evaluated (default: False)
+  --normalization {None,sub_ses,site,run}
+                        Whether input data should be normalized (default: None)
+  --bids_csv BIDS_CSV   Path where the bids config csv file is located. (default: None)
   --ckpt_path_slice_iqa CKPT_PATH_SLICE_IQA
-                        Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT). (default:
-                        /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/fetal_IQA_pytorch.ckpt)
+                        Path to the checkpoint of the fetal IQA pytorch model (by Junshen Xu at MIT). (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/fetal_IQA_pytorch.ckpt)
   --ckpt_path_stack_iqa CKPT_PATH_STACK_IQA
-                        Path to the checkpoint of the fetal IQA tensorflow model (by Ivan Legorreta FNNDSC). (default:
-                        /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/FNNDSC_qcnet_ckpt.hdf5)
+                        Path to the checkpoint of the fetal IQA tensorflow model (by Ivan Legorreta FNNDSC). (default: /home/tsanchez/Documents/mial/repositories/qc_fetal_brain/fetal_brain_qc/models/FNNDSC_qcnet_ckpt.hdf5)
   --device DEVICE       Device to be used for the deep learning model. (default: cuda:0)
-  --continue-run, --no-continue-run
+  --continue_run, --no-continue_run
                         Whether QC run should re-use existing results if a metrics.csv file at `out_path`/metrics.csv. (default: True)
   --use_prob_seg, --no-use_prob_seg
                         Whether to use the probability segmentation or the binary segmentation. (default: True)
-  --nprocs NPROCS       Number of processes to use for multiprocessing. (default: 4)
   --verbose, --no-verbose
                         Enable verbose. (default: False)
 ```
 
 - `qc_inference`
 ```
-usage: qc_inference [-h] --iqms_csv IQMS_CSV --out_csv OUT_CSV [--ckpt_path CKPT_PATH] [--classification] [--regression] [--fetmrqc20 | --no-fetmrqc20] [--custom_model CUSTOM_MODEL]
+usage: qc_inference [-h] --iqms_csv IQMS_CSV --out_csv OUT_CSV [--ckpt_path CKPT_PATH] [--classification | --no-classification] [--regression | --no-regression] [--fetmrqc20 | --no-fetmrqc20] [--custom_model CUSTOM_MODEL]
 
 Performs FetMRQC inference, given a pretrained model.
 
@@ -306,19 +294,19 @@ optional arguments:
   --out_csv OUT_CSV     CSV file where the predicted results will be stored. (default: None)
   --ckpt_path CKPT_PATH
                         Path to the checkpoint of the fetal IQA pytorch model. (default: None)
-  --classification      Whether to perform classification or regression. (default: True)
-  --regression          Whether to perform classification or regression. (default: True)
+  --classification, --no-classification
+                        Whether to perform classification. (default: False)
+  --regression, --no-regression
+                        Whether to perform regression. (default: False)
   --fetmrqc20, --no-fetmrqc20
                         Whether to use FetMRQC20 IQMs. (default: False)
   --custom_model CUSTOM_MODEL
                         Path to a custom model, trained using run_train_fetmrqc.py. (default: None)
-
 ```
 
 - `qc_training`:
 ```
-usage: Train a FetMRQC model. [-h] [--dataset DATASET] [--first_iqm FIRST_IQM] [--classification] [--regression] [--fetmrqc20 | --no-fetmrqc20] [--iqms_list IQMS_LIST [IQMS_LIST ...]]
-                              [--save_path SAVE_PATH]
+usage: Train a FetMRQC model. [-h] [--dataset DATASET] [--first_iqm FIRST_IQM] [--classification] [--regression] [--fetmrqc20 | --no-fetmrqc20] [--iqms_list IQMS_LIST [IQMS_LIST ...]] [--save_path SAVE_PATH]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -362,7 +350,7 @@ positional arguments:
 optional arguments:
   -h, --help         show this help message and exit
   --out_csv OUT_CSV  CSV file where the ratings will be stored (default: `<ratings_dir>/ratings.csv`). (default: None)
-
+  --sr               If set, the csv file will be formatted for the SR study. (default: False)
 ```
 ## Citing
 If you found this work useful, please cite the following articles.

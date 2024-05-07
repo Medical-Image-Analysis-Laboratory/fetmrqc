@@ -91,6 +91,13 @@ def main():
         default=None,
     )
 
+    parser.add_argument(
+        "--skip_masks",
+        help="Whether the masks should be skipped.",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+
     args = parser.parse_args()
     print_title("Running list_bids")
     # Constructing patterns.
@@ -116,6 +123,7 @@ def main():
         mask_patterns,
         bids_csv=args.out_csv,
         suffix=args.suffix,
+        skip_masks=args.skip_masks,
     )
     if args.anonymize_name:
         print(f"Anonymize name in {args.out_csv}.")
