@@ -162,7 +162,6 @@ def main():
 
     if args.classification:
         ckpt_path, iqms = load_model(args, "classification")
-        print(iqms, ckpt_path)
         run_model(bids_df, ckpt_path, iqms, "classification", args)
     if args.regression:
         ckpt_path, iqms = load_model(args, "regression")
