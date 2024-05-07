@@ -20,57 +20,7 @@ Given a BIDS dataset, generates a report for each subject/session/run.
 
 import argparse
 import os
-from fetal_brain_qc.definitions import MASK_PATTERN, BRAIN_CKPT
-
-
-def build_parser(parser):
-    parser.add_argument(
-        "--bids_dir",
-        required=True,
-        help="BIDS directory containing the LR series.",
-    )
-
-    parser.add_argument(
-        "--masks_dir",
-        help="Root of the BIDS directory where brain masks will be stored.",
-        required=True,
-    )
-
-    parser.add_argument(
-        "--reports_dir",
-        help="Directory where the reports will be stored.",
-        required=True,
-    )
-
-    parser.add_argument(
-        "--ckpt_path",
-        help="Path to the checkpoint of the MONAIfbs model.",
-        default=BRAIN_CKPT,
-    )
-
-    parser.add_argument(
-        "--mask_pattern",
-        help=(
-            "Pattern according to which the masks will be stored.\n "
-            'By default, masks will be stored in "<masks_dir>/sub-{subject}[/ses-{session}][/{datatype}]/sub-{subject}'
-            '[_ses-{session}][_acq-{acquisition}][_run-{run}]_{suffix}.nii.gz", and the different fields will be '
-            "substituted based on the structure of bids_dir."
-        ),
-        type=str,
-        default=MASK_PATTERN,
-    )
-    parser.add_argument(
-        "--bids_csv",
-        help="CSV file where the list of available LR series and masks will be stored.",
-        default="bids_csv.csv",
-    )
-
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Seed for the random number generator.",
-    )
+from fetal_brain_qc.cli.build_run_parsers import build_reports_parser
 
 
 def main():
@@ -83,9 +33,14 @@ def main():
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    build_parser(parser)
+    build_reports_parser(parser)
     args = parser.parse_args()
-
+    reports_dir = (
+        os.path.join(args.out_dir, "derivatives/reports")
+        if args.reports_dir is None
+        else args.reports_dir
+    )
+    os.makedirs(reports_dir, exist_ok=True)
     # Running brain extraction
     cmd = (
         "qc_brain_extraction "
@@ -111,7 +66,7 @@ def main():
     cmd = (
         "qc_generate_reports "
         f"--bids_csv {args.bids_csv} "
-        f"--out_dir {args.reports_dir} "
+        f"--out_dir {reports_dir} "
     )
 
     os.system(cmd)
@@ -119,7 +74,7 @@ def main():
     # Running the index generation
     cmd = (
         "qc_generate_index "
-        f"--reports_dirs {args.reports_dir} "
+        f"--reports_dirs {reports_dir} "
         f"--seed {args.seed}"
     )
     os.system(cmd)
