@@ -56,14 +56,15 @@ def list_out_folders(out_folders):
 
 
 def generate_index(
-    out_folders, add_script_to_reports, use_ordering_file, navigate
+    out_folders, add_script_to_reports, use_ordering_file, navigate, sort=False
 ):
     """Generate index.html files in the given folders."""
 
     out_folder_list = list_out_folders(out_folders)
     out_dict = {}
+
     for out_folder in out_folder_list:
-        index_list = get_html_index(out_folder, use_ordering_file)
+        index_list = get_html_index(out_folder, use_ordering_file, sort)
         if add_script_to_reports:
             add_message_to_reports(index_list)
         if len(index_list) > 0:

@@ -65,6 +65,13 @@ def main():
         help="Seed to control the randomization (to be used with randomize=True).",
     )
 
+    parser.add_argument(
+        "--sort",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Whether the folders should be sorted before generating the index.",
+    )
+
     args = parser.parse_args()
     print_title("Generating index")
     np.random.seed(args.seed)
@@ -74,6 +81,7 @@ def main():
         args.add_script_to_reports,
         args.use_ordering_file,
         args.navigation,
+        sort=args.sort,
     )
 
     return 0

@@ -52,7 +52,7 @@ def fill_pattern(bids_layout, sub, ses, run, pattern, suffix="T2w_mask"):
     return bids_layout.build_path(ents, pattern, validate=False)
 
 
-def get_html_index(folder, use_ordering_file=False):
+def get_html_index(folder, use_ordering_file=False, sort=False):
     """List all html files in the input `folder` or,
     if `use_ordering_file=True`, loads the ordering from
     `folder`/ordering.csv
@@ -84,7 +84,8 @@ def get_html_index(folder, use_ordering_file=False):
                 f"\tWARNING: ordering.csv was found but not used in {folder}.\n"
                 f"\tDid you mean to run with --use-ordering-file?"
             )
-    random.shuffle(index_list)
+    if not (sort or use_ordering_file):
+        random.shuffle(index_list)
     return index_list
 
 

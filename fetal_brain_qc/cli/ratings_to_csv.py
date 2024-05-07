@@ -117,8 +117,12 @@ def main():
     )
 
     for f in files_ratings:
-        sub = re.findall(r"_(sub-\w+?)_", str(f))[0]
-        df_base.at[sub, "ratings_json"].append(f)
+        sub = re.findall(r"(sub-\w+?)_", str(f))
+        if len(sub) == 0:
+            continue
+        sub = sub[0]
+        if sub in df_base.index:
+            df_base.at[sub, "ratings_json"].append(f)
 
     unrated = list(df_base[df_base["ratings_json"].apply(len) == 0].index)
     if len(unrated) > 0:
@@ -189,7 +193,6 @@ def main():
             ]
         ]
     else:
-        # {"dataset":"fetal_chuv","subject":"sub-feta062","qcglobal":"2.55","is_reconstructed":"1","geom_artefact":"2.3","recon_artefact":"1.6","blur":"1.45","noise":"1.5","bias_field":"2.4","intensity":"2.4","time_sec":33.098,"timestamp":"2024-01-08 15:03:13","comments":""}
         df_base[
             [
                 "qcglobal",
@@ -199,7 +202,8 @@ def main():
                 "blur",
                 "noise",
                 "bias_field",
-                "intensity",
+                "intensity_gm",
+                "intensity_dgm",
             ]
         ].astype(float)
         df_base = df_base[
@@ -218,9 +222,9 @@ def main():
                 "time_sec",
                 "timestamp",
                 "dataset",
-                "Pathology",
-                "Gestational age",
-                "im",
+                # "Pathology",
+                # "Gestational age",
+                # "im",
                 "ratings_json",
             ]
         ]
