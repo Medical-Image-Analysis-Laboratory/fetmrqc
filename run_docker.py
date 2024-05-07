@@ -136,7 +136,6 @@ def run_inference(args: argparse.Namespace) -> None:
     fetmrqc20 = (
         "--fetmrqc20_iqms " if args.fetmrqc20_iqms else "--no-fetmrqc20_iqms "
     )
-    class_regr = "--classification " if args.classification else "--regression"
     cmd = (
         f"docker run --rm -it "
         "--gpus all --gpus all --ipc=host "  # Recommended by NVIDIA
@@ -152,7 +151,7 @@ def run_inference(args: argparse.Namespace) -> None:
         f"--bids_csv {bids_csv} "
         f"--iqms_csv {iqms_csv} "
         f"--out_csv {out_csv} "
-        f"{fetmrqc20} {class_regr} "
+        f"{fetmrqc20} "
         f"--mask_pattern {args.mask_pattern} "
         f"--seed {args.seed} "
         f"--device {args.device} "
@@ -223,11 +222,6 @@ def main() -> None:
             "iqms_csv": args.iqms_csv,
             "out_csv": args.out_csv,
         }
-        fixed_args.update(
-            {
-                "custom_model": args.custom_model,
-            }
-        )
     else:
         raise ValueError(f"Unknown command {args.command}")
     print(outputs_check)
