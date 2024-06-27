@@ -36,7 +36,7 @@ You can follow [this link](https://docs.nvidia.com/datacenter/cloud-native/conta
 docker pull thsanchez/fetmrqc:0.1.3
 ```
 
-This image by build using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
+This image was built using Ubuntu 22.04 and CUDA 12.1. Note that the image is heavy, around 35GB.
 
 #### Running FetMRQC using docker
 You have two options to run the *FetMRQC* docker. A wrapper script `run_docker.py` is provided in the *FetMRQC* repository and can run both main pipelines: the `reports` pipeline that generates visual reports from which quality can be assessed and the `inference` pipeline that computes the image quality metrics and performs inference using a pre-trained *FetMRQC* model. Both start from a [BIDS](https://bids.neuroimaging.io/) formatted directory of raw T2-weighted stacks of 2D slices. More details are available in the [usage](#usage) section.
