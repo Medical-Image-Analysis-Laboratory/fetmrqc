@@ -66,7 +66,7 @@ docker run --rm -it \
 
 To install this repository, first clone it via
 ```
-git clone git@github.com:Medical-Image-Analysis-Laboratory/fetal_brain_qc.git
+git clone git@github.com:Medical-Image-Analysis-Laboratory/fetmrqc.git
 ```
 and enter into the directory. Create a conda environment using `conda env create -n fetal_brain_qc python=3.9.15 ` Activate it using `conda activate fetal_brain_qc` and then install the repository using `python -m pip install -e .`
 
