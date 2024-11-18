@@ -64,6 +64,12 @@ def main():
         default=None,
     )
 
+    p.add_argument(
+        "--disable_bias_blur",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether the bias field correction and blur artifact ratings should be disabled.",
+    )
     args = p.parse_args()
 
     bids_list = csv_to_list(args.bids_csv)
@@ -85,6 +91,7 @@ def main():
         do_index=args.add_js,
         is_sr=args.sr,
         block_if_exclude=args.block_if_exclude,
+        disable_bias_blur=args.disable_bias_blur,
     )
 
     return 0

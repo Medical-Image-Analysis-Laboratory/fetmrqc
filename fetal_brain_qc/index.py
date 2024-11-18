@@ -23,7 +23,8 @@ import os
 def index_html(
     out_folder,
     index_list,
-    navigate,
+    index_file="index.html",
+    navigate=False,
 ):
     """Given a folder containing reports, list all html files and generates an index."""
 
@@ -33,7 +34,7 @@ def index_html(
         "index_list": index_list,
         "navigate": navigate,
     }
-    out_file = out_folder / "index.html"
+    out_file = out_folder / index_file
     tpl = IndexTemplate()
     tpl.generate_conf(_config, out_file)
     return out_file

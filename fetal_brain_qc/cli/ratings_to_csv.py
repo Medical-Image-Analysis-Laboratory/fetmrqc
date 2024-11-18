@@ -166,7 +166,6 @@ def main():
         df_base["bias_field_text"] = df_base["bias_field"].apply(artifact_text)
         # Count the number of slices selected with artifacts.
         df_base["nselected"] = df_base["selected_slices"].apply(len)
-
         # Shuffling of the columns
         df_base = df_base[
             [
@@ -206,10 +205,12 @@ def main():
                 "intensity_dgm",
             ]
         ].astype(float)
+
         df_base = df_base[
             [
                 "qcglobal",
-                "subject",
+                "sub",
+                "ses",
                 "is_reconstructed",
                 "geom_artefact",
                 "recon_artefact",
@@ -222,9 +223,7 @@ def main():
                 "time_sec",
                 "timestamp",
                 "dataset",
-                # "Pathology",
-                # "Gestational age",
-                # "im",
+                "im",
                 "ratings_json",
             ]
         ]
@@ -233,7 +232,6 @@ def main():
             columns={
                 "Pathology": "pathology",
                 "Gestational age": "GA",
-                "subject": "sub",
             }
         )
 

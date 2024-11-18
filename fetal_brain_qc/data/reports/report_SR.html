@@ -20,7 +20,6 @@
         var timestamp = Date.now()
         var selectors = ['#is_reconst', '#geom_artefact', '#recon_artefact', '#blur', '#noise', '#biasslider', '#intensity', '#intensityDGM'];
         var is_disabled = [false, false, false, false, false, false, false];
-
         /**
          * This function formats a number by adding a leading zeros
          * if the number is below 10
@@ -60,9 +59,15 @@
             var recon_artefact = checkDisabled('#recon_artefact');
             var intensityGM = checkDisabled('#intensity');
             var intensityDGM = checkDisabled('#intensityDGM');
+            {% if disable_bias_blur %}
+            var blur = null;
+            var bias_field = null;
+            {% else %}
             var blur = checkDisabled('#blur');
-            var noise = checkDisabled('#noise');
             var bias_field = checkDisabled('#biasslider');
+            {% endif %}
+            var noise = checkDisabled('#noise');
+            
             var qc_global = $('#qcslider').val();
 
             var date = new Date(time_curr);
@@ -359,7 +364,7 @@
                             None</button>
                     </ul>
                 </div>
-
+                {% if not disable_bias_blur %}
                 <label for="blur">Blurring <span style="font-size: smaller">(typically at the GM/WM interface)</label>
                 <div id="blur-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="blur" class="slider">
@@ -372,6 +377,7 @@
                             None</button>
                     </ul>
                 </div>
+                {% endif %}
                 <label for="noise">Noise</label>
                 <div id="noise-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="noise" class="slider">
@@ -384,6 +390,7 @@
                             None</button>
                     </ul>
                 </div>
+                {% if not disable_bias_blur %}
                 <label for="biasslider">Bias field</label>
                 <div id="biasslider-collapse">
                     <input type="range" min="0.0" max="3.0" step="0.05" value="1.5" id="biasslider" class="slider">
@@ -396,6 +403,7 @@
                             None</button>
                     </ul>
                 </div>
+                {% endif %}
                 <label for="intensity">Tissue contrast - I <span style="font-size: smaller">(intensity at WM/cortical
                         GM/CSF interface)</span></label>
                 <div id="intensity-collapse">
@@ -535,18 +543,20 @@
             defineSlider('recon_artefact')
         });
 
+        {% if not disable_bias_blur %}
         $('#blur').on('input', function () {
             defineSlider('blur')
         });
-
+        {% endif %}
         $('#noise').on('input', function () {
             defineSlider('noise')
         });
 
+        {% if not disable_bias_blur %}
         $('#biasslider').on('input', function () {
             defineSlider('biasslider')
         });
-
+        {% endif %}
         $('#qcslider').on('input', function () {
             defineSlider('qcslider')
         });

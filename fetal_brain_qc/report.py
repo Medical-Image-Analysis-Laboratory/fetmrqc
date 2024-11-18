@@ -28,7 +28,7 @@ import string
 import shutil
 import csv
 import re
-
+import datetime
 import os
 import time
 
@@ -113,6 +113,7 @@ def individual_html(
     do_index=False,
     sr=False,
     block_if_exclude=False,
+    disable_bias_blur=False,
 ):
     """From MRIQC"""
 
@@ -144,6 +145,7 @@ def individual_html(
         "field_strength": im_info["field_strength"],
         "do_index": do_index,
         "block_if_exclude": block_if_exclude,
+        "disable_bias_blur": disable_bias_blur,
     }
 
     tpl = IndividualTemplate() if not sr else IndividualSRTemplate()
@@ -164,8 +166,12 @@ def generate_report(
     do_index=False,
     is_sr=False,
     block_if_exclude=False,
+    disable_bias_blur=False,
 ):
-    tmp_report_dir = "tmp_report_plots"
+
+    tmp_report_dir = (
+        f"tmp_report_plots_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    )
     os.makedirs(out_folder, exist_ok=True)
     for i, run in enumerate(bids_list):
         im_path = run["im"]
@@ -218,6 +224,7 @@ def generate_report(
             do_index=do_index,
             sr=is_sr,
             block_if_exclude=block_if_exclude,
+            disable_bias_blur=disable_bias_blur,
         )
         plt.close()
     # Remove temporary directory for report generation

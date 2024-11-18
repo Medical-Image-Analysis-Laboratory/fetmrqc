@@ -66,7 +66,7 @@
     var free_navigation = {{ navigate| string | lower}}
     var locations = {{ index_list }}
     var currentIndex = 0;
-
+    var nrated = 0;
     // Arrays tracking the reports used, and whether they have been rated + when.
     var len = locations.length;
     var is_rated = new Array(len).fill(0);
@@ -97,6 +97,11 @@
         console.log(is_rated[currentIndex], time_rated[currentIndex])
         console.log("row of array", $('#row_' + currentIndex))
         update_row(currentIndex)
+        nrated = is_rated.reduce(function(a, b){
+            return a + b;
+        }, 0);
+        console.log(nrated)
+        document.getElementById('rated-cases').textContent = "Rated cases: " + nrated + "/" + len ;
     }
 
     function changeFrame(src) {
@@ -113,9 +118,6 @@
     }
 
     function onMessage(event) {
-        // Check sender origin to be trusted
-        console.log("message received")
-        //if (event.origin !== "https://example.com") return;
         if (event.srcElement.location.protocol != "file:") return; // Is this a security abberation?
         // I want to get any message that the rating is done on the iframe.
         var data = event.data;
@@ -145,6 +147,7 @@
                 <a class="btn btn-primary" role="button" id="btn-save">Save progress config</a>
             </div>
             <h1 class="mt-5 mb-2">Index of reports</h1>
+            <div id="rated-cases"> </div>
             <table id="results">
                 <thead>
                     <tr>
@@ -160,7 +163,7 @@
 </body>
 <script>
     const body = $('#results tbody');
-
+    document.getElementById('rated-cases').textContent = "Rated cases: 0/" + len ;
     // ---- Utilities ----
     // Compute the number of rows in the array
     function addZero(n) {
@@ -265,6 +268,7 @@
                 update_row(idx, date);
             });
         };
+        update_index();
 
     });
 </script>
