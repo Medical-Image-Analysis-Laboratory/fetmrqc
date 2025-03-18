@@ -178,6 +178,8 @@ def generate_report(
         mask_path = run.get("mask", "")
         print(f"{i+1} - Processing {Path(im_path).name} as {run['name']}")
         """Generate a report given an image path and mask"""
+        if True:
+            mask_path = im_path.replace("T2w", "dseg")
         if mask_path == "":
             print(
                 "WARNING: No mask was provided, using the binarization of the SR."

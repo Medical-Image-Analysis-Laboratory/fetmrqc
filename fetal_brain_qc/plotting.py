@@ -127,7 +127,7 @@ def _get_limits(nifti_file, only_plot_noise=False):
         vmax = np.percentile(data[data_mask], 61)
     else:
         vmin = np.percentile(data[data_mask], 0.01)
-        vmax = np.percentile(data[data_mask], 99.9)
+        vmax = np.percentile(data[data_mask], 99.5)
 
     return vmin, vmax
 
@@ -332,6 +332,7 @@ def plot_mosaic_sr(
 
     im_data = reorder_img(imc, resample="continuous")
     im_data = im_data.get_fdata()
+    # Clip intensity between 0 and 99.5 percentile
     vmin, vmax = _get_limits(im_data, only_plot_noise=False)
 
     def plot_axis(im, axis, vmin, vmax, cmap, zooms, annotate, reverse=False):
