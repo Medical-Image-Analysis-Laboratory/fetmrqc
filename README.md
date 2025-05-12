@@ -8,6 +8,13 @@ While raw data cannot be shared, the extracted image quality metrics are availab
 
 **Disclaimer.** Fetal brain QC is not intended for clinical use.
 
+
+## News
+
+**[12.05.2025]** Check out our extension of FetMRQC to super-resolution quality control: [arXiv](https://arxiv.org/abs/2503.10156) -- [GitHub](https://github.com/Medical-Image-Analysis-Laboratory/fetmrqc_sr)
+
+---
+
 ![fetal brain QC](img/fetmrqc.png)
 
 
