@@ -12,6 +12,10 @@ setup(
     name="fetal_brain_qc",
     version="0.1.3",
     packages=find_packages(),
+    include_package_data=True,  
+    package_data={
+        "fetal_brain_qc": ["data/reports/*.html"],
+    },
     description="Quality control for fetal brain MRI",
     author="Thomas Sanchez",
     author_email="thomas.sanchez@unil.ch",
