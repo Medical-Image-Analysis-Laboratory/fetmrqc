@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Compute segmentation on low resolution clinical acquisitions.
+"""Compute segmentation on low resolution clinical acquisitions.
 By default the segmentation is computed using a nnUNet-v2 model pretrained on FeTA data,
 but other methods can be used.
 """
@@ -27,7 +27,9 @@ from fetal_brain_qc.preprocess import crop_input
 from bids.layout.utils import parse_file_entities
 from bids.layout.writing import build_path
 from joblib import Parallel, delayed
+from tqdm import tqdm
 import numpy as np
+import nibabel as nib
 from fetal_brain_qc.definitions import NNUNET_CKPT
 
 PATTERN = (
@@ -72,9 +74,18 @@ def existing_seg(ents, out_path):
         return None
 
 
-def compute_segmentations(
-    bids_df, out_path, nnunet_res_path, nnunet_env_path, device
-):
+def check_orthonormal_affine(image_path):
+    """Check that the affine of the image is valid (i.e. has orthonormal direction cosines)."""
+    img = nib.load(str(image_path))
+    M = img.affine[:3, :3]
+    vox_sizes = np.sqrt((M**2).sum(axis=0))
+    directions = M / vox_sizes
+    if not np.allclose(directions @ directions.T, np.eye(3), atol=1e-4):
+        return False
+    return True
+
+
+def compute_segmentations(bids_df, out_path, nnunet_res_path, nnunet_env_path, device):
     """Compute segmentation on low resolution clinical acquisitions, using nnUNet
     The segmentation is crops the images, saves them to out_path
     and then runs the nnUNet inference and updates the DataFrame with the segmentation paths.
@@ -92,22 +103,34 @@ def compute_segmentations(
 
     def mask_im(im, mask):
         """Crop the image and mask, save them to out_path and rename them for processing with nnUNet."""
-
-        cropped = crop_input(
-            im, mask, out_path, mask_image=True, save_mask=False
+        cropped_path = os.path.join(
+            out_path, os.path.basename(im).split(".")[0] + "_0000.nii.gz"
         )
+        if not os.path.isfile(cropped_path):
+            cropped = crop_input(im, mask, out_path, mask_image=True, save_mask=False)
+        else:
+            cropped = cropped_path
         if cropped is not None:
             cropped = Path(cropped)
+            if not check_orthonormal_affine(cropped):
+                print(
+                    f"WARNING: {im} has non-orthonormal direction cosines and will be skipped."
+                )
+                os.remove(str(cropped))
+                return
             # Rename the cropped images to the nnUNet format
-            renamed = cropped.parent / (
-                cropped.stem.split(".")[0] + "_0000.nii.gz"
-            )
+            renamed = cropped.parent / (cropped.stem.split(".")[0] + "_0000.nii.gz")
             os.rename(cropped, renamed)
         else:
             # Print a warning if the image could not be cropped
             print(f"WARNING: {im} could not be cropped.")
 
-    print("Cropping images ...", end="")
+    def _mask_im_safe(im, mask):
+        try:
+            return mask_im(im, mask)
+        except Exception as e:
+            raise RuntimeError(f"Failed on im={im}, mask={mask}") from e
+
     list_seg = []
     list_done = []
     for _, row in bids_df.iterrows():
@@ -116,9 +139,10 @@ def compute_segmentations(
             list_seg.append((row["im"], row["mask"]))
         else:
             list_done.append(out)
-    Parallel(n_jobs=4)(delayed(mask_im)(im, mask) for im, mask in list_seg)
-
-    print(" done.")
+    Parallel(n_jobs=4)(
+        delayed(_mask_im_safe)(im, mask)
+        for im, mask in tqdm(list_seg, desc="Cropping images")
+    )
 
     # Run nnUNet inference
     # /home/tsanchez/anaconda3/envs/nnunet/bin/
@@ -159,12 +183,13 @@ def compute_segmentations(
         sub = ents.get("subject", None)
         ses = ents.get("session", None)
         run = ents.get("run", None)
-        sub = sub if isinstance(sub, str) else f"{sub:03d}"
+        run = str(run) if run is not None else None
         seg_path = out_path / build_path(ents, PATTERN)
         os.makedirs(seg_path.parent, exist_ok=True)
         file, seg_path = str(file), str(seg_path)
         seg_out = seg_path.replace("_T2w.nii.gz", "_seg.nii.gz")
         seg_proba = seg_path.replace("_T2w.nii.gz", "_desc-proba_seg.npz")
+
         os.rename(file, seg_out)
         os.rename(
             file.replace("_T2w.nii.gz", "_T2w.pkl"),
@@ -175,6 +200,7 @@ def compute_segmentations(
             file.replace("_T2w.nii.gz", "_T2w_0000.nii.gz"),
             seg_path.replace("_T2w.nii.gz", "_desc-cropped_T2w.nii.gz"),
         )
+
         df = pd.concat(
             [
                 df,
@@ -193,9 +219,7 @@ def compute_segmentations(
         )
 
     # Merge the new dataframe with the bids_df and reorder the columns
-    df[["ses", "run"]] = df[["ses", "run"]].applymap(
-        lambda x: int(x) if x is not None else None
-    )
+    df["ses"] = df["ses"].map(lambda x: int(x) if x is not None else None)
 
     # Keep track of all the subjects for which the segmentation was not successful
     names = df[["sub", "ses", "run"]].apply(
@@ -247,45 +271,44 @@ def load_and_run_segmentation(
     # other cases strings. So we're making everything strings and giving it a consistent naming.
     # This will fail when we have subjects where the subject is actually named sub-1 and not sub-001.
     df["sub"] = df["sub"].apply(
-        lambda x: x
-        if isinstance(x, str) and not x.isdigit()
-        else f"{int(x):03d}"
+        lambda x: x if isinstance(x, str) and not x.isdigit() else f"{int(x):03d}"
     )
-    df[["ses", "run"]] = df[["ses", "run"]].applymap(
-        lambda x: int(x) if pd.notnull(x) else None
-    )
+    df["ses"] = df["ses"].map(lambda x: int(x) if pd.notnull(x) else None)
+    df["run"] = df["run"].map(lambda x: str(x) if pd.notnull(x) else None)
 
-    # Check if the dataframe has a seg column
-    if "seg" in df.columns:
-        # Iterate through the entries of the seg column and check that the path exit
-        for _, row in df.iterrows():
-            name, seg = row["name"], row["seg"]
-
-            if not isinstance(seg, str) and np.isnan(seg):
-                raise NotImplementedError(
-                    f"Segmentation path for {name} is None. The segmentation should be rerun but this is currently not implemented."
-                )
-            if not os.path.exists(seg):
-                raise ValueError(
-                    f"'Seg' column found in {bids_csv}, but the file {seg} was not found."
-                )
-        if out_path is not None:
-            print(
-                "WARNING: out_path is specified but will be ignored as segmentation paths were provided in bids_csv."
-            )
-        print(
-            "Segmentation already computed. All segmentations were found locally. Terminating."
-        )
-    else:
-        df = compute_segmentations(
-            df, out_path, nnunet_res_path, nnunet_env_path, device
-        )
-
-        # Save the dataframe to bids_csv or tsv depending on the extension of bids_csv
+    def _save_df(df):
         if bids_csv.endswith(".csv"):
             df.to_csv(bids_csv, index=False)
         elif bids_csv.endswith(".tsv"):
             df.to_csv(bids_csv, index=False, sep="\t")
+
+    # Check if the dataframe has a seg column
+    if "seg" in df.columns:
+        missing_mask = df["seg"].apply(
+            lambda seg: not isinstance(seg, str) or not os.path.exists(seg)
+        )
+        missing_df = df[missing_mask]
+
+        if not missing_df.empty:
+            print(f"Re-running segmentation for {len(missing_df)} image(s)...")
+            # Drop existing seg/seg_proba so compute_segmentations can merge them cleanly
+            missing_input = missing_df.drop(
+                columns=["seg", "seg_proba"], errors="ignore"
+            )
+            new_segs_df = compute_segmentations(
+                missing_input, out_path, nnunet_res_path, nnunet_env_path, device
+            )
+            df = pd.concat([df[~missing_mask], new_segs_df], ignore_index=True)
+            _save_df(df)
+        else:
+            print(
+                "Segmentation already computed. All segmentations were found locally. Terminating."
+            )
+    else:
+        df = compute_segmentations(
+            df, out_path, nnunet_res_path, nnunet_env_path, device
+        )
+        _save_df(df)
 
     return 0
 
